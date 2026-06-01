@@ -140,6 +140,177 @@ func TestCell_SetDiffOption_shouldStoreOption(t *testing.T) {
 	}
 }
 
+func TestFilled_shouldFillAreaWithCell(t *testing.T) {
+	cell := buffer.NewCell("x")
+	cell.SetStyle(style.NewStyle().Fg(style.Red))
+
+	buf := buffer.Filled(layout.NewRect(0, 0, 2, 2), cell)
+
+	if got, want := buf.Area, layout.NewRect(0, 0, 2, 2); got != want {
+		t.Fatalf("area = %#v, want %#v", got, want)
+	}
+	for i, got := range buf.Cells {
+		if got != cell {
+			t.Fatalf("cell %d = %#v, want %#v", i, got, cell)
+		}
+	}
+}
+
+func TestBuffer_Reset_shouldResetAllCellsButKeepArea(t *testing.T) {
+	area := layout.NewRect(1, 2, 2, 1)
+	buf := buffer.Empty(area)
+	cell := buffer.NewCell("x")
+	cell.SetStyle(style.NewStyle().Fg(style.Red).Bg(style.Blue).AddModifier(style.ModifierBold))
+	cell.SetDiffOption(buffer.CellDiffAlwaysUpdate)
+	cell.SetForcedWidth(3)
+	buf.SetCell(1, 2, cell)
+	buf.SetCell(2, 2, cell)
+
+	buf.Reset()
+
+	if got := buf.Area; got != area {
+		t.Fatalf("area = %#v, want %#v", got, area)
+	}
+	if got, want := len(buf.Cells), area.Width*area.Height; got != want {
+		t.Fatalf("cell count = %d, want %d", got, want)
+	}
+	for i, got := range buf.Cells {
+		if want := buffer.NewCell(" "); got != want {
+			t.Fatalf("cell %d = %#v, want %#v", i, got, want)
+		}
+	}
+}
+
+func TestBuffer_Resize_shouldGrowWithBlankCells(t *testing.T) {
+	buf := buffer.WithLines([]string{"ab"})
+
+	buf.Resize(layout.NewRect(0, 0, 3, 2))
+
+	if got, want := buf.Area, layout.NewRect(0, 0, 3, 2); got != want {
+		t.Fatalf("area = %#v, want %#v", got, want)
+	}
+	if got, want := len(buf.Cells), 6; got != want {
+		t.Fatalf("cell count = %d, want %d", got, want)
+	}
+	for i := 2; i < len(buf.Cells); i++ {
+		if got, want := buf.Cells[i], buffer.NewCell(" "); got != want {
+			t.Fatalf("new cell %d = %#v, want %#v", i, got, want)
+		}
+	}
+}
+
+func TestBuffer_Resize_shouldShrinkCells(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 3, 2))
+
+	buf.Resize(layout.NewRect(0, 0, 2, 1))
+
+	if got, want := buf.Area, layout.NewRect(0, 0, 2, 1); got != want {
+		t.Fatalf("area = %#v, want %#v", got, want)
+	}
+	if got, want := len(buf.Cells), 2; got != want {
+		t.Fatalf("cell count = %d, want %d", got, want)
+	}
+}
+
+func TestBuffer_Merge_shouldUnionAreasAndOverlayOther(t *testing.T) {
+	tests := []struct {
+		name     string
+		one      layout.Rect
+		two      layout.Rect
+		wantArea layout.Rect
+		want     []string
+	}{
+		{
+			name:     "stacked",
+			one:      layout.NewRect(0, 0, 2, 2),
+			two:      layout.NewRect(0, 2, 2, 2),
+			wantArea: layout.NewRect(0, 0, 2, 4),
+			want:     []string{"11", "11", "22", "22"},
+		},
+		{
+			name:     "offset",
+			one:      layout.NewRect(2, 2, 2, 2),
+			two:      layout.NewRect(0, 0, 2, 2),
+			wantArea: layout.NewRect(0, 0, 4, 4),
+			want:     []string{"22  ", "22  ", "  11", "  11"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			one := buffer.Filled(tt.one, buffer.NewCell("1"))
+			two := buffer.Filled(tt.two, buffer.NewCell("2"))
+
+			one.Merge(two)
+
+			if got := one.Area; got != tt.wantArea {
+				t.Fatalf("area = %#v, want %#v", got, tt.wantArea)
+			}
+			if got := one.Lines(); !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("lines = %#v, want %#v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBuffer_Merge_shouldHandleOffset(t *testing.T) {
+	one := buffer.Filled(layout.NewRect(3, 3, 2, 2), buffer.NewCell("1"))
+	two := buffer.Filled(layout.NewRect(1, 1, 3, 4), buffer.NewCell("2"))
+
+	one.Merge(two)
+
+	if got, want := one.Area, layout.NewRect(1, 1, 4, 4); got != want {
+		t.Fatalf("area = %#v, want %#v", got, want)
+	}
+	if got, want := one.Lines(), []string{"222 ", "222 ", "2221", "2221"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("lines = %#v, want %#v", got, want)
+	}
+}
+
+func TestBuffer_Merge_shouldPreserveDiffOptions(t *testing.T) {
+	oneCell := buffer.NewCell("1")
+	oneCell.SetDiffOption(buffer.CellDiffSkip)
+	oneCell.SetForcedWidth(2)
+	oneCell.SetStyle(style.NewStyle().Fg(style.Red))
+	twoCell := buffer.NewCell("2")
+	twoCell.SetDiffOption(buffer.CellDiffAlwaysUpdate)
+	twoCell.SetForcedWidth(3)
+	twoCell.SetStyle(style.NewStyle().Bg(style.Blue))
+	one := buffer.Filled(layout.NewRect(0, 0, 2, 2), oneCell)
+	two := buffer.Filled(layout.NewRect(0, 1, 2, 2), twoCell)
+
+	one.Merge(two)
+
+	cases := []struct {
+		x, y int
+		want buffer.Cell
+	}{
+		{x: 0, y: 0, want: oneCell},
+		{x: 0, y: 1, want: twoCell},
+		{x: 0, y: 2, want: twoCell},
+	}
+	for _, tt := range cases {
+		got, ok := one.CellAt(tt.x, tt.y)
+		if !ok {
+			t.Fatalf("missing cell at %d,%d", tt.x, tt.y)
+		}
+		if got != tt.want {
+			t.Fatalf("cell at %d,%d = %#v, want %#v", tt.x, tt.y, got, tt.want)
+		}
+	}
+}
+
+func TestBuffer_Merge_shouldMakeDiffIdempotent(t *testing.T) {
+	prev := buffer.Filled(layout.NewRect(0, 0, 2, 2), buffer.NewCell("1"))
+	next := buffer.Filled(layout.NewRect(0, 0, 2, 2), buffer.NewCell("2"))
+
+	prev.Merge(next)
+
+	if diff := prev.Diff(next); len(diff) != 0 {
+		t.Fatalf("diff = %#v, want empty", diff)
+	}
+}
+
 func TestBuffer_Lines_shouldSkipHiddenFlagEmojiCell(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 3, 1))
 	buf.SetSymbol(0, 0, "🇺🇸")

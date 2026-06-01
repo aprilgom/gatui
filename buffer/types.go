@@ -83,9 +83,13 @@ func (c *Cell) SetForcedWidth(width int) {
 }
 
 func Empty(area layout.Rect) *Buffer {
+	return Filled(area, NewCell(" "))
+}
+
+func Filled(area layout.Rect, cell Cell) *Buffer {
 	cells := make([]Cell, area.Width*area.Height)
 	for i := range cells {
-		cells[i] = NewCell(" ")
+		cells[i] = cell
 	}
 	return &Buffer{Area: area, Cells: cells}
 }
@@ -159,6 +163,65 @@ func (b *Buffer) SetModifier(area layout.Rect, modifier style.Modifier) {
 	b.SetStyle(area, style.NewStyle().AddModifier(modifier))
 }
 
+func (b *Buffer) Reset() {
+	if b == nil {
+		return
+	}
+	for i := range b.Cells {
+		b.Cells[i].Reset()
+	}
+}
+
+func (b *Buffer) Resize(area layout.Rect) {
+	if b == nil {
+		return
+	}
+	length := area.Width * area.Height
+	if len(b.Cells) > length {
+		b.Cells = b.Cells[:length]
+	} else {
+		for len(b.Cells) < length {
+			b.Cells = append(b.Cells, NewCell(" "))
+		}
+	}
+	b.Area = area
+}
+
+func (b *Buffer) Merge(other *Buffer) {
+	if b == nil || other == nil {
+		return
+	}
+	area := unionRect(b.Area, other.Area)
+	cells := make([]Cell, area.Width*area.Height)
+	for i := range cells {
+		cells[i] = NewCell(" ")
+	}
+
+	for y := b.Area.Y; y < b.Area.Y+b.Area.Height; y++ {
+		for x := b.Area.X; x < b.Area.X+b.Area.Width; x++ {
+			cell, ok := b.CellAt(x, y)
+			if !ok {
+				continue
+			}
+			index := (y-area.Y)*area.Width + (x - area.X)
+			cells[index] = cell
+		}
+	}
+	for y := other.Area.Y; y < other.Area.Y+other.Area.Height; y++ {
+		for x := other.Area.X; x < other.Area.X+other.Area.Width; x++ {
+			cell, ok := other.CellAt(x, y)
+			if !ok {
+				continue
+			}
+			index := (y-area.Y)*area.Width + (x - area.X)
+			cells[index] = cell
+		}
+	}
+
+	b.Area = area
+	b.Cells = cells
+}
+
 func (b *Buffer) Diff(next *Buffer) []CellDiff {
 	if b.Area.X != next.Area.X || b.Area.Y != next.Area.Y || b.Area.Width != next.Area.Width {
 		panic("buffer areas must have the same x, y, and width")
@@ -218,4 +281,32 @@ func (b *Buffer) Lines() []string {
 		lines[y] = builder.String()
 	}
 	return lines
+}
+
+func unionRect(a, b layout.Rect) layout.Rect {
+	if a.Width == 0 || a.Height == 0 {
+		return b
+	}
+	if b.Width == 0 || b.Height == 0 {
+		return a
+	}
+	x1 := minInt(a.X, b.X)
+	y1 := minInt(a.Y, b.Y)
+	x2 := maxInt(a.X+a.Width, b.X+b.Width)
+	y2 := maxInt(a.Y+a.Height, b.Y+b.Height)
+	return layout.NewRect(x1, y1, x2-x1, y2-y1)
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
