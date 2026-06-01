@@ -631,6 +631,140 @@ func TestLine_Render_shouldRespectAlignmentAndTruncation(t *testing.T) {
 	}
 }
 
+func TestLine_Render_shouldTruncateEmojiLeftAlignment(t *testing.T) {
+	tests := []struct {
+		width int
+		want  string
+	}{
+		{width: 4, want: "1234"},
+		{width: 5, want: "1234 "},
+		{width: 6, want: "1234🦀"},
+		{width: 7, want: "1234🦀7"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			buf := buffer.Empty(layout.NewRect(0, 0, tt.width, 1))
+
+			text.LineFromString("1234🦀7890").Left().Render(buf.Area, buf)
+
+			assertTextLines(t, buf, []string{tt.want})
+		})
+	}
+}
+
+func TestLine_Render_shouldTruncateEmojiRightAlignment(t *testing.T) {
+	tests := []struct {
+		width int
+		want  string
+	}{
+		{width: 4, want: "7890"},
+		{width: 5, want: " 7890"},
+		{width: 6, want: "🦀7890"},
+		{width: 7, want: "4🦀7890"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			buf := buffer.Empty(layout.NewRect(0, 0, tt.width, 1))
+
+			text.LineFromString("1234🦀7890").Right().Render(buf.Area, buf)
+
+			assertTextLines(t, buf, []string{tt.want})
+		})
+	}
+}
+
+func TestLine_Render_shouldTruncateEmojiCenterAlignment(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		width   int
+		want    string
+	}{
+		{name: "ab crab cd width 1", content: "ab🦀cd", width: 1, want: " "},
+		{name: "ab crab cd width 2", content: "ab🦀cd", width: 2, want: "🦀"},
+		{name: "ab crab cd width 3", content: "ab🦀cd", width: 3, want: "b🦀"},
+		{name: "ab crab cd width 4", content: "ab🦀cd", width: 4, want: "b🦀c"},
+		{name: "ab crab cdef width 2", content: "ab🦀cdef", width: 2, want: " c"},
+		{name: "ab crab cdef width 3", content: "ab🦀cdef", width: 3, want: "🦀c"},
+		{name: "ab crab cdef width 5", content: "ab🦀cdef", width: 5, want: "b🦀cd"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := buffer.Empty(layout.NewRect(0, 0, tt.width, 1))
+
+			text.LineFromString(tt.content).Center().Render(buf.Area, buf)
+
+			assertTextLines(t, buf, []string{tt.want})
+		})
+	}
+}
+
+func TestLine_Render_shouldTruncateAwayFromOriginWithoutOverwritingOutsideArea(t *testing.T) {
+	tests := []struct {
+		name      string
+		alignment layout.Alignment
+		want      string
+	}{
+		{name: "left", alignment: layout.Left, want: "XXa🦀bcXXX"},
+		{name: "center", alignment: layout.Center, want: "XX🦀bc🦀XX"},
+		{name: "right", alignment: layout.Right, want: "XXXbc🦀dXX"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := buffer.WithLines([]string{"XXXXXXXXXX"})
+			line := text.NewLine(text.NewSpan("a🦀b"), text.NewSpan("c🦀d"))
+			switch tt.alignment {
+			case layout.Center:
+				line = line.Center()
+			case layout.Right:
+				line = line.Right()
+			default:
+				line = line.Left()
+			}
+
+			line.Render(layout.NewRect(2, 0, 6, 1), buf)
+
+			assertTextLines(t, buf, []string{tt.want})
+		})
+	}
+}
+
+func TestLine_Render_shouldRightAlignMultiSpanWithWideRuneSkip(t *testing.T) {
+	tests := []struct {
+		width int
+		want  string
+	}{
+		{width: 4, want: "c🦀d"},
+		{width: 5, want: "bc🦀d"},
+		{width: 6, want: " bc🦀d"},
+		{width: 7, want: "🦀bc🦀d"},
+		{width: 8, want: "a🦀bc🦀d"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			buf := buffer.Empty(layout.NewRect(0, 0, tt.width, 1))
+			line := text.NewLine(text.NewSpan("a🦀b"), text.NewSpan("c🦀d")).Right()
+
+			line.Render(buf.Area, buf)
+
+			assertTextLines(t, buf, []string{tt.want})
+		})
+	}
+}
+
+func TestLine_Render_shouldIgnoreNewlines(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 11, 1))
+
+	text.LineFromString("Hello\nworld!").Render(buf.Area, buf)
+
+	assertTextLines(t, buf, []string{"Helloworld!"})
+}
+
 func TestLine_RenderWithAlignment_shouldUseFallbackWhenLineAlignmentAbsent(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 5, 1))
 	fallback := layout.Right

@@ -395,6 +395,7 @@ func renderSpan(span Span, area layout.Rect, buf *buffer.Buffer, skipWidth int) 
 			continue
 		}
 		if skipWidth > 0 {
+			x += width - skipWidth
 			skipWidth = 0
 			continue
 		}
