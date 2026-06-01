@@ -83,12 +83,15 @@ type TableRow struct {
 }
 
 type Table struct {
-	rows          []TableRow
-	widths        []layout.Constraint
-	header        *TableRow
-	block         *Block
-	columnSpacing int
-	style         style.Style
+	rows              []TableRow
+	widths            []layout.Constraint
+	header            *TableRow
+	block             *Block
+	columnSpacing     int
+	style             style.Style
+	rowHighlightStyle style.Style
+	highlightSymbol   string
+	highlightSpacing  HighlightSpacing
 }
 
 type GraphType int
@@ -259,12 +262,50 @@ func (r TableRow) Style(rowStyle style.Style) TableRow {
 	return r
 }
 
+type TableState struct {
+	offset   int
+	selected *int
+}
+
+func NewTableState() TableState {
+	return TableState{}
+}
+
+func (s *TableState) Select(index int) {
+	s.selected = &index
+}
+
+func (s *TableState) ClearSelection() {
+	s.selected = nil
+	s.offset = 0
+}
+
+func (s TableState) Selected() (int, bool) {
+	if s.selected == nil {
+		return 0, false
+	}
+	return *s.selected, true
+}
+
+func (s TableState) Offset() int {
+	return s.offset
+}
+
+func (s *TableState) SetOffset(offset int) {
+	if offset < 0 {
+		offset = 0
+	}
+	s.offset = offset
+}
+
 func NewTable(rows []TableRow, widths []layout.Constraint) Table {
 	return Table{
-		rows:          append([]TableRow(nil), rows...),
-		widths:        append([]layout.Constraint(nil), widths...),
-		columnSpacing: 1,
-		style:         style.NewStyle(),
+		rows:              append([]TableRow(nil), rows...),
+		widths:            append([]layout.Constraint(nil), widths...),
+		columnSpacing:     1,
+		style:             style.NewStyle(),
+		rowHighlightStyle: style.NewStyle(),
+		highlightSpacing:  HighlightSpacingWhenSelected,
 	}
 }
 
@@ -288,7 +329,27 @@ func (t Table) Style(tableStyle style.Style) Table {
 	return t
 }
 
+func (t Table) HighlightSymbol(symbol string) Table {
+	t.highlightSymbol = symbol
+	return t
+}
+
+func (t Table) HighlightSpacing(spacing HighlightSpacing) Table {
+	t.highlightSpacing = spacing
+	return t
+}
+
+func (t Table) RowHighlightStyle(rowHighlightStyle style.Style) Table {
+	t.rowHighlightStyle = rowHighlightStyle
+	return t
+}
+
 func (t Table) Render(area layout.Rect, buf *buffer.Buffer) {
+	state := TableState{}
+	t.RenderStateful(area, buf, &state)
+}
+
+func (t Table) RenderStateful(area layout.Rect, buf *buffer.Buffer, state *TableState) {
 	if area.Width == 0 || area.Height == 0 {
 		return
 	}
@@ -301,19 +362,143 @@ func (t Table) Render(area layout.Rect, buf *buffer.Buffer) {
 	if tableArea.Width == 0 || tableArea.Height == 0 {
 		return
 	}
-	widths := t.resolveColumnWidths(tableArea.Width)
+	if state == nil {
+		state = &TableState{}
+	}
+	t.clampState(state)
+
+	selected := state.selected != nil
+	addSpacing := t.highlightSpacing.shouldAdd(selected)
+	symbolWidth := len([]rune(t.highlightSymbol))
+	rowArea := tableArea
+	if addSpacing {
+		rowArea.X += symbolWidth
+		if rowArea.Width >= symbolWidth {
+			rowArea.Width -= symbolWidth
+		} else {
+			rowArea.Width = 0
+		}
+	}
+	widths := t.resolveColumnWidths(rowArea.Width)
 	y := tableArea.Y
 	if t.header != nil {
-		y = t.renderRow(*t.header, widths, tableArea, y, buf)
+		y = t.renderRow(*t.header, widths, rowArea, y, buf)
 		y += t.header.bottomMargin
 	}
-	for _, row := range t.rows {
+
+	bodyHeight := tableArea.Y + tableArea.Height - y
+	first, last := t.visibleBounds(state, bodyHeight)
+	state.offset = first
+	for index := first; index < last; index++ {
 		if y >= tableArea.Y+tableArea.Height {
 			return
 		}
-		y = t.renderRow(row, widths, tableArea, y, buf)
+		row := t.rows[index]
+		rowHeight := normalizedRowHeight(row)
+		drawHeight := minInt(rowHeight, tableArea.Y+tableArea.Height-y)
+		baseRowArea := layout.NewRect(tableArea.X, y, tableArea.Width, drawHeight)
+		isSelected := state.selected != nil && *state.selected == index
+		y = t.renderRow(row, widths, rowArea, y, buf)
+		if isSelected {
+			buf.SetStyle(baseRowArea, t.rowHighlightStyle)
+		}
+		if addSpacing && symbolWidth > 0 {
+			symbol := strings.Repeat(" ", symbolWidth)
+			symbolStyle := t.style
+			if isSelected {
+				symbol = t.highlightSymbol
+				symbolStyle = t.style.Patch(t.rowHighlightStyle)
+			}
+			writeString(buf, tableArea.X, baseRowArea.Y, symbol, symbolWidth, symbolStyle)
+			for line := 1; line < drawHeight; line++ {
+				blankStyle := t.style
+				if isSelected {
+					blankStyle = t.style.Patch(t.rowHighlightStyle)
+				}
+				writeString(buf, tableArea.X, baseRowArea.Y+line, strings.Repeat(" ", symbolWidth), symbolWidth, blankStyle)
+			}
+		}
 		y += row.bottomMargin
 	}
+}
+
+func (t Table) clampState(state *TableState) {
+	if len(t.rows) == 0 {
+		state.ClearSelection()
+		return
+	}
+	if state.offset >= len(t.rows) {
+		state.offset = len(t.rows) - 1
+	}
+	if state.offset < 0 {
+		state.offset = 0
+	}
+	if state.selected != nil {
+		selected := *state.selected
+		if selected < 0 {
+			selected = 0
+		}
+		if selected >= len(t.rows) {
+			selected = len(t.rows) - 1
+		}
+		state.selected = &selected
+	}
+}
+
+func (t Table) visibleBounds(state *TableState, height int) (int, int) {
+	if height <= 0 || len(t.rows) == 0 {
+		return 0, 0
+	}
+	offset := state.offset
+	if offset > len(t.rows)-1 {
+		offset = len(t.rows) - 1
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	first := offset
+	last := offset
+	usedHeight := 0
+	for last < len(t.rows) {
+		rowHeight := normalizedRowHeight(t.rows[last])
+		if usedHeight+rowHeight > height {
+			break
+		}
+		usedHeight += rowHeight
+		last++
+	}
+	if last == first {
+		last = first + 1
+		usedHeight = normalizedRowHeight(t.rows[first])
+	}
+	indexToDisplay := offset
+	if state.selected != nil {
+		indexToDisplay = *state.selected
+	}
+	for indexToDisplay >= last && last < len(t.rows) {
+		usedHeight += normalizedRowHeight(t.rows[last])
+		last++
+		for usedHeight > height && first < last {
+			usedHeight -= normalizedRowHeight(t.rows[first])
+			first++
+		}
+	}
+	for indexToDisplay < first && first > 0 {
+		first--
+		usedHeight += normalizedRowHeight(t.rows[first])
+		for usedHeight > height && last > first {
+			last--
+			usedHeight -= normalizedRowHeight(t.rows[last])
+		}
+	}
+	return first, last
+}
+
+func normalizedRowHeight(row TableRow) int {
+	if row.height <= 0 {
+		return 1
+	}
+	return row.height
 }
 
 func (t Table) resolveColumnWidths(width int) []int {
@@ -484,7 +669,7 @@ func (t Table) renderRow(row TableRow, widths []int, area layout.Rect, y int, bu
 			if column > 0 {
 				x += t.columnSpacing
 			}
-			if width > 0 && column < len(row.cells) {
+			if line == 0 && width > 0 && column < len(row.cells) {
 				t.renderCell(row.cells[column], row.style, x, y+line, area.X+area.Width, width, buf)
 			}
 			x += width

@@ -425,6 +425,259 @@ func TestTable_shouldPatchRowAndCellStyles(t *testing.T) {
 	assertCellStyle(t, buf, 2, 0, style.NewStyle().Fg(style.Cyan).Bg(style.Yellow))
 }
 
+func TestTableState_ClearSelection_shouldResetOffset(t *testing.T) {
+	state := widgets.NewTableState()
+	state.Select(2)
+	state.SetOffset(3)
+
+	state.ClearSelection()
+
+	if _, ok := state.Selected(); ok {
+		t.Fatal("expected selection to be cleared")
+	}
+	if got := state.Offset(); got != 0 {
+		t.Fatalf("offset = %d, want 0", got)
+	}
+}
+
+func TestTable_shouldRenderMultilineRowsWithSelection(t *testing.T) {
+	tests := []struct {
+		name     string
+		selected *int
+		expected []string
+	}{
+		{
+			name: "none",
+			expected: []string{
+				"┌────────────────────────────┐",
+				"│Head1 Head2 Head3           │",
+				"│                            │",
+				"│Row11 Row12 Row13           │",
+				"│Row21 Row22 Row23           │",
+				"│                            │",
+				"│Row31 Row32 Row33           │",
+				"└────────────────────────────┘",
+			},
+		},
+		{
+			name:     "first",
+			selected: intPtr(0),
+			expected: []string{
+				"┌────────────────────────────┐",
+				"│   Head1 Head2 Head3        │",
+				"│                            │",
+				"│>> Row11 Row12 Row13        │",
+				"│   Row21 Row22 Row23        │",
+				"│                            │",
+				"│   Row31 Row32 Row33        │",
+				"└────────────────────────────┘",
+			},
+		},
+		{
+			name:     "second",
+			selected: intPtr(1),
+			expected: []string{
+				"┌────────────────────────────┐",
+				"│   Head1 Head2 Head3        │",
+				"│                            │",
+				"│   Row11 Row12 Row13        │",
+				"│>> Row21 Row22 Row23        │",
+				"│                            │",
+				"│   Row31 Row32 Row33        │",
+				"└────────────────────────────┘",
+			},
+		},
+		{
+			name:     "fourth",
+			selected: intPtr(3),
+			expected: []string{
+				"┌────────────────────────────┐",
+				"│   Head1 Head2 Head3        │",
+				"│                            │",
+				"│   Row31 Row32 Row33        │",
+				"│>> Row41 Row42 Row43        │",
+				"│                            │",
+				"│                            │",
+				"└────────────────────────────┘",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := buffer.Empty(layout.NewRect(0, 0, 30, 8))
+			state := widgets.NewTableState()
+			if tt.selected != nil {
+				state.Select(*tt.selected)
+			}
+
+			multilineTable().RenderStateful(buf.Area, buf, &state)
+
+			assertLines(t, buf, tt.expected)
+		})
+	}
+}
+
+func TestTable_shouldRespectHighlightSpacing(t *testing.T) {
+	tests := []struct {
+		name     string
+		selected *int
+		spacing  widgets.HighlightSpacing
+		expected []string
+	}{
+		{name: "none when selected", spacing: widgets.HighlightSpacingWhenSelected, expected: []string{
+			"┌────────────────────────────┐",
+			"│Head1 Head2 Head3           │",
+			"│                            │",
+			"│Row11 Row12 Row13           │",
+			"│Row21 Row22 Row23           │",
+			"│                            │",
+			"│Row31 Row32 Row33           │",
+			"└────────────────────────────┘",
+		}},
+		{name: "none always", spacing: widgets.HighlightSpacingAlways, expected: []string{
+			"┌────────────────────────────┐",
+			"│   Head1 Head2 Head3        │",
+			"│                            │",
+			"│   Row11 Row12 Row13        │",
+			"│   Row21 Row22 Row23        │",
+			"│                            │",
+			"│   Row31 Row32 Row33        │",
+			"└────────────────────────────┘",
+		}},
+		{name: "none never", spacing: widgets.HighlightSpacingNever, expected: []string{
+			"┌────────────────────────────┐",
+			"│Head1 Head2 Head3           │",
+			"│                            │",
+			"│Row11 Row12 Row13           │",
+			"│Row21 Row22 Row23           │",
+			"│                            │",
+			"│Row31 Row32 Row33           │",
+			"└────────────────────────────┘",
+		}},
+		{name: "first when selected", selected: intPtr(0), spacing: widgets.HighlightSpacingWhenSelected, expected: []string{
+			"┌────────────────────────────┐",
+			"│   Head1 Head2 Head3        │",
+			"│                            │",
+			"│>> Row11 Row12 Row13        │",
+			"│   Row21 Row22 Row23        │",
+			"│                            │",
+			"│   Row31 Row32 Row33        │",
+			"└────────────────────────────┘",
+		}},
+		{name: "first always", selected: intPtr(0), spacing: widgets.HighlightSpacingAlways, expected: []string{
+			"┌────────────────────────────┐",
+			"│   Head1 Head2 Head3        │",
+			"│                            │",
+			"│>> Row11 Row12 Row13        │",
+			"│   Row21 Row22 Row23        │",
+			"│                            │",
+			"│   Row31 Row32 Row33        │",
+			"└────────────────────────────┘",
+		}},
+		{name: "first never", selected: intPtr(0), spacing: widgets.HighlightSpacingNever, expected: []string{
+			"┌────────────────────────────┐",
+			"│Head1 Head2 Head3           │",
+			"│                            │",
+			"│Row11 Row12 Row13           │",
+			"│Row21 Row22 Row23           │",
+			"│                            │",
+			"│Row31 Row32 Row33           │",
+			"└────────────────────────────┘",
+		}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := buffer.Empty(layout.NewRect(0, 0, 30, 8))
+			state := widgets.NewTableState()
+			if tt.selected != nil {
+				state.Select(*tt.selected)
+			}
+
+			multilineTable().HighlightSpacing(tt.spacing).RenderStateful(buf.Area, buf, &state)
+
+			assertLines(t, buf, tt.expected)
+		})
+	}
+}
+
+func TestTable_shouldClampOffsetWhenRowsAreRemoved(t *testing.T) {
+	state := widgets.NewTableState()
+	state.Select(5)
+	state.SetOffset(5)
+	rows := []widgets.TableRow{
+		widgets.TableRowFromStrings([]string{"Row1"}),
+		widgets.TableRowFromStrings([]string{"Row2"}),
+		widgets.TableRowFromStrings([]string{"Row3"}),
+		widgets.TableRowFromStrings([]string{"Row4"}),
+		widgets.TableRowFromStrings([]string{"Row5"}),
+		widgets.TableRowFromStrings([]string{"Row6"}),
+	}
+	widgets.NewTable(rows, []layout.Constraint{layout.Length(4)}).RenderStateful(layout.NewRect(0, 0, 6, 2), buffer.Empty(layout.NewRect(0, 0, 6, 2)), &state)
+
+	widgets.NewTable(rows[:1], []layout.Constraint{layout.Length(4)}).RenderStateful(layout.NewRect(0, 0, 6, 2), buffer.Empty(layout.NewRect(0, 0, 6, 2)), &state)
+
+	if selected, ok := state.Selected(); !ok || selected != 0 {
+		t.Fatalf("selected = %d, %v; want 0, true", selected, ok)
+	}
+	if got := state.Offset(); got != 0 {
+		t.Fatalf("offset = %d, want 0", got)
+	}
+}
+
+func TestTable_shouldNotPanicWithSelectedFirstRowAndPercentageColumns(t *testing.T) {
+	state := widgets.NewTableState()
+	state.Select(0)
+	table := widgets.NewTable([]widgets.TableRow{
+		widgets.TableRowFromStrings([]string{"Row11", "Row12", "Row13"}),
+	}, []layout.Constraint{
+		layout.Percentage(50),
+		layout.Percentage(50),
+		layout.Percentage(50),
+	}).HighlightSymbol(">> ")
+
+	assertNotPanics(t, func() {
+		table.RenderStateful(layout.NewRect(0, 0, 3, 1), buffer.Empty(layout.NewRect(0, 0, 3, 1)), &state)
+	})
+}
+
+func TestTable_RenderStateful_shouldHandleNilState(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 12, 1))
+
+	widgets.NewTable([]widgets.TableRow{
+		widgets.TableRowFromStrings([]string{"Row11"}),
+	}, []layout.Constraint{layout.Length(5)}).RenderStateful(buf.Area, buf, nil)
+
+	assertLines(t, buf, []string{"Row11       "})
+}
+
+func TestTable_RenderStateful_shouldClampSelectedIndex(t *testing.T) {
+	tests := []struct {
+		name     string
+		selected int
+		want     int
+	}{
+		{name: "negative", selected: -10, want: 0},
+		{name: "past end", selected: 99, want: 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			state := widgets.NewTableState()
+			state.Select(tt.selected)
+
+			widgets.NewTable([]widgets.TableRow{
+				widgets.TableRowFromStrings([]string{"Row1"}),
+				widgets.TableRowFromStrings([]string{"Row2"}),
+			}, []layout.Constraint{layout.Length(4)}).RenderStateful(layout.NewRect(0, 0, 6, 2), buffer.Empty(layout.NewRect(0, 0, 6, 2)), &state)
+
+			if selected, ok := state.Selected(); !ok || selected != tt.want {
+				t.Fatalf("selected = %d, %v; want %d, true", selected, ok, tt.want)
+			}
+		})
+	}
+}
+
 func tableFixture(widths []layout.Constraint) widgets.Table {
 	return widgets.NewTable([]widgets.TableRow{
 		widgets.TableRowFromStrings([]string{"Row11", "Row12", "Row13"}),
@@ -434,4 +687,21 @@ func tableFixture(widths []layout.Constraint) widgets.Table {
 	}, widths).
 		Header(widgets.TableRowFromStrings([]string{"Head1", "Head2", "Head3"}).BottomMargin(1)).
 		Block(widgets.BorderedBlock())
+}
+
+func multilineTable() widgets.Table {
+	return widgets.NewTable([]widgets.TableRow{
+		widgets.TableRowFromStrings([]string{"Row11", "Row12", "Row13"}),
+		widgets.TableRowFromStrings([]string{"Row21", "Row22", "Row23"}).Height(2),
+		widgets.TableRowFromStrings([]string{"Row31", "Row32", "Row33"}),
+		widgets.TableRowFromStrings([]string{"Row41", "Row42", "Row43"}).Height(2),
+	}, []layout.Constraint{
+		layout.Length(5),
+		layout.Length(5),
+		layout.Length(5),
+	}).
+		Header(widgets.TableRowFromStrings([]string{"Head1", "Head2", "Head3"}).BottomMargin(1)).
+		Block(widgets.BorderedBlock()).
+		HighlightSymbol(">> ").
+		ColumnSpacing(1)
 }
