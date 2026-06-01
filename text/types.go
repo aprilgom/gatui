@@ -54,42 +54,44 @@ func (s Span) LightBlue() Span {
 
 type Line struct {
 	Spans     []Span
+	LineStyle style.Style
 	Alignment *layout.Alignment
 }
 
 func NewLine(spans ...Span) Line {
-	return Line{Spans: append([]Span(nil), spans...)}
+	return Line{Spans: append([]Span(nil), spans...), LineStyle: style.NewStyle()}
 }
 
 func LineFromString(content string) Line {
 	return NewLine(NewSpan(content))
 }
 
+func StyledLine(content string, lineStyle style.Style) Line {
+	return LineFromString(content).Style(lineStyle)
+}
+
+func (l Line) Style(lineStyle style.Style) Line {
+	l.LineStyle = lineStyle
+	return l
+}
+
 func (l Line) Fg(color style.Color) Line {
-	for i := range l.Spans {
-		l.Spans[i] = l.Spans[i].Fg(color)
-	}
+	l.LineStyle = l.LineStyle.Fg(color)
 	return l
 }
 
 func (l Line) Bg(color style.Color) Line {
-	for i := range l.Spans {
-		l.Spans[i] = l.Spans[i].Bg(color)
-	}
+	l.LineStyle = l.LineStyle.Bg(color)
 	return l
 }
 
 func (l Line) Bold() Line {
-	for i := range l.Spans {
-		l.Spans[i] = l.Spans[i].Bold()
-	}
+	l.LineStyle = l.LineStyle.AddModifier(style.ModifierBold)
 	return l
 }
 
 func (l Line) Italic() Line {
-	for i := range l.Spans {
-		l.Spans[i] = l.Spans[i].Italic()
-	}
+	l.LineStyle = l.LineStyle.AddModifier(style.ModifierItalic)
 	return l
 }
 

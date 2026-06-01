@@ -52,8 +52,9 @@ func maxInt(a, b int) int {
 func cellsFromLine(line text.Line) []buffer.Cell {
 	var cells []buffer.Cell
 	for _, span := range line.Spans {
+		cellStyle := line.LineStyle.Patch(span.Style)
 		for _, r := range span.Content {
-			cells = append(cells, buffer.Cell{Symbol: string(r), Style: span.Style})
+			cells = append(cells, buffer.Cell{Symbol: string(r), Style: cellStyle})
 		}
 	}
 	return cells

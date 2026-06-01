@@ -23,10 +23,22 @@ func TestLine_shouldSupportStylizeAndAlignmentHelpers(t *testing.T) {
 	got := text.LineFromString("hello").Cyan().Bold().Right()
 	wantStyle := style.NewStyle().Fg(style.Cyan).AddModifier(style.ModifierBold)
 
-	if got.Spans[0].Style != wantStyle {
-		t.Fatalf("style = %#v, want %#v", got.Spans[0].Style, wantStyle)
+	if got.LineStyle != wantStyle {
+		t.Fatalf("style = %#v, want %#v", got.LineStyle, wantStyle)
 	}
 	if got.Alignment == nil || *got.Alignment != layout.Right {
 		t.Fatalf("alignment = %#v, want Right", got.Alignment)
+	}
+}
+
+func TestLineStylize_shouldUpdateLineStyle(t *testing.T) {
+	got := text.LineFromString("hi").Cyan().Bold()
+	wantStyle := style.NewStyle().Fg(style.Cyan).AddModifier(style.ModifierBold)
+
+	if got.LineStyle != wantStyle {
+		t.Fatalf("style = %#v, want %#v", got.LineStyle, wantStyle)
+	}
+	if got.Spans[0].Style != style.NewStyle() {
+		t.Fatalf("span style = %#v, want default", got.Spans[0].Style)
 	}
 }

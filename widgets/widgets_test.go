@@ -51,6 +51,47 @@ func TestParagraph_shouldPatchSpanStyleOverWidgetStyle(t *testing.T) {
 	assertCellStyle(t, buf, 2, 0, style.NewStyle().Fg(style.Yellow).Bg(style.Green))
 }
 
+func TestParagraph_shouldRenderStyledLines(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 11, 4))
+	paragraph := widgets.NewParagraph(text.NewText(
+		text.LineFromString("unformatted"),
+		text.StyledLine("bold text", style.NewStyle().AddModifier(style.ModifierBold)),
+		text.StyledLine("cyan text", style.NewStyle().Fg(style.Cyan)),
+		text.StyledLine("dim text", style.NewStyle().AddModifier(style.ModifierDim)),
+	))
+
+	paragraph.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"unformatted",
+		"bold text  ",
+		"cyan text  ",
+		"dim text   ",
+	})
+	for x := 0; x < len("bold text"); x++ {
+		assertCellStyle(t, buf, x, 1, style.NewStyle().AddModifier(style.ModifierBold))
+	}
+	for x := 0; x < len("cyan text"); x++ {
+		assertCellStyle(t, buf, x, 2, style.NewStyle().Fg(style.Cyan))
+	}
+	for x := 0; x < len("dim text"); x++ {
+		assertCellStyle(t, buf, x, 3, style.NewStyle().AddModifier(style.ModifierDim))
+	}
+}
+
+func TestParagraph_shouldPatchSpanStyleOverLineStyle(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 5, 1))
+	line := text.NewLine(text.StyledSpan("hi", style.NewStyle().Fg(style.Red))).
+		Style(style.NewStyle().Fg(style.Yellow).Bg(style.Green))
+	paragraph := widgets.NewParagraph(text.NewText(line))
+
+	paragraph.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"hi   "})
+	assertCellStyle(t, buf, 0, 0, style.NewStyle().Fg(style.Red).Bg(style.Green))
+	assertCellStyle(t, buf, 1, 0, style.NewStyle().Fg(style.Red).Bg(style.Green))
+}
+
 func TestParagraph_shouldApplyWidgetStyleBehindBlock(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 5, 3))
 	paragraph := widgets.NewParagraph(text.FromString("")).
