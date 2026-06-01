@@ -461,6 +461,29 @@ func TestTerminal_Frame_doesNotAutoresizeOrFlush(t *testing.T) {
 	}
 }
 
+func TestFrame_Size_returnsFrameAreaSize(t *testing.T) {
+	area := layout.NewRect(2, 1, 4, 3)
+	term, err := terminal.NewWithOptions(newRecordingBackend(10, 5), terminal.TerminalOptions{
+		Viewport: terminal.FixedViewport(area),
+	})
+	if err != nil {
+		t.Fatalf("NewWithOptions returned error: %v", err)
+	}
+
+	completed, err := term.Draw(func(frame *terminal.Frame) {
+		if got, want := frame.Size(), (layout.Size{Width: 4, Height: 3}); got != want {
+			t.Fatalf("frame size = %#v, want %#v", got, want)
+		}
+	})
+	if err != nil {
+		t.Fatalf("Draw returned error: %v", err)
+	}
+
+	if got, want := completed.Area, area; got != want {
+		t.Fatalf("completed area = %#v, want %#v", got, want)
+	}
+}
+
 func TestTerminal_Draw_shouldOnlySendChangedCellsOnSecondDraw(t *testing.T) {
 	backend := newRecordingBackend(3, 1)
 	term, err := terminal.New(backend)
@@ -831,6 +854,64 @@ func TestTerminal_Flush_shouldDrawCurrentDiffOnly(t *testing.T) {
 	}
 	if got := backend.flushCount; got != 0 {
 		t.Fatalf("backend flush count = %d, want 0", got)
+	}
+}
+
+func TestTerminal_CurrentBuffer_returnsCurrentRenderBuffer(t *testing.T) {
+	term, err := terminal.New(newRecordingBackend(3, 2))
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+
+	frame := term.Frame()
+
+	if got, want := term.CurrentBuffer(), frame.Buffer(); got != want {
+		t.Fatalf("current buffer = %p, want frame buffer %p", got, want)
+	}
+}
+
+func TestTerminal_CurrentBuffer_changesBecomeVisibleAfterFlush(t *testing.T) {
+	backend := testbackend.New(3, 2)
+	term, err := terminal.New(backend)
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+
+	term.CurrentBuffer().SetSymbol(0, 0, "x")
+	if got, want := backend.Lines(), []string{"   ", "   "}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("backend lines before flush = %#v, want %#v", got, want)
+	}
+	if err := term.Flush(); err != nil {
+		t.Fatalf("Flush returned error: %v", err)
+	}
+
+	if got, want := backend.Lines(), []string{"x  ", "   "}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("backend lines after flush = %#v, want %#v", got, want)
+	}
+}
+
+func TestTerminal_CurrentBuffer_doesNotFlushOrSwap(t *testing.T) {
+	backend := newRecordingBackend(3, 2)
+	term, err := terminal.New(backend)
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+	before := term.CurrentBuffer()
+
+	got := term.CurrentBuffer()
+	got.SetSymbol(0, 0, "x")
+
+	if got != before {
+		t.Fatalf("current buffer pointer changed: got %p, want %p", got, before)
+	}
+	if got, want := backend.draws, [][]buffer.CellDiff(nil); !reflect.DeepEqual(got, want) {
+		t.Fatalf("draws = %#v, want %#v", got, want)
+	}
+	if got, want := backend.flushCount, 0; got != want {
+		t.Fatalf("flush count = %d, want %d", got, want)
+	}
+	if got, want := backend.operations, []string(nil); !reflect.DeepEqual(got, want) {
+		t.Fatalf("operations = %#v, want %#v", got, want)
 	}
 }
 

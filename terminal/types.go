@@ -394,6 +394,10 @@ func (t *Terminal) Area() layout.Rect {
 	return t.area
 }
 
+func (t *Terminal) CurrentBuffer() *buffer.Buffer {
+	return t.current
+}
+
 func (t *Terminal) Frame() *Frame {
 	return &Frame{area: t.area, buffer: t.current, count: t.count}
 }
@@ -627,6 +631,10 @@ func (t *Terminal) updateCursor(pos *layout.Position) error {
 
 func (f *Frame) Area() layout.Rect {
 	return f.area
+}
+
+func (f *Frame) Size() layout.Size {
+	return layout.Size{Width: f.area.Width, Height: f.area.Height}
 }
 
 func (f *Frame) Buffer() *buffer.Buffer {

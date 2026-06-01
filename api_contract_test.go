@@ -65,6 +65,7 @@ func TestPublicAPISurface_shouldExposeInitialRatatuiPortTypes(t *testing.T) {
 		t.Fatalf("terminal.New returned error: %v", err)
 	}
 	completed, err := term.Draw(func(frame *terminal.Frame) {
+		_ = frame.Size()
 		frame.RenderWidget(widgets.NewParagraph(text.FromString("terminal")), frame.Area())
 		frame.SetCursorPosition(layout.Position{X: 1, Y: 0})
 	})
@@ -84,6 +85,7 @@ func TestPublicAPISurface_shouldExposeInitialRatatuiPortTypes(t *testing.T) {
 	_ = term.Area()
 	frame := term.Frame()
 	frame.Buffer().SetSymbol(0, 0, "x")
+	term.CurrentBuffer().SetSymbol(1, 0, "y")
 	_ = term.Flush()
 	_ = term.InsertBefore(1, func(buf *buffer.Buffer) {
 		buf.SetSymbol(0, 0, "i")
