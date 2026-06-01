@@ -22,6 +22,15 @@ func StyledSpan(content string, spanStyle style.Style) Span {
 	return Span{Content: content, Style: spanStyle}
 }
 
+func (s Span) PatchStyle(spanStyle style.Style) Span {
+	s.Style = s.Style.Patch(spanStyle)
+	return s
+}
+
+func (s Span) Width() int {
+	return runewidth.StringWidth(s.Content)
+}
+
 func (s Span) Fg(color style.Color) Span {
 	s.Style = s.Style.Fg(color)
 	return s
@@ -70,6 +79,19 @@ func LineFromString(content string) Line {
 
 func StyledLine(content string, lineStyle style.Style) Line {
 	return LineFromString(content).Style(lineStyle)
+}
+
+func (l Line) PatchStyle(lineStyle style.Style) Line {
+	l.LineStyle = l.LineStyle.Patch(lineStyle)
+	return l
+}
+
+func (l Line) Width() int {
+	width := 0
+	for _, span := range l.Spans {
+		width += span.Width()
+	}
+	return width
 }
 
 func (l Line) Style(lineStyle style.Style) Line {
@@ -151,10 +173,7 @@ func (t Text) PatchStyle(textStyle style.Style) Text {
 func (t Text) Width() int {
 	width := 0
 	for _, line := range t.Lines {
-		lineWidth := 0
-		for _, span := range line.Spans {
-			lineWidth += runewidth.StringWidth(span.Content)
-		}
+		lineWidth := line.Width()
 		if lineWidth > width {
 			width = lineWidth
 		}

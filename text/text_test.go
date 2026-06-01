@@ -70,6 +70,102 @@ func TestText_WidthAndHeight_shouldUseDisplayWidth(t *testing.T) {
 	}
 }
 
+func TestSpan_Width_shouldUseDisplayWidth(t *testing.T) {
+	tests := []struct {
+		name string
+		span text.Span
+		want int
+	}{
+		{name: "ascii", span: text.NewSpan("My text"), want: 7},
+		{name: "unicode", span: text.NewSpan("コンピ"), want: 6},
+		{name: "empty", span: text.NewSpan(""), want: 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.span.Width(); got != tt.want {
+				t.Fatalf("Width() = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSpan_PatchStyle_shouldPatchExistingStyle(t *testing.T) {
+	base := text.StyledSpan("hi", style.NewStyle().
+		Fg(style.Yellow).
+		AddModifier(style.ModifierItalic))
+	patch := style.NewStyle().
+		Fg(style.Red).
+		AddModifier(style.ModifierUnderlined)
+
+	got := base.PatchStyle(patch)
+	want := style.NewStyle().
+		Fg(style.Red).
+		AddModifier(style.ModifierItalic | style.ModifierUnderlined)
+
+	if got.Style != want {
+		t.Fatalf("style = %#v, want %#v", got.Style, want)
+	}
+}
+
+func TestLine_Width_shouldSumSpanDisplayWidths(t *testing.T) {
+	tests := []struct {
+		name string
+		line text.Line
+		want int
+	}{
+		{
+			name: "ascii spans",
+			line: text.NewLine(
+				text.StyledSpan("My", style.NewStyle().Fg(style.Yellow)),
+				text.NewSpan(" text"),
+			),
+			want: 7,
+		},
+		{
+			name: "mixed unicode and ascii spans",
+			line: text.NewLine(
+				text.NewSpan("コンピ"),
+				text.NewSpan(" abc"),
+			),
+			want: 10,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.line.Width(); got != tt.want {
+				t.Fatalf("Width() = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestLine_PatchStyle_shouldPatchExistingLineStyle(t *testing.T) {
+	base := text.LineFromString("hi").Style(style.NewStyle().Fg(style.Yellow))
+	patch := style.NewStyle().AddModifier(style.ModifierItalic)
+
+	got := base.PatchStyle(patch)
+	want := style.NewStyle().
+		Fg(style.Yellow).
+		AddModifier(style.ModifierItalic)
+
+	if got.LineStyle != want {
+		t.Fatalf("style = %#v, want %#v", got.LineStyle, want)
+	}
+}
+
+func TestText_Width_shouldReuseLineWidth(t *testing.T) {
+	got := text.NewText(
+		text.NewLine(text.NewSpan("a"), text.NewSpan("コンピ")),
+		text.LineFromString("short"),
+	)
+
+	if got.Width() != 7 {
+		t.Fatalf("Width() = %d, want 7", got.Width())
+	}
+}
+
 func TestText_PatchStyle_shouldPatchExistingTextStyle(t *testing.T) {
 	base := text.StyledText("hi", style.NewStyle().
 		Fg(style.Yellow).

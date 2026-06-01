@@ -32,7 +32,7 @@ func writeStringWithin(buf *buffer.Buffer, x, y, right int, value string, cellSt
 }
 
 func lineWidth(line text.Line) int {
-	return cellsDisplayWidth(cellsFromLine(line))
+	return line.Width()
 }
 
 func minInt(a, b int) int {
