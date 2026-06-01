@@ -84,12 +84,34 @@ func (b *Backend) ClearRegion(clearType terminal.ClearType) error {
 				b.screen.SetContent(x, y, ' ', nil, tcelllib.StyleDefault)
 			}
 		}
+	case terminal.ClearBeforeCursor:
+		size, err := b.Size()
+		if err != nil {
+			return err
+		}
+		for y := 0; y <= b.cursorPosition.Y && y < size.Height; y++ {
+			endX := size.Width - 1
+			if y == b.cursorPosition.Y {
+				endX = b.cursorPosition.X
+			}
+			for x := 0; x <= endX && x < size.Width; x++ {
+				b.screen.SetContent(x, y, ' ', nil, tcelllib.StyleDefault)
+			}
+		}
 	case terminal.ClearCurrentLine:
 		size, err := b.Size()
 		if err != nil {
 			return err
 		}
 		for x := 0; x < size.Width; x++ {
+			b.screen.SetContent(x, b.cursorPosition.Y, ' ', nil, tcelllib.StyleDefault)
+		}
+	case terminal.ClearUntilNewLine:
+		size, err := b.Size()
+		if err != nil {
+			return err
+		}
+		for x := b.cursorPosition.X; x < size.Width; x++ {
 			b.screen.SetContent(x, b.cursorPosition.Y, ' ', nil, tcelllib.StyleDefault)
 		}
 	}

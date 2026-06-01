@@ -156,8 +156,22 @@ func (b *Backend) ClearRegion(clearType terminal.ClearType) error {
 				b.cells.SetCell(x, y, buffer.NewCell(" "))
 			}
 		}
+	case terminal.ClearBeforeCursor:
+		for y := 0; y <= b.cursorPosition.Y && y < b.size.Height; y++ {
+			endX := b.size.Width - 1
+			if y == b.cursorPosition.Y {
+				endX = b.cursorPosition.X
+			}
+			for x := 0; x <= endX && x < b.size.Width; x++ {
+				b.cells.SetCell(x, y, buffer.NewCell(" "))
+			}
+		}
 	case terminal.ClearCurrentLine:
 		for x := 0; x < b.size.Width; x++ {
+			b.cells.SetCell(x, b.cursorPosition.Y, buffer.NewCell(" "))
+		}
+	case terminal.ClearUntilNewLine:
+		for x := b.cursorPosition.X; x < b.size.Width; x++ {
 			b.cells.SetCell(x, b.cursorPosition.Y, buffer.NewCell(" "))
 		}
 	}

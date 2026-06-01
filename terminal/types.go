@@ -31,7 +31,9 @@ type ClearType int
 const (
 	ClearAll ClearType = iota
 	ClearAfterCursor
+	ClearBeforeCursor
 	ClearCurrentLine
+	ClearUntilNewLine
 )
 
 type viewportKind int

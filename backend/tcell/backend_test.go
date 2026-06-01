@@ -334,6 +334,34 @@ func TestBackend_ClearRegion_afterCursorBlanksFromCursorToScreenEnd(t *testing.T
 	}
 }
 
+func TestBackend_ClearRegion_beforeCursorBlanksFromScreenStartThroughCursor(t *testing.T) {
+	screen := newSpyScreen(4, 3)
+	backend, err := NewWithScreen(screen)
+	if err != nil {
+		t.Fatalf("NewWithScreen() error = %v", err)
+	}
+	defer backend.Close()
+	screen.SetSize(4, 3)
+	if err := backend.SetCursorPosition(layout.Position{X: 2, Y: 1}); err != nil {
+		t.Fatalf("SetCursorPosition() error = %v", err)
+	}
+	screen.contentCalls = nil
+
+	if err := backend.ClearRegion(terminal.ClearBeforeCursor); err != nil {
+		t.Fatalf("ClearRegion(ClearBeforeCursor) error = %v", err)
+	}
+
+	wantPositions := []layout.Position{{X: 0, Y: 0}, {X: 1, Y: 0}, {X: 2, Y: 0}, {X: 3, Y: 0}, {X: 0, Y: 1}, {X: 1, Y: 1}, {X: 2, Y: 1}}
+	if got := contentCallPositions(screen.contentCalls); !positionsEqual(got, wantPositions) {
+		t.Fatalf("SetContent positions = %+v, want %+v", got, wantPositions)
+	}
+	for _, call := range screen.contentCalls {
+		if call.primary != ' ' {
+			t.Fatalf("SetContent primary = %q, want space", call.primary)
+		}
+	}
+}
+
 func TestBackend_ClearRegion_currentLineBlanksCursorRow(t *testing.T) {
 	screen := newSpyScreen(4, 3)
 	backend, err := NewWithScreen(screen)
@@ -354,6 +382,34 @@ func TestBackend_ClearRegion_currentLineBlanksCursorRow(t *testing.T) {
 	wantPositions := []layout.Position{{X: 0, Y: 1}, {X: 1, Y: 1}, {X: 2, Y: 1}, {X: 3, Y: 1}}
 	if got := contentCallPositions(screen.contentCalls); !positionsEqual(got, wantPositions) {
 		t.Fatalf("SetContent positions = %+v, want %+v", got, wantPositions)
+	}
+}
+
+func TestBackend_ClearRegion_untilNewLineBlanksFromCursorToLineEnd(t *testing.T) {
+	screen := newSpyScreen(4, 3)
+	backend, err := NewWithScreen(screen)
+	if err != nil {
+		t.Fatalf("NewWithScreen() error = %v", err)
+	}
+	defer backend.Close()
+	screen.SetSize(4, 3)
+	if err := backend.SetCursorPosition(layout.Position{X: 2, Y: 1}); err != nil {
+		t.Fatalf("SetCursorPosition() error = %v", err)
+	}
+	screen.contentCalls = nil
+
+	if err := backend.ClearRegion(terminal.ClearUntilNewLine); err != nil {
+		t.Fatalf("ClearRegion(ClearUntilNewLine) error = %v", err)
+	}
+
+	wantPositions := []layout.Position{{X: 2, Y: 1}, {X: 3, Y: 1}}
+	if got := contentCallPositions(screen.contentCalls); !positionsEqual(got, wantPositions) {
+		t.Fatalf("SetContent positions = %+v, want %+v", got, wantPositions)
+	}
+	for _, call := range screen.contentCalls {
+		if call.primary != ' ' {
+			t.Fatalf("SetContent primary = %q, want space", call.primary)
+		}
 	}
 }
 
