@@ -125,6 +125,25 @@ func TestParagraph_shouldRenderInsideBlockWithWrapAlignmentAndScroll(t *testing.
 	})
 }
 
+func TestParagraph_shouldPreserveTrailingNBSP(t *testing.T) {
+	line := text.NewLine(text.NewSpan("NBSP"), text.NewSpan("\u00a0"))
+	paragraph := widgets.NewParagraph(text.NewText(line)).
+		Block(widgets.BorderedBlock())
+	buf := buffer.Empty(layout.NewRect(0, 0, 20, 3))
+
+	paragraph.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"┌──────────────────┐",
+		"│NBSP\u00a0             │",
+		"└──────────────────┘",
+	})
+	assertCellSymbol(t, buf, 5, 1, "\u00a0")
+	if cell, _ := buf.CellAt(5, 1); cell.Symbol == " " {
+		t.Fatalf("symbol at (5,1) was normalized to a regular space")
+	}
+}
+
 func TestParagraph_shouldRenderDoubleWidthGraphemes(t *testing.T) {
 	content := text.FromString("コンピュータ上で文字を扱う場合、典型的には文字による通信を行う場合にその両端点では、")
 	paragraph := widgets.NewParagraph(content).
