@@ -83,6 +83,7 @@ func TestPublicAPISurface_shouldExposeInitialRatatuiPortTypes(t *testing.T) {
 		return nil
 	})
 	backend.SetSize(10, 2)
+	_, _ = backend.WindowSize()
 	_, _ = term.Size()
 	_ = term.Autoresize()
 	_ = term.Area()

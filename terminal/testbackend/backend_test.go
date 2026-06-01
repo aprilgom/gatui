@@ -8,6 +8,40 @@ import (
 	"gatui/terminal"
 )
 
+func TestTestBackend_WindowSize_shouldReturnBufferSizeAndDefaultPixels(t *testing.T) {
+	backend := New(80, 24)
+
+	got, err := backend.WindowSize()
+	if err != nil {
+		t.Fatalf("WindowSize() error = %v", err)
+	}
+
+	want := terminal.WindowSize{
+		ColumnsRows: layout.Size{Width: 80, Height: 24},
+		Pixels:      layout.Size{Width: 640, Height: 480},
+	}
+	if got != want {
+		t.Fatalf("WindowSize() = %+v, want %+v", got, want)
+	}
+}
+
+func TestNoScrollBackend_WindowSize_shouldDelegateToWrappedBackend(t *testing.T) {
+	backend := NewNoScroll(10, 5)
+
+	got, err := backend.WindowSize()
+	if err != nil {
+		t.Fatalf("WindowSize() error = %v", err)
+	}
+
+	want := terminal.WindowSize{
+		ColumnsRows: layout.Size{Width: 10, Height: 5},
+		Pixels:      layout.Size{Width: 640, Height: 480},
+	}
+	if got != want {
+		t.Fatalf("WindowSize() = %+v, want %+v", got, want)
+	}
+}
+
 func TestBackend_ClearRegion_beforeCursor(t *testing.T) {
 	backend := WithLines([]string{
 		"aaaaaaaaaa",

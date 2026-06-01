@@ -42,6 +42,27 @@ func (b *recordingBackend) Size() (layout.Size, error) {
 	return b.size, nil
 }
 
+func (b *recordingBackend) WindowSize() (terminal.WindowSize, error) {
+	if b.sizeErr != nil {
+		return terminal.WindowSize{}, b.sizeErr
+	}
+	return terminal.WindowSize{ColumnsRows: b.size}, nil
+}
+
+func TestWindowSize_shouldExposeColumnsRowsAndPixels(t *testing.T) {
+	got := terminal.WindowSize{
+		ColumnsRows: layout.Size{Width: 80, Height: 24},
+		Pixels:      layout.Size{Width: 1920, Height: 1080},
+	}
+
+	if got.ColumnsRows != (layout.Size{Width: 80, Height: 24}) {
+		t.Fatalf("ColumnsRows = %+v", got.ColumnsRows)
+	}
+	if got.Pixels != (layout.Size{Width: 1920, Height: 1080}) {
+		t.Fatalf("Pixels = %+v", got.Pixels)
+	}
+}
+
 func (b *recordingBackend) SetSize(width, height int) {
 	b.size = layout.Size{Width: width, Height: height}
 }
@@ -109,7 +130,7 @@ func (b *recordingBackend) AppendLines(count int) error {
 	return nil
 }
 
-func TestTerminalBackendInterface_shouldNotRequireEventPolling(t *testing.T) {
+func TestTerminalBackendInterface_shouldRequireWindowSize(t *testing.T) {
 	var _ terminal.Backend = (*recordingBackend)(nil)
 }
 

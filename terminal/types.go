@@ -11,6 +11,7 @@ import (
 
 type Backend interface {
 	Size() (layout.Size, error)
+	WindowSize() (WindowSize, error)
 	Draw([]buffer.CellDiff) error
 	Flush() error
 	Clear() error
@@ -20,6 +21,11 @@ type Backend interface {
 	HideCursor() error
 	ShowCursor() error
 	SetCursorPosition(layout.Position) error
+}
+
+type WindowSize struct {
+	ColumnsRows layout.Size
+	Pixels      layout.Size
 }
 
 type ScrollingRegionBackend interface {

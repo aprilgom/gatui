@@ -113,6 +113,29 @@ func TestBackend_Size_shouldReturnScreenSize(t *testing.T) {
 	}
 }
 
+func TestTcellBackend_WindowSize_shouldReturnScreenSizeAndZeroPixels(t *testing.T) {
+	screen := newSpyScreen(80, 24)
+	backend, err := NewWithScreen(screen)
+	if err != nil {
+		t.Fatalf("NewWithScreen() error = %v", err)
+	}
+	defer backend.Close()
+	screen.SetSize(80, 24)
+
+	got, err := backend.WindowSize()
+	if err != nil {
+		t.Fatalf("WindowSize() error = %v", err)
+	}
+
+	want := terminal.WindowSize{
+		ColumnsRows: layout.Size{Width: 80, Height: 24},
+		Pixels:      layout.Size{Width: 0, Height: 0},
+	}
+	if got != want {
+		t.Fatalf("WindowSize() = %+v, want %+v", got, want)
+	}
+}
+
 func TestBackend_shouldSatisfyTerminalInterface(t *testing.T) {
 	var _ terminal.Backend = (*Backend)(nil)
 }

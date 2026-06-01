@@ -40,6 +40,17 @@ func (b *Backend) Size() (layout.Size, error) {
 	return layout.Size{Width: width, Height: height}, nil
 }
 
+func (b *Backend) WindowSize() (terminal.WindowSize, error) {
+	size, err := b.Size()
+	if err != nil {
+		return terminal.WindowSize{}, err
+	}
+	return terminal.WindowSize{
+		ColumnsRows: size,
+		Pixels:      layout.Size{Width: 0, Height: 0},
+	}, nil
+}
+
 func (b *Backend) Draw(diffs []buffer.CellDiff) error {
 	for _, diff := range diffs {
 		symbol := diff.Cell.DisplaySymbol()

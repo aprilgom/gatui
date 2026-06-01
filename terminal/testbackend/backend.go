@@ -54,6 +54,10 @@ func (b *NoScrollBackend) Size() (layout.Size, error) {
 	return b.backend.Size()
 }
 
+func (b *NoScrollBackend) WindowSize() (terminal.WindowSize, error) {
+	return b.backend.WindowSize()
+}
+
 func (b *NoScrollBackend) SetSize(width, height int) {
 	b.backend.SetSize(width, height)
 }
@@ -104,6 +108,13 @@ func (b *NoScrollBackend) AppendLinesCalls() []int {
 
 func (b *Backend) Size() (layout.Size, error) {
 	return b.size, nil
+}
+
+func (b *Backend) WindowSize() (terminal.WindowSize, error) {
+	return terminal.WindowSize{
+		ColumnsRows: b.size,
+		Pixels:      layout.Size{Width: 640, Height: 480},
+	}, nil
 }
 
 func (b *Backend) SetSize(width, height int) {
