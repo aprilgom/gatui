@@ -355,6 +355,140 @@ func TestLayout_Split_shouldApplyFlexAlignmentToMaxConstraints(t *testing.T) {
 	}
 }
 
+func TestLayout_Split_shouldMatchRatatuiFlexSpacing(t *testing.T) {
+	tests := []struct {
+		name    string
+		flex    layout.Flex
+		spacing int
+		want    []layout.Rect
+	}{
+		{
+			name:    "start positive spacing",
+			flex:    layout.FlexStart,
+			spacing: 2,
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 20, 1),
+				layout.NewRect(22, 0, 20, 1),
+				layout.NewRect(44, 0, 20, 1),
+			},
+		},
+		{
+			name:    "center positive spacing",
+			flex:    layout.FlexCenter,
+			spacing: 2,
+			want: []layout.Rect{
+				layout.NewRect(18, 0, 20, 1),
+				layout.NewRect(40, 0, 20, 1),
+				layout.NewRect(62, 0, 20, 1),
+			},
+		},
+		{
+			name:    "end positive spacing",
+			flex:    layout.FlexEnd,
+			spacing: 2,
+			want: []layout.Rect{
+				layout.NewRect(36, 0, 20, 1),
+				layout.NewRect(58, 0, 20, 1),
+				layout.NewRect(80, 0, 20, 1),
+			},
+		},
+		{
+			name:    "legacy positive spacing",
+			flex:    layout.FlexLegacy,
+			spacing: 2,
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 20, 1),
+				layout.NewRect(22, 0, 20, 1),
+				layout.NewRect(44, 0, 56, 1),
+			},
+		},
+		{
+			name:    "space between positive spacing",
+			flex:    layout.FlexSpaceBetween,
+			spacing: 2,
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 20, 1),
+				layout.NewRect(40, 0, 20, 1),
+				layout.NewRect(80, 0, 20, 1),
+			},
+		},
+		{
+			name:    "space evenly positive spacing",
+			flex:    layout.FlexSpaceEvenly,
+			spacing: 2,
+			want: []layout.Rect{
+				layout.NewRect(10, 0, 20, 1),
+				layout.NewRect(40, 0, 20, 1),
+				layout.NewRect(70, 0, 20, 1),
+			},
+		},
+		{
+			name:    "space around positive spacing",
+			flex:    layout.FlexSpaceAround,
+			spacing: 2,
+			want: []layout.Rect{
+				layout.NewRect(7, 0, 20, 1),
+				layout.NewRect(40, 0, 20, 1),
+				layout.NewRect(73, 0, 20, 1),
+			},
+		},
+		{
+			name:    "start negative overlap",
+			flex:    layout.FlexStart,
+			spacing: -1,
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 20, 1),
+				layout.NewRect(19, 0, 20, 1),
+				layout.NewRect(38, 0, 20, 1),
+			},
+		},
+		{
+			name:    "center negative overlap",
+			flex:    layout.FlexCenter,
+			spacing: -1,
+			want: []layout.Rect{
+				layout.NewRect(21, 0, 20, 1),
+				layout.NewRect(40, 0, 20, 1),
+				layout.NewRect(59, 0, 20, 1),
+			},
+		},
+		{
+			name:    "end negative overlap",
+			flex:    layout.FlexEnd,
+			spacing: -1,
+			want: []layout.Rect{
+				layout.NewRect(42, 0, 20, 1),
+				layout.NewRect(61, 0, 20, 1),
+				layout.NewRect(80, 0, 20, 1),
+			},
+		},
+		{
+			name:    "legacy negative overlap",
+			flex:    layout.FlexLegacy,
+			spacing: -1,
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 20, 1),
+				layout.NewRect(19, 0, 20, 1),
+				layout.NewRect(38, 0, 62, 1),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := layout.NewLayout(layout.Horizontal).
+				Flex(tt.flex).
+				Spacing(tt.spacing).
+				Constraints(layout.Length(20), layout.Length(20), layout.Length(20)).
+				Split(layout.NewRect(0, 0, 100, 1))
+
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("rects mismatch\nwant: %#v\n got: %#v", tt.want, got)
+			}
+		})
+	}
+}
+
 func TestLayout_Split_shouldHandleVerticalPercentageMin(t *testing.T) {
 	area := layout.NewRect(2, 4, 8, 10)
 
