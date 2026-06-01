@@ -70,6 +70,35 @@ type BarData struct {
 	Value uint64
 }
 
+type GraphType int
+
+const (
+	GraphTypeScatter GraphType = iota
+	GraphTypeLine
+)
+
+type Axis struct {
+	title           *text.Line
+	bounds          [2]float64
+	labels          []text.Line
+	axisStyle       style.Style
+	labelsAlignment layout.Alignment
+}
+
+type Dataset struct {
+	name      string
+	data      []layout.Position
+	graphType GraphType
+	style     style.Style
+}
+
+type Chart struct {
+	datasets []Dataset
+	block    *Block
+	xAxis    Axis
+	yAxis    Axis
+}
+
 type Bar struct {
 	label      string
 	value      uint64
@@ -77,6 +106,311 @@ type Bar struct {
 	style      style.Style
 	valueStyle style.Style
 	labelStyle style.Style
+}
+
+func NewAxis() Axis {
+	return Axis{
+		bounds:          [2]float64{0, 0},
+		axisStyle:       style.NewStyle(),
+		labelsAlignment: layout.Left,
+	}
+}
+
+func (a Axis) Title(title text.Line) Axis {
+	a.title = &title
+	return a
+}
+
+func (a Axis) TitleString(title string) Axis {
+	return a.Title(text.LineFromString(title))
+}
+
+func (a Axis) Bounds(minimum, maximum float64) Axis {
+	a.bounds = [2]float64{minimum, maximum}
+	return a
+}
+
+func (a Axis) Labels(labels []text.Line) Axis {
+	a.labels = append([]text.Line(nil), labels...)
+	return a
+}
+
+func (a Axis) LabelStrings(labels []string) Axis {
+	lines := make([]text.Line, 0, len(labels))
+	for _, label := range labels {
+		lines = append(lines, text.LineFromString(label))
+	}
+	return a.Labels(lines)
+}
+
+func (a Axis) Style(axisStyle style.Style) Axis {
+	a.axisStyle = axisStyle
+	return a
+}
+
+func (a Axis) LabelsAlignment(alignment layout.Alignment) Axis {
+	a.labelsAlignment = alignment
+	return a
+}
+
+func NewDataset() Dataset {
+	return Dataset{graphType: GraphTypeScatter, style: style.NewStyle()}
+}
+
+func (d Dataset) Name(name string) Dataset {
+	d.name = name
+	return d
+}
+
+func (d Dataset) Data(data []layout.Position) Dataset {
+	d.data = append([]layout.Position(nil), data...)
+	return d
+}
+
+func (d Dataset) GraphType(graphType GraphType) Dataset {
+	d.graphType = graphType
+	return d
+}
+
+func (d Dataset) Style(datasetStyle style.Style) Dataset {
+	d.style = datasetStyle
+	return d
+}
+
+func NewChart(datasets []Dataset) Chart {
+	return Chart{
+		datasets: append([]Dataset(nil), datasets...),
+		xAxis:    NewAxis(),
+		yAxis:    NewAxis(),
+	}
+}
+
+func (c Chart) Block(block Block) Chart {
+	c.block = &block
+	return c
+}
+
+func (c Chart) XAxis(axis Axis) Chart {
+	c.xAxis = axis
+	return c
+}
+
+func (c Chart) YAxis(axis Axis) Chart {
+	c.yAxis = axis
+	return c
+}
+
+func (c Chart) Render(area layout.Rect, buf *buffer.Buffer) {
+	if area.Width == 0 || area.Height == 0 {
+		return
+	}
+	chartArea := area
+	if c.block != nil {
+		c.block.Render(area, buf)
+		chartArea = c.block.Inner(area)
+	}
+	if chartArea.Width == 0 || chartArea.Height == 0 {
+		return
+	}
+
+	layout := c.layout(chartArea)
+	c.renderYAxis(buf, layout)
+	c.renderXAxis(buf, layout)
+	c.renderYLabels(buf, layout)
+	c.renderXLabels(buf, layout)
+	c.renderYTitle(buf, layout)
+}
+
+type chartAxisLayout struct {
+	area       layout.Rect
+	axisX      int
+	graphLeft  int
+	graphRight int
+	axisY      int
+	labelY     int
+	hasXAxis   bool
+	hasYAxis   bool
+	yLabelW    int
+}
+
+func (c Chart) layout(area layout.Rect) chartAxisLayout {
+	yLabelW := c.maxWidthLeftOfYAxis(area)
+	hasXAxis := len(c.xAxis.labels) >= 2 && area.Height >= 2
+	hasYAxis := len(c.yAxis.labels) > 0
+	axisY := area.Y + area.Height - 1
+	labelY := axisY
+	if hasXAxis {
+		axisY = area.Y + area.Height - 2
+		labelY = area.Y + area.Height - 1
+	}
+	axisX := area.X + yLabelW
+	graphLeft := axisX
+	if hasYAxis {
+		graphLeft++
+	}
+	if axisX > area.X+area.Width {
+		axisX = area.X + area.Width
+	}
+	if graphLeft > area.X+area.Width {
+		graphLeft = area.X + area.Width
+	}
+	return chartAxisLayout{
+		area:       area,
+		axisX:      axisX,
+		graphLeft:  graphLeft,
+		graphRight: area.X + area.Width,
+		axisY:      axisY,
+		labelY:     labelY,
+		hasXAxis:   hasXAxis,
+		hasYAxis:   hasYAxis,
+		yLabelW:    yLabelW,
+	}
+}
+
+func (c Chart) maxWidthLeftOfYAxis(area layout.Rect) int {
+	maxWidth := 0
+	hasYAxis := len(c.yAxis.labels) > 0
+	for _, label := range c.yAxis.labels {
+		maxWidth = maxInt(maxWidth, lineWidth(label))
+	}
+	if len(c.xAxis.labels) > 0 {
+		firstWidth := lineWidth(c.xAxis.labels[0])
+		switch c.xAxis.labelsAlignment {
+		case layout.Left:
+			if hasYAxis && firstWidth > 0 {
+				firstWidth--
+			}
+			maxWidth = maxInt(maxWidth, firstWidth)
+		case layout.Center:
+			maxWidth = maxInt(maxWidth, firstWidth/2)
+		case layout.Right:
+		}
+	}
+	return minInt(maxWidth, area.Width/3)
+}
+
+func (c Chart) renderYAxis(buf *buffer.Buffer, l chartAxisLayout) {
+	if !l.hasYAxis || l.axisX >= l.graphRight || l.area.Height == 0 {
+		return
+	}
+	for y := l.area.Y; y <= l.axisY && y < l.area.Y+l.area.Height; y++ {
+		buf.SetCell(l.axisX, y, buffer.Cell{Symbol: "│", Style: c.yAxis.axisStyle})
+	}
+}
+
+func (c Chart) renderXAxis(buf *buffer.Buffer, l chartAxisLayout) {
+	if !l.hasXAxis || l.graphLeft >= l.graphRight || l.axisY < l.area.Y || l.axisY >= l.area.Y+l.area.Height {
+		return
+	}
+	start := l.graphLeft
+	if l.hasYAxis {
+		buf.SetCell(l.axisX, l.axisY, buffer.Cell{Symbol: "└", Style: c.yAxis.axisStyle.Patch(c.xAxis.axisStyle)})
+	}
+	for x := start; x < l.graphRight; x++ {
+		buf.SetCell(x, l.axisY, buffer.Cell{Symbol: "─", Style: c.xAxis.axisStyle})
+	}
+}
+
+func (c Chart) renderYLabels(buf *buffer.Buffer, l chartAxisLayout) {
+	if len(c.yAxis.labels) < 2 || l.yLabelW <= 0 {
+		return
+	}
+	top := l.area.Y
+	bottom := l.axisY - 1
+	if !l.hasXAxis {
+		bottom = l.area.Y + l.area.Height - 1
+	}
+	if bottom < top {
+		return
+	}
+	last := len(c.yAxis.labels) - 1
+	for i, label := range c.yAxis.labels {
+		y := bottom
+		if last > 0 {
+			y = bottom - (i * (bottom - top) / last)
+		}
+		c.renderLabel(buf, label, layout.NewRect(l.area.X, y, l.yLabelW, 1), c.yAxis.labelsAlignment, c.yAxis.axisStyle)
+	}
+}
+
+func (c Chart) renderXLabels(buf *buffer.Buffer, l chartAxisLayout) {
+	labels := c.xAxis.labels
+	if len(labels) < 2 || l.graphLeft >= l.graphRight {
+		return
+	}
+	graphWidth := l.graphRight - l.graphLeft
+	widthBetweenTicks := graphWidth / len(labels)
+	if widthBetweenTicks <= 0 {
+		widthBetweenTicks = 1
+	}
+
+	firstArea := c.firstXLabelArea(l, lineWidth(labels[0]), widthBetweenTicks)
+	firstAlignment := layout.Right
+	switch c.xAxis.labelsAlignment {
+	case layout.Center:
+		firstAlignment = layout.Center
+	case layout.Right:
+		firstAlignment = layout.Left
+	}
+	c.renderLabel(buf, labels[0], firstArea, firstAlignment, c.xAxis.axisStyle)
+
+	for i := 1; i < len(labels)-1; i++ {
+		x := l.graphLeft + i*widthBetweenTicks + 1
+		c.renderLabel(buf, labels[i], layout.NewRect(x, l.labelY, maxInt(0, widthBetweenTicks-1), 1), layout.Center, c.xAxis.axisStyle)
+	}
+
+	x := l.graphRight - widthBetweenTicks
+	c.renderLabel(buf, labels[len(labels)-1], layout.NewRect(x, l.labelY, widthBetweenTicks, 1), layout.Right, c.xAxis.axisStyle)
+}
+
+func (c Chart) firstXLabelArea(l chartAxisLayout, labelWidth, maxWidthAfterYAxis int) layout.Rect {
+	minX := l.area.X
+	maxX := l.graphLeft
+	switch c.xAxis.labelsAlignment {
+	case layout.Center:
+		maxX = l.graphLeft + minInt(maxWidthAfterYAxis, labelWidth)
+	case layout.Right:
+		minX = maxInt(l.area.X, l.graphLeft-1)
+		maxX = l.graphLeft + maxWidthAfterYAxis
+	}
+	if maxX > l.graphRight {
+		maxX = l.graphRight
+	}
+	if maxX < minX {
+		maxX = minX
+	}
+	return layout.NewRect(minX, l.labelY, maxX-minX, 1)
+}
+
+func (c Chart) renderYTitle(buf *buffer.Buffer, l chartAxisLayout) {
+	if c.yAxis.title == nil || l.graphLeft >= l.graphRight {
+		return
+	}
+	cells := cellsFromLine(*c.yAxis.title)
+	x := l.graphLeft
+	for _, cell := range cells {
+		if x >= l.graphRight {
+			return
+		}
+		cell.Style = c.yAxis.axisStyle.Patch(cell.Style)
+		buf.SetCell(x, l.area.Y, cell)
+		x++
+	}
+}
+
+func (c Chart) renderLabel(buf *buffer.Buffer, label text.Line, area layout.Rect, alignment layout.Alignment, baseStyle style.Style) {
+	if area.Width <= 0 || area.Height <= 0 {
+		return
+	}
+	cells := cellsFromLine(label)
+	if len(cells) > area.Width {
+		cells = cells[:area.Width]
+	}
+	offset := alignedOffset(len(cells), area.Width, alignment)
+	for i, cell := range cells {
+		cell.Style = baseStyle.Patch(cell.Style)
+		buf.SetCell(area.X+offset+i, area.Y, cell)
+	}
 }
 
 func NewGauge() Gauge {
@@ -1233,6 +1567,24 @@ func partialBarSymbol(eighths int) string {
 
 func uintToString(value uint64) string {
 	return strconv.FormatUint(value, 10)
+}
+
+func lineWidth(line text.Line) int {
+	return len(cellsFromLine(line))
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func nonNegative(value int) int {
