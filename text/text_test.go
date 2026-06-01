@@ -93,6 +93,86 @@ func TestSpan_Width_shouldUseDisplayWidth(t *testing.T) {
 	}
 }
 
+func TestStyledGrapheme_New_shouldStoreSymbolAndStyle(t *testing.T) {
+	graphemeStyle := style.NewStyle().Fg(style.Yellow).AddModifier(style.ModifierItalic)
+
+	got := text.NewStyledGrapheme("a", graphemeStyle)
+
+	if got.Symbol != "a" {
+		t.Fatalf("symbol = %q, want a", got.Symbol)
+	}
+	if got.Style != graphemeStyle {
+		t.Fatalf("style = %#v, want %#v", got.Style, graphemeStyle)
+	}
+}
+
+func TestStyledGrapheme_IsWhitespace_shouldMatchRatatuiRules(t *testing.T) {
+	tests := []struct {
+		name   string
+		symbol string
+		want   bool
+	}{
+		{name: "space", symbol: " ", want: true},
+		{name: "tab", symbol: "\t", want: true},
+		{name: "zero width space", symbol: "\u200B", want: true},
+		{name: "non breaking space", symbol: "\u00A0", want: false},
+		{name: "letter", symbol: "a", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := text.NewStyledGrapheme(tt.symbol, style.NewStyle()).IsWhitespace()
+			if got != tt.want {
+				t.Fatalf("IsWhitespace() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestStyledGrapheme_Stylize_shouldPatchStyle(t *testing.T) {
+	grapheme := text.NewStyledGrapheme("a", style.NewStyle().Fg(style.Yellow).Bg(style.Red))
+
+	got := grapheme.Cyan()
+	want := style.NewStyle().Fg(style.Cyan).Bg(style.Red)
+
+	if got.Style != want {
+		t.Fatalf("style = %#v, want %#v", got.Style, want)
+	}
+}
+
+func TestSpan_StyledGraphemes_shouldPatchBaseStyleWithSpanStyle(t *testing.T) {
+	span := text.StyledSpan("Test", style.NewStyle().Fg(style.Green).AddModifier(style.ModifierItalic))
+	baseStyle := style.NewStyle().Fg(style.Red).Bg(style.Yellow)
+
+	got := span.StyledGraphemes(baseStyle)
+	wantStyle := style.NewStyle().Fg(style.Green).Bg(style.Yellow).AddModifier(style.ModifierItalic)
+	want := []text.StyledGrapheme{
+		text.NewStyledGrapheme("T", wantStyle),
+		text.NewStyledGrapheme("e", wantStyle),
+		text.NewStyledGrapheme("s", wantStyle),
+		text.NewStyledGrapheme("t", wantStyle),
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("StyledGraphemes() = %#v, want %#v", got, want)
+	}
+}
+
+func TestSpan_StyledGraphemes_shouldUseGraphemeClustersAndFilterControl(t *testing.T) {
+	span := text.NewSpan("🇺🇸a\nb")
+
+	got := span.StyledGraphemes(style.NewStyle())
+	want := []text.StyledGrapheme{
+		text.NewStyledGrapheme("🇺🇸", style.NewStyle()),
+		text.NewStyledGrapheme("a", style.NewStyle()),
+		text.NewStyledGrapheme("b", style.NewStyle()),
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("StyledGraphemes() = %#v, want %#v", got, want)
+	}
+}
+
 func TestSpan_PatchStyle_shouldPatchExistingStyle(t *testing.T) {
 	base := text.StyledSpan("hi", style.NewStyle().
 		Fg(style.Yellow).
@@ -196,6 +276,32 @@ func TestSpan_RightLine_shouldPreserveSpanAndSetAlignment(t *testing.T) {
 	}
 	if got.Alignment == nil || *got.Alignment != layout.Right {
 		t.Fatalf("alignment = %#v, want Right", got.Alignment)
+	}
+}
+
+func TestLine_StyledGraphemes_shouldPatchBaseLineAndSpanStyles(t *testing.T) {
+	baseStyle := style.NewStyle().Bg(style.White)
+	line := text.LineFromSpans(
+		text.StyledSpan("He", style.NewStyle().Fg(style.Red)),
+		text.StyledSpan("ll", style.NewStyle().Fg(style.Green)),
+		text.StyledSpan("o!", style.NewStyle().Fg(style.Blue)),
+	).Italic()
+
+	got := line.StyledGraphemes(baseStyle)
+	redStyle := style.NewStyle().Fg(style.Red).Bg(style.White).AddModifier(style.ModifierItalic)
+	greenStyle := style.NewStyle().Fg(style.Green).Bg(style.White).AddModifier(style.ModifierItalic)
+	blueStyle := style.NewStyle().Fg(style.Blue).Bg(style.White).AddModifier(style.ModifierItalic)
+	want := []text.StyledGrapheme{
+		text.NewStyledGrapheme("H", redStyle),
+		text.NewStyledGrapheme("e", redStyle),
+		text.NewStyledGrapheme("l", greenStyle),
+		text.NewStyledGrapheme("l", greenStyle),
+		text.NewStyledGrapheme("o", blueStyle),
+		text.NewStyledGrapheme("!", blueStyle),
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("StyledGraphemes() = %#v, want %#v", got, want)
 	}
 }
 

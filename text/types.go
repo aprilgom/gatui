@@ -2,6 +2,7 @@ package text
 
 import (
 	"strings"
+	"unicode"
 
 	"gatui/buffer"
 	"gatui/layout"
@@ -9,6 +10,59 @@ import (
 
 	"github.com/rivo/uniseg"
 )
+
+const (
+	nbsp = "\u00A0"
+	zwsp = "\u200B"
+)
+
+type StyledGrapheme struct {
+	Symbol string
+	Style  style.Style
+}
+
+func NewStyledGrapheme(symbol string, graphemeStyle style.Style) StyledGrapheme {
+	return StyledGrapheme{Symbol: symbol, Style: graphemeStyle}
+}
+
+func (g StyledGrapheme) IsWhitespace() bool {
+	if g.Symbol == zwsp {
+		return true
+	}
+	if g.Symbol == nbsp {
+		return false
+	}
+	for _, r := range g.Symbol {
+		if !unicode.IsSpace(r) {
+			return false
+		}
+	}
+	return true
+}
+
+func (g StyledGrapheme) Fg(color style.Color) StyledGrapheme {
+	g.Style = g.Style.Fg(color)
+	return g
+}
+
+func (g StyledGrapheme) Bg(color style.Color) StyledGrapheme {
+	g.Style = g.Style.Bg(color)
+	return g
+}
+
+func (g StyledGrapheme) Bold() StyledGrapheme {
+	g.Style = g.Style.AddModifier(style.ModifierBold)
+	return g
+}
+
+func (g StyledGrapheme) Italic() StyledGrapheme {
+	g.Style = g.Style.AddModifier(style.ModifierItalic)
+	return g
+}
+
+func (g StyledGrapheme) Cyan() StyledGrapheme {
+	return g.Fg(style.Cyan)
+}
 
 type Span struct {
 	Content string
@@ -34,6 +88,20 @@ func (s Span) ResetStyle() Span {
 
 func (s Span) Width() int {
 	return uniseg.StringWidth(s.Content)
+}
+
+func (s Span) StyledGraphemes(baseStyle style.Style) []StyledGrapheme {
+	graphemeStyle := baseStyle.Patch(s.Style)
+	graphemes := uniseg.NewGraphemes(s.Content)
+	styled := make([]StyledGrapheme, 0)
+	for graphemes.Next() {
+		symbol := graphemes.Str()
+		if containsControl(symbol) {
+			continue
+		}
+		styled = append(styled, NewStyledGrapheme(symbol, graphemeStyle))
+	}
+	return styled
 }
 
 func (s Span) Render(area layout.Rect, buf *buffer.Buffer) {
@@ -143,6 +211,15 @@ func (l Line) Width() int {
 		width += span.Width()
 	}
 	return width
+}
+
+func (l Line) StyledGraphemes(baseStyle style.Style) []StyledGrapheme {
+	lineStyle := baseStyle.Patch(l.LineStyle)
+	styled := make([]StyledGrapheme, 0)
+	for _, span := range l.Spans {
+		styled = append(styled, span.StyledGraphemes(lineStyle)...)
+	}
+	return styled
 }
 
 func (l Line) Render(area layout.Rect, buf *buffer.Buffer) {
@@ -465,6 +542,15 @@ func setSpanCellSymbol(buf *buffer.Buffer, x, y int, symbol string, spanStyle st
 		}
 	}
 	buf.SetCell(x, y, buffer.Cell{Symbol: cellSymbol, Style: cellStyle.Patch(spanStyle)})
+}
+
+func containsControl(symbol string) bool {
+	for _, r := range symbol {
+		if unicode.IsControl(r) {
+			return true
+		}
+	}
+	return false
 }
 
 func alignedRenderOffset(lineWidth, areaWidth int, alignment *layout.Alignment) int {
