@@ -20,6 +20,17 @@ func TestWithLines_shouldCreateBlankPaddedBuffer(t *testing.T) {
 	}
 }
 
+func TestBuffer_Lines_shouldSkipHiddenFlagEmojiCell(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 3, 1))
+	buf.SetSymbol(0, 0, "🇺🇸")
+	buf.SetSymbol(1, 0, " ")
+	buf.SetSymbol(2, 0, "a")
+
+	if got, want := buf.Lines(), []string{"🇺🇸a"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("lines = %#v, want %#v", got, want)
+	}
+}
+
 func TestSetStyleHelpers_shouldPatchExistingCells(t *testing.T) {
 	buf := buffer.WithLines([]string{"ab"})
 	buf.SetFg(layout.NewRect(0, 0, 1, 1), style.Red)

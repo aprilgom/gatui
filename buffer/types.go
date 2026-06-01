@@ -6,7 +6,7 @@ import (
 	"gatui/layout"
 	"gatui/style"
 
-	"github.com/mattn/go-runewidth"
+	"github.com/rivo/uniseg"
 )
 
 type Cell struct {
@@ -106,7 +106,7 @@ func (b *Buffer) Lines() []string {
 				symbol = " "
 			}
 			builder.WriteString(symbol)
-			if width := runewidth.StringWidth(symbol); width > 1 {
+			if width := uniseg.StringWidth(symbol); width > 1 {
 				for skipped := 0; skipped < width-1 && x+1 < b.Area.Width; skipped++ {
 					next := b.Cells[y*b.Area.Width+x+1].Symbol
 					if next != "" && next != " " {

@@ -7,7 +7,7 @@ import (
 	"gatui/layout"
 	"gatui/style"
 
-	"github.com/mattn/go-runewidth"
+	"github.com/rivo/uniseg"
 )
 
 type Span struct {
@@ -33,7 +33,7 @@ func (s Span) ResetStyle() Span {
 }
 
 func (s Span) Width() int {
-	return runewidth.StringWidth(s.Content)
+	return uniseg.StringWidth(s.Content)
 }
 
 func (s Span) Render(area layout.Rect, buf *buffer.Buffer) {
@@ -373,12 +373,13 @@ func renderSpan(span Span, area layout.Rect, buf *buffer.Buffer, skipWidth int) 
 	x := area.X
 	right := area.Right()
 	renderedAny := false
-	for _, r := range span.Content {
-		if r == '\n' {
+	graphemes := uniseg.NewGraphemes(span.Content)
+	for graphemes.Next() {
+		symbol := graphemes.Str()
+		if symbol == "\n" {
 			continue
 		}
-		symbol := string(r)
-		width := runewidth.StringWidth(symbol)
+		width := graphemes.Width()
 		if width == 0 {
 			if !renderedAny {
 				setSpanCellSymbol(buf, x, area.Y, symbol, span.Style, false)

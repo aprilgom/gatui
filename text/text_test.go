@@ -2,6 +2,7 @@ package text_test
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"gatui/buffer"
@@ -757,6 +758,59 @@ func TestLine_Render_shouldRightAlignMultiSpanWithWideRuneSkip(t *testing.T) {
 	}
 }
 
+func TestLine_Render_shouldTruncateFlagEmoji(t *testing.T) {
+	tests := []struct {
+		width int
+		want  string
+	}{
+		{width: 1, want: " "},
+		{width: 2, want: "🇺🇸"},
+		{width: 3, want: "🇺🇸1"},
+		{width: 4, want: "🇺🇸12"},
+		{width: 5, want: "🇺🇸123"},
+		{width: 6, want: "🇺🇸1234"},
+		{width: 7, want: "🇺🇸1234 "},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			buf := buffer.Empty(layout.NewRect(0, 0, tt.width, 1))
+
+			text.LineFromString("🇺🇸1234").Left().Render(buf.Area, buf)
+
+			assertTextLines(t, buf, []string{tt.want})
+		})
+	}
+}
+
+func TestLine_Render_shouldTruncateVeryLongLineOfManySpans(t *testing.T) {
+	line := veryLongLineOfManySpans().Left()
+	buf := buffer.Empty(layout.NewRect(0, 0, 32, 1))
+
+	line.Render(buf.Area, buf)
+
+	assertTextLines(t, buf, []string{"This is some content with a some"})
+
+	buf = buffer.Empty(layout.NewRect(0, 0, 32, 1))
+	line.Right().Render(buf.Area, buf)
+
+	assertTextLines(t, buf, []string{"horribly long Line over u16::MAX"})
+}
+
+func TestLine_Render_shouldTruncateVeryLongSingleSpanLine(t *testing.T) {
+	line := text.LineFromString(veryLongLineContent()).Left()
+	buf := buffer.Empty(layout.NewRect(0, 0, 32, 1))
+
+	line.Render(buf.Area, buf)
+
+	assertTextLines(t, buf, []string{"This is some content with a some"})
+
+	buf = buffer.Empty(layout.NewRect(0, 0, 32, 1))
+	line.Right().Render(buf.Area, buf)
+
+	assertTextLines(t, buf, []string{"horribly long Line over u16::MAX"})
+}
+
 func TestLine_Render_shouldIgnoreNewlines(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 11, 1))
 
@@ -816,6 +870,29 @@ func assertTextCellStyle(t *testing.T, buf *buffer.Buffer, x, y int, expected st
 	if cell.Style != expected {
 		t.Fatalf("style at (%d,%d) = %#v, want %#v", x, y, cell.Style, expected)
 	}
+}
+
+func veryLongLineOfManySpans() text.Line {
+	part := veryLongLinePart()
+	line := text.NewLine()
+	for line.Width() < 65536 {
+		line = line.PushSpan(text.NewSpan(part))
+	}
+	return line.PushSpan(text.NewSpan("horribly long Line over u16::MAX"))
+}
+
+func veryLongLineContent() string {
+	part := veryLongLinePart()
+	var builder strings.Builder
+	for builder.Len() < 65536 {
+		builder.WriteString(part)
+	}
+	builder.WriteString("horribly long Line over u16::MAX")
+	return builder.String()
+}
+
+func veryLongLinePart() string {
+	return "This is some content with a somewhat "
 }
 
 func assertTextCellSymbols(t *testing.T, buf *buffer.Buffer, expected []string) {
