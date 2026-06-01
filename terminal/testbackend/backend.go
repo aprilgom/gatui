@@ -1,6 +1,9 @@
 package testbackend
 
 import (
+	"reflect"
+	"testing"
+
 	"gatui/buffer"
 	"gatui/layout"
 	"gatui/terminal"
@@ -100,6 +103,30 @@ func (b *NoScrollBackend) AppendLines(count int) error {
 
 func (b *NoScrollBackend) Lines() []string {
 	return b.backend.Lines()
+}
+
+func (b *NoScrollBackend) Buffer() *buffer.Buffer {
+	return b.backend.Buffer()
+}
+
+func (b *NoScrollBackend) Scrollback() *buffer.Buffer {
+	return b.backend.Scrollback()
+}
+
+func (b *NoScrollBackend) AssertBufferLines(t testing.TB, lines []string) {
+	b.backend.AssertBufferLines(t, lines)
+}
+
+func (b *NoScrollBackend) AssertScrollbackLines(t testing.TB, lines []string) {
+	b.backend.AssertScrollbackLines(t, lines)
+}
+
+func (b *NoScrollBackend) AssertScrollbackEmpty(t testing.TB) {
+	b.backend.AssertScrollbackEmpty(t)
+}
+
+func (b *NoScrollBackend) AssertCursorPosition(t testing.TB, pos layout.Position) {
+	b.backend.AssertCursorPosition(t, pos)
 }
 
 func (b *NoScrollBackend) AppendLinesCalls() []int {
@@ -360,6 +387,38 @@ func (b *Backend) Lines() []string {
 	return b.cells.Lines()
 }
 
+func (b *Backend) Buffer() *buffer.Buffer {
+	if b.cells == nil {
+		b.cells = buffer.Empty(layout.NewRect(0, 0, b.size.Width, b.size.Height))
+	}
+	return b.cells
+}
+
+func (b *Backend) Scrollback() *buffer.Buffer {
+	return buffer.WithLines(b.scrollback)
+}
+
+func (b *Backend) AssertBufferLines(t testing.TB, lines []string) {
+	t.Helper()
+	got := b.Lines()
+	if !reflect.DeepEqual(got, lines) {
+		t.Fatalf("buffer lines mismatch:\nactual: %#v\nwant:   %#v", got, lines)
+	}
+}
+
+func (b *Backend) AssertScrollbackLines(t testing.TB, lines []string) {
+	t.Helper()
+	got := b.ScrollbackLines()
+	if !reflect.DeepEqual(got, lines) {
+		t.Fatalf("scrollback lines mismatch:\nactual: %#v\nwant:   %#v", got, lines)
+	}
+}
+
+func (b *Backend) AssertScrollbackEmpty(t testing.TB) {
+	t.Helper()
+	b.AssertScrollbackLines(t, nil)
+}
+
 func (b *Backend) HideCursorCount() int {
 	return b.hideCursorCount
 }
@@ -378,6 +437,13 @@ func (b *Backend) CursorVisible() bool {
 
 func (b *Backend) CursorPosition() layout.Position {
 	return b.cursorPosition
+}
+
+func (b *Backend) AssertCursorPosition(t testing.TB, pos layout.Position) {
+	t.Helper()
+	if b.cursorPosition != pos {
+		t.Fatalf("cursor position mismatch: actual: %+v, want: %+v", b.cursorPosition, pos)
+	}
 }
 
 func (b *Backend) AppendLinesCalls() []int {
