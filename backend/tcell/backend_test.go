@@ -6,6 +6,7 @@ import (
 	"gatui/buffer"
 	"gatui/layout"
 	"gatui/style"
+	"gatui/terminal"
 
 	tcelllib "github.com/gdamore/tcell/v2"
 )
@@ -304,4 +305,181 @@ func TestBackend_Close_shouldFinalizeScreen(t *testing.T) {
 	if screen.finiCount != 1 {
 		t.Fatalf("Fini count = %d, want 1", screen.finiCount)
 	}
+}
+
+func TestBackend_PollEvent_shouldConvertRuneKey(t *testing.T) {
+	screen := newSpyScreen(10, 5)
+	backend, err := NewWithScreen(screen)
+	if err != nil {
+		t.Fatalf("NewWithScreen() error = %v", err)
+	}
+	defer backend.Close()
+
+	screen.InjectKey(tcelllib.KeyRune, 'a', tcelllib.ModNone)
+	event, err := backend.PollEvent()
+	if err != nil {
+		t.Fatalf("PollEvent() error = %v", err)
+	}
+
+	key, ok := event.(terminal.KeyEvent)
+	if !ok {
+		t.Fatalf("PollEvent() = %T, want terminal.KeyEvent", event)
+	}
+	if key.Type() != terminal.EventKey {
+		t.Fatalf("Type() = %v, want %v", key.Type(), terminal.EventKey)
+	}
+	if key.Code != terminal.KeyRune || key.Rune != 'a' {
+		t.Fatalf("key = %+v, want Code KeyRune and Rune 'a'", key)
+	}
+}
+
+func TestBackend_PollEvent_shouldConvertSpecialKeys(t *testing.T) {
+	cases := []struct {
+		name string
+		key  tcelllib.Key
+		want terminal.KeyCode
+	}{
+		{"Enter", tcelllib.KeyEnter, terminal.KeyEnter},
+		{"Esc", tcelllib.KeyEsc, terminal.KeyEsc},
+		{"Backspace", tcelllib.KeyBackspace, terminal.KeyBackspace},
+		{"Backspace2", tcelllib.KeyBackspace2, terminal.KeyBackspace},
+		{"Tab", tcelllib.KeyTab, terminal.KeyTab},
+		{"Up", tcelllib.KeyUp, terminal.KeyUp},
+		{"Down", tcelllib.KeyDown, terminal.KeyDown},
+		{"Left", tcelllib.KeyLeft, terminal.KeyLeft},
+		{"Right", tcelllib.KeyRight, terminal.KeyRight},
+		{"Home", tcelllib.KeyHome, terminal.KeyHome},
+		{"End", tcelllib.KeyEnd, terminal.KeyEnd},
+		{"PgUp", tcelllib.KeyPgUp, terminal.KeyPgUp},
+		{"PgDown", tcelllib.KeyPgDn, terminal.KeyPgDown},
+		{"Delete", tcelllib.KeyDelete, terminal.KeyDelete},
+		{"Insert", tcelllib.KeyInsert, terminal.KeyInsert},
+		{"F1", tcelllib.KeyF1, terminal.KeyF1},
+		{"F12", tcelllib.KeyF12, terminal.KeyF12},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			screen := newSpyScreen(10, 5)
+			backend, err := NewWithScreen(screen)
+			if err != nil {
+				t.Fatalf("NewWithScreen() error = %v", err)
+			}
+			defer backend.Close()
+
+			screen.InjectKey(tc.key, 0, tcelllib.ModNone)
+			event, err := backend.PollEvent()
+			if err != nil {
+				t.Fatalf("PollEvent() error = %v", err)
+			}
+
+			key, ok := event.(terminal.KeyEvent)
+			if !ok {
+				t.Fatalf("PollEvent() = %T, want terminal.KeyEvent", event)
+			}
+			if key.Code != tc.want {
+				t.Fatalf("Code = %v, want %v", key.Code, tc.want)
+			}
+		})
+	}
+}
+
+func TestBackend_PollEvent_shouldConvertKeyModifiers(t *testing.T) {
+	screen := newSpyScreen(10, 5)
+	backend, err := NewWithScreen(screen)
+	if err != nil {
+		t.Fatalf("NewWithScreen() error = %v", err)
+	}
+	defer backend.Close()
+
+	screen.InjectKey(tcelllib.KeyRune, 'x', tcelllib.ModCtrl|tcelllib.ModAlt|tcelllib.ModShift)
+	event, err := backend.PollEvent()
+	if err != nil {
+		t.Fatalf("PollEvent() error = %v", err)
+	}
+
+	key, ok := event.(terminal.KeyEvent)
+	if !ok {
+		t.Fatalf("PollEvent() = %T, want terminal.KeyEvent", event)
+	}
+	want := terminal.ModifierCtrl | terminal.ModifierAlt | terminal.ModifierShift
+	if key.Modifiers != want {
+		t.Fatalf("Modifiers = %v, want %v", key.Modifiers, want)
+	}
+}
+
+func TestBackend_PollEvent_shouldConvertResize(t *testing.T) {
+	screen := newSpyScreen(10, 5)
+	backend, err := NewWithScreen(screen)
+	if err != nil {
+		t.Fatalf("NewWithScreen() error = %v", err)
+	}
+	defer backend.Close()
+
+	if err := screen.PostEvent(tcelllib.NewEventResize(80, 24)); err != nil {
+		t.Fatalf("PostEvent() error = %v", err)
+	}
+	event, err := backend.PollEvent()
+	if err != nil {
+		t.Fatalf("PollEvent() error = %v", err)
+	}
+
+	resize, ok := event.(terminal.ResizeEvent)
+	if !ok {
+		t.Fatalf("PollEvent() = %T, want terminal.ResizeEvent", event)
+	}
+	want := layout.Size{Width: 80, Height: 24}
+	if resize.Size != want {
+		t.Fatalf("Size = %+v, want %+v", resize.Size, want)
+	}
+}
+
+func TestBackend_PollEvent_shouldConvertMouse(t *testing.T) {
+	cases := []struct {
+		name    string
+		buttons tcelllib.ButtonMask
+		want    terminal.MouseButton
+	}{
+		{"Left", tcelllib.Button1, terminal.MouseButtonLeft},
+		{"Right", tcelllib.Button2, terminal.MouseButtonRight},
+		{"Middle", tcelllib.Button3, terminal.MouseButtonMiddle},
+		{"WheelUp", tcelllib.WheelUp, terminal.MouseWheelUp},
+		{"WheelDown", tcelllib.WheelDown, terminal.MouseWheelDown},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			screen := newSpyScreen(10, 5)
+			backend, err := NewWithScreen(screen)
+			if err != nil {
+				t.Fatalf("NewWithScreen() error = %v", err)
+			}
+			defer backend.Close()
+
+			screen.InjectMouse(3, 4, tc.buttons, tcelllib.ModCtrl|tcelllib.ModShift)
+			event, err := backend.PollEvent()
+			if err != nil {
+				t.Fatalf("PollEvent() error = %v", err)
+			}
+
+			mouse, ok := event.(terminal.MouseEvent)
+			if !ok {
+				t.Fatalf("PollEvent() = %T, want terminal.MouseEvent", event)
+			}
+			if mouse.Position != (layout.Position{X: 3, Y: 4}) {
+				t.Fatalf("Position = %+v, want (3, 4)", mouse.Position)
+			}
+			if mouse.Button != tc.want {
+				t.Fatalf("Button = %v, want %v", mouse.Button, tc.want)
+			}
+			wantModifiers := terminal.ModifierCtrl | terminal.ModifierShift
+			if mouse.Modifiers != wantModifiers {
+				t.Fatalf("Modifiers = %v, want %v", mouse.Modifiers, wantModifiers)
+			}
+		})
+	}
+}
+
+func TestTerminalBackendInterface_shouldAcceptTcellBackend(t *testing.T) {
+	var _ terminal.Backend = (*Backend)(nil)
 }

@@ -46,6 +46,10 @@ func (b *recordingBackend) Clear() error {
 	return nil
 }
 
+func (b *recordingBackend) PollEvent() (terminal.Event, error) {
+	return terminal.UnknownEvent{}, nil
+}
+
 func (b *recordingBackend) HideCursor() error {
 	b.hideCursorCount++
 	return nil

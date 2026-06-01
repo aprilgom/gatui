@@ -3,6 +3,7 @@ package testbackend
 import (
 	"gatui/buffer"
 	"gatui/layout"
+	"gatui/terminal"
 )
 
 type Backend struct {
@@ -13,6 +14,7 @@ type Backend struct {
 	hideCursorCount int
 	showCursorCount int
 	cursorPositions []layout.Position
+	events          []terminal.Event
 }
 
 func New(width, height int) *Backend {
@@ -38,6 +40,15 @@ func (b *Backend) Flush() error {
 func (b *Backend) Clear() error {
 	b.clearCount++
 	return nil
+}
+
+func (b *Backend) PollEvent() (terminal.Event, error) {
+	if len(b.events) == 0 {
+		return terminal.UnknownEvent{}, nil
+	}
+	event := b.events[0]
+	b.events = b.events[1:]
+	return event, nil
 }
 
 func (b *Backend) HideCursor() error {
@@ -82,4 +93,8 @@ func (b *Backend) ShowCursorCount() int {
 
 func (b *Backend) CursorPositions() []layout.Position {
 	return append([]layout.Position(nil), b.cursorPositions...)
+}
+
+func (b *Backend) PushEvent(event terminal.Event) {
+	b.events = append(b.events, event)
 }
