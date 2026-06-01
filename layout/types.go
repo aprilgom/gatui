@@ -121,6 +121,8 @@ const (
 	constraintMin
 	constraintPercentage
 	constraintRatio
+	constraintMax
+	constraintFill
 )
 
 func Length(value int) Constraint {
@@ -131,12 +133,20 @@ func Min(value int) Constraint {
 	return Constraint{kind: constraintMin, value: value}
 }
 
+func Max(value int) Constraint {
+	return Constraint{kind: constraintMax, value: value}
+}
+
 func Percentage(percent int) Constraint {
 	return Constraint{kind: constraintPercentage, value: percent}
 }
 
 func Ratio(numerator, denominator int) Constraint {
 	return Constraint{kind: constraintRatio, value: numerator, denominator: denominator}
+}
+
+func Fill(weight int) Constraint {
+	return Constraint{kind: constraintFill, value: weight}
 }
 
 func (c Constraint) IsLength() bool {
@@ -149,6 +159,14 @@ func (c Constraint) IsPercentage() bool {
 
 func (c Constraint) IsRatio() bool {
 	return c.kind == constraintRatio
+}
+
+func (c Constraint) IsMax() bool {
+	return c.kind == constraintMax
+}
+
+func (c Constraint) IsFill() bool {
+	return c.kind == constraintFill
 }
 
 func (c Constraint) Value() int {
@@ -215,14 +233,35 @@ func calculateLengths(areaLength int, constraints []Constraint) []int {
 	lengths := make([]int, len(constraints))
 	total := 0
 	hasMin := false
+	totalPositiveFillWeight := 0
+	fillCount := 0
 
 	for i, constraint := range constraints {
+		if constraint.kind == constraintFill {
+			fillCount++
+			if constraint.value > 0 {
+				totalPositiveFillWeight += constraint.value
+			}
+			continue
+		}
+
 		length := constraintLengthValue(areaLength, constraint)
 		lengths[i] = length
 		total += length
 		if constraint.kind == constraintMin {
 			hasMin = true
 		}
+	}
+
+	if fillCount > 0 {
+		if total > areaLength {
+			shrinkLengths(lengths, constraints, total-areaLength, false)
+			shrinkLengths(lengths, constraints, sumInts(lengths)-areaLength, true)
+			return lengths
+		}
+
+		distributeFillLengths(lengths, constraints, areaLength-total, totalPositiveFillWeight)
+		return lengths
 	}
 
 	switch {
@@ -252,6 +291,8 @@ func constraintLengthValue(areaLength int, constraint Constraint) int {
 		return clampInt(constraint.value, 0, areaLength)
 	case constraintMin:
 		return clampInt(constraint.value, 0, areaLength)
+	case constraintMax:
+		return clampInt(constraint.value, 0, areaLength)
 	case constraintPercentage:
 		percent := clampInt(constraint.value, 0, 100)
 		return areaLength * percent / 100
@@ -262,6 +303,68 @@ func constraintLengthValue(areaLength int, constraint Constraint) int {
 		return clampInt(areaLength*constraint.value/constraint.denominator, 0, areaLength)
 	default:
 		return 0
+	}
+}
+
+func distributeFillLengths(lengths []int, constraints []Constraint, remaining int, totalPositiveWeight int) {
+	if remaining <= 0 {
+		return
+	}
+
+	if totalPositiveWeight <= 0 {
+		fillCount := 0
+		for _, constraint := range constraints {
+			if constraint.kind == constraintFill {
+				fillCount++
+			}
+		}
+		if fillCount == 0 {
+			return
+		}
+
+		base := remaining / fillCount
+		remainder := remaining % fillCount
+		for i, constraint := range constraints {
+			if constraint.kind != constraintFill {
+				continue
+			}
+			lengths[i] = base
+			if remainder > 0 {
+				lengths[i]++
+				remainder--
+			}
+		}
+		return
+	}
+
+	distributed := 0
+	type fillRemainder struct {
+		index     int
+		remainder int
+	}
+	remainders := make([]fillRemainder, 0)
+
+	for i, constraint := range constraints {
+		if constraint.kind != constraintFill || constraint.value <= 0 {
+			continue
+		}
+
+		scaled := remaining * constraint.value
+		length := scaled / totalPositiveWeight
+		lengths[i] = length
+		distributed += length
+		remainders = append(remainders, fillRemainder{index: i, remainder: scaled % totalPositiveWeight})
+	}
+
+	for leftover := remaining - distributed; leftover > 0; leftover-- {
+		best := 0
+		for i := 1; i < len(remainders); i++ {
+			if remainders[i].remainder > remainders[best].remainder {
+				best = i
+			}
+		}
+		lengths[remainders[best].index]++
+		remainders[best].remainder = 0
 	}
 }
 

@@ -77,6 +77,123 @@ func TestLayout_Split_shouldMatchRatatuiBasicConstraintPriority(t *testing.T) {
 	}
 }
 
+func TestConstraint_shouldExposeMaxAndFillKinds(t *testing.T) {
+	maxConstraint := layout.Max(10)
+	if !maxConstraint.IsMax() {
+		t.Fatalf("Max(10).IsMax() = false, want true")
+	}
+	if maxConstraint.Value() != 10 {
+		t.Fatalf("Max(10).Value() = %d, want 10", maxConstraint.Value())
+	}
+
+	fillConstraint := layout.Fill(2)
+	if !fillConstraint.IsFill() {
+		t.Fatalf("Fill(2).IsFill() = false, want true")
+	}
+	if fillConstraint.Value() != 2 {
+		t.Fatalf("Fill(2).Value() = %d, want 2", fillConstraint.Value())
+	}
+}
+
+func TestLayout_Split_shouldMatchRatatuiMaxAndFillConstraints(t *testing.T) {
+	tests := []struct {
+		name        string
+		width       int
+		constraints []layout.Constraint
+		want        []layout.Rect
+	}{
+		{
+			name:        "max min",
+			width:       100,
+			constraints: []layout.Constraint{layout.Max(100), layout.Min(0)},
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 100, 1),
+				layout.NewRect(100, 0, 0, 1),
+			},
+		},
+		{
+			name:        "min max",
+			width:       100,
+			constraints: []layout.Constraint{layout.Min(0), layout.Max(100)},
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 0, 1),
+				layout.NewRect(0, 0, 100, 1),
+			},
+		},
+		{
+			name:        "length max",
+			width:       100,
+			constraints: []layout.Constraint{layout.Length(25), layout.Max(100)},
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 25, 1),
+				layout.NewRect(25, 0, 75, 1),
+			},
+		},
+		{
+			name:        "max length min",
+			width:       100,
+			constraints: []layout.Constraint{layout.Max(25), layout.Length(25), layout.Min(25)},
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 25, 1),
+				layout.NewRect(25, 0, 25, 1),
+				layout.NewRect(50, 0, 50, 1),
+			},
+		},
+		{
+			name:        "fill length fill equal",
+			width:       100,
+			constraints: []layout.Constraint{layout.Fill(1), layout.Length(10), layout.Fill(1)},
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 45, 1),
+				layout.NewRect(45, 0, 10, 1),
+				layout.NewRect(55, 0, 45, 1),
+			},
+		},
+		{
+			name:        "fill length fill weighted",
+			width:       100,
+			constraints: []layout.Constraint{layout.Fill(1), layout.Length(10), layout.Fill(2)},
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 30, 1),
+				layout.NewRect(30, 0, 10, 1),
+				layout.NewRect(40, 0, 60, 1),
+			},
+		},
+		{
+			name:        "zero fill around positive fill",
+			width:       100,
+			constraints: []layout.Constraint{layout.Fill(0), layout.Fill(1), layout.Fill(0)},
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 0, 1),
+				layout.NewRect(0, 0, 100, 1),
+				layout.NewRect(100, 0, 0, 1),
+			},
+		},
+		{
+			name:        "length fill fill constrained width",
+			width:       50,
+			constraints: []layout.Constraint{layout.Length(10), layout.Fill(2), layout.Fill(1)},
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 10, 1),
+				layout.NewRect(10, 0, 27, 1),
+				layout.NewRect(37, 0, 13, 1),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := layout.NewLayout(layout.Horizontal).
+				Constraints(tt.constraints...).
+				Split(layout.NewRect(0, 0, tt.width, 1))
+
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("rects mismatch\nwant: %#v\n got: %#v", tt.want, got)
+			}
+		})
+	}
+}
+
 func TestLayout_Split_shouldHandleVerticalPercentageMin(t *testing.T) {
 	area := layout.NewRect(2, 4, 8, 10)
 
