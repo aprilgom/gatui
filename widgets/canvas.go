@@ -116,6 +116,13 @@ type Rectangle struct {
 	Color  style.Color
 }
 
+type Circle struct {
+	X      float64
+	Y      float64
+	Radius float64
+	Color  style.Color
+}
+
 func NewCanvas() Canvas {
 	return Canvas{
 		backgroundColor: style.Default,
@@ -211,6 +218,21 @@ func (r Rectangle) Draw(painter *CanvasPainter) {
 	NewCanvasLine(x2, r.Y, x2, y2, r.Color).Draw(painter)
 	NewCanvasLine(x2, y2, r.X, y2, r.Color).Draw(painter)
 	NewCanvasLine(r.X, y2, r.X, r.Y, r.Color).Draw(painter)
+}
+
+func NewCircle(x, y, radius float64, color style.Color) Circle {
+	return Circle{X: x, Y: y, Radius: radius, Color: color}
+}
+
+func (c Circle) Draw(painter *CanvasPainter) {
+	for angle := 0; angle < 360; angle++ {
+		radians := float64(angle) * math.Pi / 180
+		x := c.X + c.Radius*math.Cos(radians)
+		y := c.Y + c.Radius*math.Sin(radians)
+		if gridX, gridY, ok := painter.GetPoint(x, y); ok {
+			painter.Paint(gridX, gridY, c.Color)
+		}
+	}
 }
 
 func (c Canvas) Render(area layout.Rect, buf *buffer.Buffer) {

@@ -507,6 +507,68 @@ func TestCanvas_shouldDrawRectangleEdgesForDotAndBlockMarkers(t *testing.T) {
 	}
 }
 
+func TestCanvas_shouldDrawCircleWithBrailleMarker(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 5))
+
+	widgets.NewCanvas().
+		Marker(widgets.CanvasMarkerBraille).
+		XBounds(-10, 10).
+		YBounds(-10, 10).
+		Paint(func(ctx *widgets.CanvasContext) {
+			ctx.Draw(widgets.NewCircle(5, 2, 5, style.Default))
+		}).
+		Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"      ⣀⣀⣀ ",
+		"     ⡞⠁ ⠈⢣",
+		"     ⢇⡀ ⢀⡼",
+		"      ⠉⠉⠉ ",
+		"          ",
+	})
+}
+
+func TestCanvas_shouldSkipOffGridCircleWithoutPanicking(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 3, 3))
+
+	assertNotPanics(t, func() {
+		widgets.NewCanvas().
+			XBounds(0, 2).
+			YBounds(0, 2).
+			Paint(func(ctx *widgets.CanvasContext) {
+				ctx.Draw(widgets.NewCircle(10, 10, 1, style.Red))
+			}).
+			Render(buf.Area, buf)
+	})
+
+	assertLines(t, buf, []string{
+		"   ",
+		"   ",
+		"   ",
+	})
+}
+
+func TestCanvas_shouldDrawSmallCircleWithDotMarker(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 5, 5))
+
+	widgets.NewCanvas().
+		Marker(widgets.CanvasMarkerDot).
+		XBounds(0, 4).
+		YBounds(0, 4).
+		Paint(func(ctx *widgets.CanvasContext) {
+			ctx.Draw(widgets.NewCircle(2, 2, 1, style.Green))
+		}).
+		Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"     ",
+		" ••• ",
+		" • • ",
+		" ••• ",
+		"     ",
+	})
+}
+
 func TestCanvas_shouldRenderLabelsAfterShapes(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 5, 1))
 
