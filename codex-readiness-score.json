@@ -1,0 +1,183 @@
+{
+  "meta": {
+    "repo": "gatui",
+    "path": "/Users/aprilgom/gatui/gatui",
+    "scored_at": "2026-06-01",
+    "git_branch": "main",
+    "rubric_version": "codex-v1-100pt",
+    "modules_total": 5,
+    "context_files_total": 8,
+    "large_files_300plus": 0
+  },
+  "total": 90,
+  "grade": "Codex-Native",
+  "grade_color": "green",
+  "categories": {
+    "A": {
+      "name": "Codex Navigation & Scope Coverage",
+      "score": 15,
+      "max": 15,
+      "evidence": {
+        "core_modules": 5,
+        "covered_modules": 5,
+        "coverage_ratio": 1.0,
+        "root_context": "AGENTS.md"
+      },
+      "sub_scores": {},
+      "findings": []
+    },
+    "B": {
+      "name": "AGENTS.md / Context Quality",
+      "score": 17,
+      "max": 20,
+      "evidence": {
+        "context_files": 8,
+        "max_lines": 81,
+        "min_lines": 17
+      },
+      "sub_scores": {
+        "B1_Conciseness": 4,
+        "B2_QuickCommands": 4,
+        "B3_KeyFiles": 3,
+        "B4_NonObvious": 3,
+        "B5_CrossRefs": 3
+      },
+      "findings": []
+    },
+    "C": {
+      "name": "Local Development Workflow Clarity",
+      "score": 14,
+      "max": 15,
+      "evidence": {
+        "modules_total": 5,
+        "entry_points": 5,
+        "setup_install": 5,
+        "verification_commands": 5,
+        "known_failures": 4,
+        "done_criteria": 5
+      },
+      "sub_scores": {
+        "C1_EntryPoints": 3,
+        "C2_SetupInstall": 3,
+        "C3_VerificationCommands": 3,
+        "C4_KnownFailures": 2,
+        "C5_DoneCriteria": 3
+      },
+      "findings": []
+    },
+    "D": {
+      "name": "Cross-Module Dependency Mapping",
+      "score": 13,
+      "max": 15,
+      "evidence": {
+        "architecture_doc": true,
+        "mermaid_diagrams": true,
+        "context_with_deps_section": 6,
+        "monorepo_workspace": false
+      },
+      "sub_scores": {},
+      "findings": []
+    },
+    "E": {
+      "name": "Verification Gates & Testability",
+      "score": 17,
+      "max": 20,
+      "evidence": {
+        "ref_total": 26,
+        "ref_broken": 0,
+        "codeowners": true,
+        "pr_template": true,
+        "ci_workflows": true,
+        "husky": false,
+        "evals_dir": true,
+        "verify_commands_in_context": true
+      },
+      "sub_scores": {
+        "E1_RefAccuracy": 5,
+        "E2_ReviewEvidence": 4,
+        "E3_TaskValidation": 5,
+        "E4_AgentWorkflowTests": 3
+      },
+      "findings": []
+    },
+    "F": {
+      "name": "Safety, Secrets & Change Boundaries",
+      "score": 10,
+      "max": 10,
+      "evidence": {
+        "context_files_checked": 6,
+        "safety_context_hits": 6,
+        "env_example": true,
+        "gitignore_env": true,
+        "generated_boundaries": true
+      },
+      "sub_scores": {},
+      "findings": []
+    },
+    "G": {
+      "name": "Agent Outcome Evidence",
+      "score": 4,
+      "max": 5,
+      "evidence": {
+        "eval_dirs": [
+          "evals"
+        ],
+        "metric_files": [],
+        "telemetry_hint": true
+      },
+      "sub_scores": {},
+      "findings": []
+    }
+  },
+  "insights": [
+    "총점 90/100 · 등급 Codex-Native",
+    "가장 낮은 카테고리: G Agent Outcome Evidence 4/5",
+    "가장 낮은 카테고리: B AGENTS.md / Context Quality 17/20"
+  ],
+  "actions": [],
+  "extras": {
+    "modules": [
+      {
+        "path": "/Users/aprilgom/gatui/gatui/buffer",
+        "rel": "buffer",
+        "code_files": 1,
+        "has_context": true,
+        "context_file": "/Users/aprilgom/gatui/gatui/buffer/AGENTS.md",
+        "context_kind": "AGENTS.md"
+      },
+      {
+        "path": "/Users/aprilgom/gatui/gatui/layout",
+        "rel": "layout",
+        "code_files": 2,
+        "has_context": true,
+        "context_file": "/Users/aprilgom/gatui/gatui/layout/AGENTS.md",
+        "context_kind": "AGENTS.md"
+      },
+      {
+        "path": "/Users/aprilgom/gatui/gatui/style",
+        "rel": "style",
+        "code_files": 1,
+        "has_context": true,
+        "context_file": "/Users/aprilgom/gatui/gatui/style/AGENTS.md",
+        "context_kind": "AGENTS.md"
+      },
+      {
+        "path": "/Users/aprilgom/gatui/gatui/text",
+        "rel": "text",
+        "code_files": 1,
+        "has_context": true,
+        "context_file": "/Users/aprilgom/gatui/gatui/text/AGENTS.md",
+        "context_kind": "AGENTS.md"
+      },
+      {
+        "path": "/Users/aprilgom/gatui/gatui/widgets",
+        "rel": "widgets",
+        "code_files": 1,
+        "has_context": true,
+        "context_file": "/Users/aprilgom/gatui/gatui/widgets/AGENTS.md",
+        "context_kind": "AGENTS.md"
+      }
+    ],
+    "large_files": []
+  }
+}
