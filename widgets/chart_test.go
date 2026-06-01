@@ -1,6 +1,7 @@
 package widgets_test
 
 import (
+	"strconv"
 	"testing"
 
 	"gatui/buffer"
@@ -410,6 +411,105 @@ func TestChart_shouldPlotLineBetweenTwoPoints(t *testing.T) {
 	})
 }
 
+func TestChart_datasetsWithoutNameShouldNotContributeToLegendHeight(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 50, 25))
+	chart := widgets.NewChart([]widgets.Dataset{
+		widgets.NewDataset().Name("data1"),
+		widgets.NewDataset(),
+		widgets.NewDataset().Name(""),
+	})
+
+	chart.Render(buf.Area, buf)
+
+	assertLines(t, firstLines(buf, 4), []string{
+		"                                           ┌─────┐",
+		"                                           │data1│",
+		"                                           │     │",
+		"                                           └─────┘",
+	})
+}
+
+func TestChart_shouldNotRenderLegend_whenNoDatasetsAreNamed(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 12, 4))
+	chart := widgets.NewChart([]widgets.Dataset{
+		widgets.NewDataset(),
+		widgets.NewDataset(),
+		widgets.NewDataset(),
+	})
+
+	chart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"            ",
+		"            ",
+		"            ",
+		"            ",
+	})
+}
+
+func TestChart_shouldPatchDatasetStyleIntoLegendName(t *testing.T) {
+	longStyle := style.NewStyle().Fg(style.Red)
+	shortStyle := style.NewStyle().Fg(style.Green)
+	buf := buffer.Empty(layout.NewRect(0, 0, 20, 5))
+	chart := widgets.NewChart([]widgets.Dataset{
+		widgets.NewDataset().Name("Very long name").Style(longStyle),
+		widgets.NewDataset().Name("Short name").Style(shortStyle),
+	}).HiddenLegendConstraints(layout.Length(100), layout.Length(100))
+
+	chart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"    ┌──────────────┐",
+		"    │Very long name│",
+		"    │Short name    │",
+		"    └──────────────┘",
+		"                    ",
+	})
+	for x := 5; x <= 18; x++ {
+		assertCellStyle(t, buf, x, 1, longStyle)
+	}
+	for x := 5; x <= 14; x++ {
+		assertCellStyle(t, buf, x, 2, shortStyle)
+	}
+}
+
+func TestChart_shouldRenderTopLeftLegend(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 30, 20))
+	chart := widgets.NewChart([]widgets.Dataset{
+		widgets.NewDataset().Name("Ds1"),
+	}).LegendPosition(widgets.LegendPositionTopLeft)
+
+	chart.Render(buf.Area, buf)
+
+	lines := firstLines(buf, 3)
+	assertLines(t, lines, []string{
+		"┌───┐                         ",
+		"│Ds1│                         ",
+		"└───┘                         ",
+	})
+}
+
+func TestChart_shouldHideLegend_whenHiddenLegendConstraintsAreExceeded(t *testing.T) {
+	datasets := make([]widgets.Dataset, 0, 10)
+	for i := 0; i < 10; i++ {
+		datasets = append(datasets, widgets.NewDataset().Name("Dataset #"+strconv.Itoa(i)))
+	}
+
+	shown := buffer.Empty(layout.NewRect(0, 0, 100, 100))
+	widgets.NewChart(datasets).Render(shown.Area, shown)
+	assertLines(t, firstLines(shown, 1), []string{
+		"                                                                                        ┌──────────┐",
+	})
+
+	hidden := buffer.Empty(layout.NewRect(0, 0, 100, 100))
+	widgets.NewChart(datasets).
+		HiddenLegendConstraints(layout.Ratio(1, 10), layout.Ratio(1, 4)).
+		Render(hidden.Area, hidden)
+	assertLines(t, firstLines(hidden, 1), []string{
+		"                                                                                                    ",
+	})
+}
+
 func assertChartLines(t *testing.T, width, height int, xAxis widgets.Axis, yAxis widgets.Axis, expected []string) {
 	t.Helper()
 	buf := buffer.Empty(layout.NewRect(0, 0, width, height))
@@ -418,4 +518,9 @@ func assertChartLines(t *testing.T, width, height int, xAxis widgets.Axis, yAxis
 	chart.Render(buf.Area, buf)
 
 	assertLines(t, buf, expected)
+}
+
+func firstLines(buf *buffer.Buffer, n int) *buffer.Buffer {
+	lines := buf.Lines()
+	return buffer.WithLines(lines[:n])
 }

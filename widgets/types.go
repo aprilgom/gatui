@@ -106,6 +106,19 @@ const (
 	GraphTypeLine
 )
 
+type LegendPosition int
+
+const (
+	LegendPositionTopRight LegendPosition = iota
+	LegendPositionTopLeft
+	LegendPositionTop
+	LegendPositionLeft
+	LegendPositionRight
+	LegendPositionBottomLeft
+	LegendPositionBottom
+	LegendPositionBottomRight
+)
+
 type Axis struct {
 	title           *text.Line
 	bounds          [2]float64
@@ -121,16 +134,20 @@ type ChartPoint struct {
 
 type Dataset struct {
 	name      string
+	hasName   bool
 	data      []ChartPoint
 	graphType GraphType
 	style     style.Style
 }
 
 type Chart struct {
-	datasets []Dataset
-	block    *Block
-	xAxis    Axis
-	yAxis    Axis
+	datasets           []Dataset
+	block              *Block
+	xAxis              Axis
+	yAxis              Axis
+	legendPosition     *LegendPosition
+	hiddenLegendWidth  layout.Constraint
+	hiddenLegendHeight layout.Constraint
 }
 
 type Bar struct {
@@ -193,6 +210,7 @@ func NewDataset() Dataset {
 
 func (d Dataset) Name(name string) Dataset {
 	d.name = name
+	d.hasName = true
 	return d
 }
 
@@ -220,10 +238,14 @@ func (d Dataset) Style(datasetStyle style.Style) Dataset {
 }
 
 func NewChart(datasets []Dataset) Chart {
+	defaultLegendPosition := LegendPositionTopRight
 	return Chart{
-		datasets: append([]Dataset(nil), datasets...),
-		xAxis:    NewAxis(),
-		yAxis:    NewAxis(),
+		datasets:           append([]Dataset(nil), datasets...),
+		xAxis:              NewAxis(),
+		yAxis:              NewAxis(),
+		legendPosition:     &defaultLegendPosition,
+		hiddenLegendWidth:  layout.Ratio(1, 4),
+		hiddenLegendHeight: layout.Ratio(1, 4),
 	}
 }
 
@@ -998,6 +1020,22 @@ func (c Chart) YAxis(axis Axis) Chart {
 	return c
 }
 
+func (c Chart) LegendPosition(position LegendPosition) Chart {
+	c.legendPosition = &position
+	return c
+}
+
+func (c Chart) HideLegend() Chart {
+	c.legendPosition = nil
+	return c
+}
+
+func (c Chart) HiddenLegendConstraints(width, height layout.Constraint) Chart {
+	c.hiddenLegendWidth = width
+	c.hiddenLegendHeight = height
+	return c
+}
+
 func (c Chart) Render(area layout.Rect, buf *buffer.Buffer) {
 	if area.Width == 0 || area.Height == 0 {
 		return
@@ -1018,6 +1056,7 @@ func (c Chart) Render(area layout.Rect, buf *buffer.Buffer) {
 	c.renderXLabels(buf, layout)
 	c.renderYTitle(buf, layout)
 	c.renderDatasets(buf, layout)
+	c.renderLegend(buf, layout)
 }
 
 type chartAxisLayout struct {
@@ -1217,6 +1256,108 @@ func (c Chart) renderDatasets(buf *buffer.Buffer, l chartAxisLayout) {
 			}
 		}
 	}
+}
+
+func (c Chart) renderLegend(buf *buffer.Buffer, l chartAxisLayout) {
+	legendArea, ok := c.legendArea(l.area)
+	if !ok {
+		return
+	}
+	BorderedBlock().Render(legendArea, buf)
+	innerWidth := maxInt(0, legendArea.Width-2)
+	y := legendArea.Y + 1
+	for _, dataset := range c.datasets {
+		if !dataset.hasName || y >= legendArea.Y+legendArea.Height-1 {
+			continue
+		}
+		x := legendArea.X + 1
+		for _, r := range dataset.name {
+			if x >= legendArea.X+legendArea.Width-1 {
+				break
+			}
+			buf.SetCell(x, y, buffer.Cell{Symbol: string(r), Style: dataset.style})
+			x++
+		}
+		for ; x < legendArea.X+1+innerWidth; x++ {
+			buf.SetCell(x, y, buffer.Cell{Symbol: " ", Style: dataset.style})
+		}
+		y++
+	}
+}
+
+func (c Chart) legendArea(area layout.Rect) (layout.Rect, bool) {
+	if c.legendPosition == nil {
+		return layout.Rect{}, false
+	}
+	innerWidth := 0
+	namedDatasets := 0
+	for _, dataset := range c.datasets {
+		if !dataset.hasName {
+			continue
+		}
+		namedDatasets++
+		innerWidth = maxInt(innerWidth, len([]rune(dataset.name)))
+	}
+	if namedDatasets == 0 {
+		return layout.Rect{}, false
+	}
+	legendWidth := innerWidth + 2
+	legendHeight := namedDatasets + 2
+	if legendWidth > area.Width || legendHeight > area.Height {
+		return layout.Rect{}, false
+	}
+	if !c.legendFits(area, legendWidth, legendHeight) {
+		return layout.Rect{}, false
+	}
+
+	x := area.X
+	y := area.Y
+	switch *c.legendPosition {
+	case LegendPositionTopLeft:
+	case LegendPositionTop:
+		x = area.X + (area.Width-legendWidth)/2
+	case LegendPositionTopRight:
+		x = area.X + area.Width - legendWidth
+	case LegendPositionLeft:
+		y = area.Y + (area.Height-legendHeight)/2
+	case LegendPositionRight:
+		x = area.X + area.Width - legendWidth
+		y = area.Y + (area.Height-legendHeight)/2
+	case LegendPositionBottomLeft:
+		y = area.Y + area.Height - legendHeight
+	case LegendPositionBottom:
+		x = area.X + (area.Width-legendWidth)/2
+		y = area.Y + area.Height - legendHeight
+	case LegendPositionBottomRight:
+		x = area.X + area.Width - legendWidth
+		y = area.Y + area.Height - legendHeight
+	}
+	return layout.NewRect(x, y, legendWidth, legendHeight), true
+}
+
+func (c Chart) legendFits(area layout.Rect, legendWidth, legendHeight int) bool {
+	maxWidth, widthAlways := legendConstraintSize(c.hiddenLegendWidth, area.Width)
+	maxHeight, heightAlways := legendConstraintSize(c.hiddenLegendHeight, area.Height)
+	widthFits := widthAlways || legendWidth <= maxWidth
+	heightFits := heightAlways || legendHeight <= maxHeight
+	return widthFits && heightFits
+}
+
+func legendConstraintSize(constraint layout.Constraint, total int) (int, bool) {
+	if constraint.IsLength() {
+		return constraint.Value(), false
+	}
+	if constraint.IsPercentage() {
+		return total * constraint.Value() / 100, false
+	}
+	if constraint.IsRatio() {
+		denominator := constraint.Denominator()
+		if denominator == 0 {
+			return 0, false
+		}
+		return total * constraint.Value() / denominator, false
+	}
+	return total, true
 }
 
 func (c Chart) graphArea(l chartAxisLayout) layout.Rect {
