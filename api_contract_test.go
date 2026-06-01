@@ -35,6 +35,13 @@ func TestPublicAPISurface_shouldExposeInitialRatatuiPortTypes(t *testing.T) {
 	_ = layout.Size{Width: 20, Height: 3}
 	_ = layout.Margin{Horizontal: 1, Vertical: 1}
 	_ = layout.NewLayout(layout.Vertical).Constraints(layout.Length(1), layout.Min(0))
+	_ = layout.NewVerticalLayout(layout.Length(1), layout.Fill(1)).
+		Direction(layout.Horizontal).
+		Margin(1, 2).
+		UniformMargin(1).
+		HorizontalMargin(2).
+		VerticalMargin(3)
+	_, _ = layout.NewHorizontalLayout(layout.Length(1)).SplitWithSpacers(area)
 	_ = layout.Center
 	_ = style.NewStyle().Fg(style.Red).Bg(style.Black).AddModifier(style.ModifierItalic)
 	_ = style.Styled[text.Span]{Value: span, Style: style.NewStyle()}

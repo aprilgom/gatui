@@ -95,6 +95,113 @@ func TestConstraint_shouldExposeMaxAndFillKinds(t *testing.T) {
 	}
 }
 
+func TestNewVerticalLayout_shouldMatchRatatuiVerticalConstructor(t *testing.T) {
+	got := layout.NewVerticalLayout(layout.Min(0)).
+		Split(layout.NewRect(0, 0, 5, 10))
+	want := layout.NewLayout(layout.Vertical).
+		Constraints(layout.Min(0)).
+		Split(layout.NewRect(0, 0, 5, 10))
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("rects mismatch\nwant: %#v\n got: %#v", want, got)
+	}
+}
+
+func TestNewHorizontalLayout_shouldMatchRatatuiHorizontalConstructor(t *testing.T) {
+	got := layout.NewHorizontalLayout(layout.Min(0)).
+		Split(layout.NewRect(0, 0, 10, 5))
+	want := layout.NewLayout(layout.Horizontal).
+		Constraints(layout.Min(0)).
+		Split(layout.NewRect(0, 0, 10, 5))
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("rects mismatch\nwant: %#v\n got: %#v", want, got)
+	}
+}
+
+func TestLayoutConstructors_shouldCopyConstraintsFromCallerSlice(t *testing.T) {
+	constraints := []layout.Constraint{layout.Length(2), layout.Fill(1)}
+	constructed := layout.NewHorizontalLayout(constraints...)
+
+	constraints[0] = layout.Length(8)
+
+	got := constructed.Split(layout.NewRect(0, 0, 10, 1))
+	want := []layout.Rect{
+		layout.NewRect(0, 0, 2, 1),
+		layout.NewRect(2, 0, 8, 1),
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("rects mismatch\nwant: %#v\n got: %#v", want, got)
+	}
+}
+
+func TestLayout_Direction_shouldPreserveConstraintsAndChangeSplitAxis(t *testing.T) {
+	horizontal := layout.NewVerticalLayout(layout.Length(5), layout.Fill(1)).
+		Direction(layout.Horizontal).
+		Split(layout.NewRect(0, 0, 10, 10))
+	wantHorizontal := []layout.Rect{
+		layout.NewRect(0, 0, 5, 10),
+		layout.NewRect(5, 0, 5, 10),
+	}
+	if !reflect.DeepEqual(horizontal, wantHorizontal) {
+		t.Fatalf("horizontal rects mismatch\nwant: %#v\n got: %#v", wantHorizontal, horizontal)
+	}
+
+	vertical := layout.NewHorizontalLayout(layout.Length(5), layout.Fill(1)).
+		Direction(layout.Vertical).
+		Split(layout.NewRect(0, 0, 10, 10))
+	wantVertical := []layout.Rect{
+		layout.NewRect(0, 0, 10, 5),
+		layout.NewRect(0, 5, 10, 5),
+	}
+	if !reflect.DeepEqual(vertical, wantVertical) {
+		t.Fatalf("vertical rects mismatch\nwant: %#v\n got: %#v", wantVertical, vertical)
+	}
+}
+
+func TestLayout_Split_shouldApplyMarginsBeforeSplitting(t *testing.T) {
+	tests := []struct {
+		name   string
+		layout layout.Layout
+		want   []layout.Rect
+	}{
+		{
+			name:   "uniform",
+			layout: layout.NewVerticalLayout(layout.Fill(1)).UniformMargin(2),
+			want:   []layout.Rect{layout.NewRect(2, 2, 6, 6)},
+		},
+		{
+			name:   "horizontal",
+			layout: layout.NewVerticalLayout(layout.Fill(1)).HorizontalMargin(2),
+			want:   []layout.Rect{layout.NewRect(2, 0, 6, 10)},
+		},
+		{
+			name:   "vertical",
+			layout: layout.NewVerticalLayout(layout.Fill(1)).VerticalMargin(2),
+			want:   []layout.Rect{layout.NewRect(0, 2, 10, 6)},
+		},
+		{
+			name:   "axes",
+			layout: layout.NewVerticalLayout(layout.Fill(1)).Margin(1, 2),
+			want:   []layout.Rect{layout.NewRect(1, 2, 8, 6)},
+		},
+		{
+			name:   "oversized",
+			layout: layout.NewVerticalLayout(layout.Fill(1)).UniformMargin(6),
+			want:   []layout.Rect{layout.NewRect(0, 0, 0, 0)},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.layout.Split(layout.NewRect(0, 0, 10, 10))
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("rects mismatch\nwant: %#v\n got: %#v", tt.want, got)
+			}
+		})
+	}
+}
+
 func TestLayout_Split_shouldMatchRatatuiMaxAndFillConstraints(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -708,6 +815,30 @@ func TestLayout_SplitWithSpacers_shouldMatchRatatuiSpacerRects(t *testing.T) {
 				t.Fatalf("spacers mismatch\nwant: %#v\n got: %#v", tt.want, spacers)
 			}
 		})
+	}
+}
+
+func TestLayout_SplitWithSpacers_shouldApplyMarginsBeforeSplitting(t *testing.T) {
+	segments, spacers := layout.NewHorizontalLayout(layout.Length(2), layout.Length(2)).
+		Flex(layout.FlexSpaceBetween).
+		Margin(1, 2).
+		SplitWithSpacers(layout.NewRect(0, 0, 10, 6))
+
+	wantSegments := []layout.Rect{
+		layout.NewRect(1, 2, 2, 2),
+		layout.NewRect(7, 2, 2, 2),
+	}
+	wantSpacers := []layout.Rect{
+		layout.NewRect(1, 2, 0, 2),
+		layout.NewRect(3, 2, 4, 2),
+		layout.NewRect(9, 2, 0, 2),
+	}
+
+	if !reflect.DeepEqual(segments, wantSegments) {
+		t.Fatalf("segments mismatch\nwant: %#v\n got: %#v", wantSegments, segments)
+	}
+	if !reflect.DeepEqual(spacers, wantSpacers) {
+		t.Fatalf("spacers mismatch\nwant: %#v\n got: %#v", wantSpacers, spacers)
 	}
 }
 

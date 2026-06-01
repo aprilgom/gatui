@@ -194,14 +194,28 @@ type Layout struct {
 	constraints []Constraint
 	flex        Flex
 	spacing     int
+	margin      Margin
 }
 
 func NewLayout(direction Direction) Layout {
 	return Layout{direction: direction}
 }
 
+func NewVerticalLayout(constraints ...Constraint) Layout {
+	return NewLayout(Vertical).Constraints(constraints...)
+}
+
+func NewHorizontalLayout(constraints ...Constraint) Layout {
+	return NewLayout(Horizontal).Constraints(constraints...)
+}
+
 func (l Layout) Constraints(constraints ...Constraint) Layout {
 	l.constraints = append([]Constraint(nil), constraints...)
+	return l
+}
+
+func (l Layout) Direction(direction Direction) Layout {
+	l.direction = direction
 	return l
 }
 
@@ -215,12 +229,32 @@ func (l Layout) Spacing(spacing int) Layout {
 	return l
 }
 
+func (l Layout) Margin(horizontal, vertical int) Layout {
+	l.margin = NewMargin(horizontal, vertical)
+	return l
+}
+
+func (l Layout) UniformMargin(margin int) Layout {
+	return l.Margin(margin, margin)
+}
+
+func (l Layout) HorizontalMargin(horizontal int) Layout {
+	l.margin.Horizontal = horizontal
+	return l
+}
+
+func (l Layout) VerticalMargin(vertical int) Layout {
+	l.margin.Vertical = vertical
+	return l
+}
+
 func (l Layout) Split(area Rect) []Rect {
 	rects, _ := l.SplitWithSpacers(area)
 	return rects
 }
 
 func (l Layout) SplitWithSpacers(area Rect) ([]Rect, []Rect) {
+	area = area.Inner(l.margin)
 	if len(l.constraints) == 0 {
 		return []Rect{area}, []Rect{emptySpacer(area, l.direction, 0), emptySpacer(area, l.direction, axisLength(area, l.direction))}
 	}
