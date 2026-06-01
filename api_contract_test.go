@@ -67,6 +67,20 @@ func TestPublicAPISurface_shouldExposeInitialRatatuiPortTypes(t *testing.T) {
 	_ = completed.Area
 	_ = completed.Buffer
 	_ = completed.Count
+	_, _ = term.TryDraw(func(frame *terminal.Frame) error {
+		frame.RenderWidget(widgets.Clear{}, frame.Area())
+		return nil
+	})
+	backend.SetSize(10, 2)
+	_ = term.Autoresize()
+	_ = term.Area()
+	frame := term.Frame()
+	frame.Buffer().SetSymbol(0, 0, "x")
+	_ = term.Flush()
+	term.SwapBuffers()
+	_ = term.HideCursor()
+	_ = term.ShowCursor()
+	_ = term.SetCursorPosition(layout.Position{X: 1, Y: 0})
 	term.Resize(layout.NewRect(0, 0, 10, 2))
 	_ = term.Clear()
 	_ = term.Backend()

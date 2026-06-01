@@ -1,6 +1,7 @@
 package terminal_test
 
 import (
+	"errors"
 	"reflect"
 	"testing"
 
@@ -19,6 +20,7 @@ type recordingBackend struct {
 	hideCursorCount int
 	showCursorCount int
 	cursorPositions []layout.Position
+	operations      []string
 }
 
 func newRecordingBackend(width, height int) *recordingBackend {
@@ -29,15 +31,21 @@ func (b *recordingBackend) Size() (layout.Size, error) {
 	return b.size, nil
 }
 
+func (b *recordingBackend) SetSize(width, height int) {
+	b.size = layout.Size{Width: width, Height: height}
+}
+
 func (b *recordingBackend) Draw(diffs []buffer.CellDiff) error {
 	copied := make([]buffer.CellDiff, len(diffs))
 	copy(copied, diffs)
 	b.draws = append(b.draws, copied)
+	b.operations = append(b.operations, "draw")
 	return nil
 }
 
 func (b *recordingBackend) Flush() error {
 	b.flushCount++
+	b.operations = append(b.operations, "backend-flush")
 	return nil
 }
 
@@ -48,16 +56,19 @@ func (b *recordingBackend) Clear() error {
 
 func (b *recordingBackend) HideCursor() error {
 	b.hideCursorCount++
+	b.operations = append(b.operations, "hide-cursor")
 	return nil
 }
 
 func (b *recordingBackend) ShowCursor() error {
 	b.showCursorCount++
+	b.operations = append(b.operations, "show-cursor")
 	return nil
 }
 
 func (b *recordingBackend) SetCursorPosition(pos layout.Position) error {
 	b.cursorPositions = append(b.cursorPositions, pos)
+	b.operations = append(b.operations, "set-cursor")
 	return nil
 }
 
@@ -148,6 +159,199 @@ func TestTerminal_Draw_shouldSwapAndResetBuffers(t *testing.T) {
 	}
 }
 
+func TestTerminal_TryDraw_shouldReturnCallbackErrorWithoutMutatingTerminal(t *testing.T) {
+	backend := newRecordingBackend(3, 1)
+	term, err := terminal.New(backend)
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+	renderText(t, term, "abc")
+	backend.draws = nil
+	backend.flushCount = 0
+	backend.hideCursorCount = 0
+	backend.showCursorCount = 0
+	backend.cursorPositions = nil
+
+	callbackErr := errors.New("render failed")
+	completed, err := term.TryDraw(func(frame *terminal.Frame) error {
+		frame.RenderWidget(widgets.NewParagraph(text.FromString("xyz")), frame.Area())
+		frame.SetCursorPosition(layout.Position{X: 1, Y: 0})
+		return callbackErr
+	})
+
+	if !errors.Is(err, callbackErr) {
+		t.Fatalf("TryDraw error = %v, want %v", err, callbackErr)
+	}
+	if completed != nil {
+		t.Fatalf("completed = %#v, want nil", completed)
+	}
+	if got := len(backend.draws); got != 0 {
+		t.Fatalf("draw count = %d, want 0", got)
+	}
+	if got := backend.flushCount; got != 0 {
+		t.Fatalf("flush count = %d, want 0", got)
+	}
+	if got := backend.hideCursorCount + backend.showCursorCount + len(backend.cursorPositions); got != 0 {
+		t.Fatalf("cursor backend calls = %d, want 0", got)
+	}
+
+	renderText(t, term, "abc")
+	if got, want := backend.draws[0], []buffer.CellDiff{}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("next draw diffs = %#v, want %#v", got, want)
+	}
+}
+
+func TestTerminal_Draw_shouldCallAutoresizeBeforeRendering(t *testing.T) {
+	backend := newRecordingBackend(3, 1)
+	term, err := terminal.New(backend)
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+	backend.SetSize(4, 2)
+
+	completed, err := term.Draw(func(frame *terminal.Frame) {
+		if got, want := frame.Area(), layout.NewRect(0, 0, 4, 2); got != want {
+			t.Fatalf("frame area = %#v, want %#v", got, want)
+		}
+		frame.RenderWidget(widgets.NewParagraph(text.FromString("abcd\nxy")), frame.Area())
+	})
+	if err != nil {
+		t.Fatalf("Draw returned error: %v", err)
+	}
+
+	if got, want := completed.Area, layout.NewRect(0, 0, 4, 2); got != want {
+		t.Fatalf("completed area = %#v, want %#v", got, want)
+	}
+}
+
+func TestTerminal_Autoresize_shouldResizeWhenBackendSizeChanges(t *testing.T) {
+	backend := newRecordingBackend(3, 1)
+	term, err := terminal.New(backend)
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+	backend.SetSize(5, 2)
+
+	if err := term.Autoresize(); err != nil {
+		t.Fatalf("Autoresize returned error: %v", err)
+	}
+
+	if got, want := term.Area(), layout.NewRect(0, 0, 5, 2); got != want {
+		t.Fatalf("terminal area = %#v, want %#v", got, want)
+	}
+	completed, err := term.Draw(nil)
+	if err != nil {
+		t.Fatalf("Draw returned error: %v", err)
+	}
+	if got, want := completed.Buffer.Area, layout.NewRect(0, 0, 5, 2); got != want {
+		t.Fatalf("buffer area = %#v, want %#v", got, want)
+	}
+}
+
+func TestTerminal_Autoresize_shouldNoopWhenSizeUnchanged(t *testing.T) {
+	backend := newRecordingBackend(3, 1)
+	term, err := terminal.New(backend)
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+
+	if err := term.Autoresize(); err != nil {
+		t.Fatalf("Autoresize returned error: %v", err)
+	}
+	if got, want := term.Area(), layout.NewRect(0, 0, 3, 1); got != want {
+		t.Fatalf("terminal area = %#v, want %#v", got, want)
+	}
+}
+
+func TestTerminal_Flush_shouldDrawCurrentDiffOnly(t *testing.T) {
+	backend := newRecordingBackend(3, 1)
+	term, err := terminal.New(backend)
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+
+	frame := term.Frame()
+	frame.Buffer().SetSymbol(1, 0, "x")
+	if err := term.Flush(); err != nil {
+		t.Fatalf("Flush returned error: %v", err)
+	}
+
+	if got, want := backend.draws, [][]buffer.CellDiff{{{X: 1, Y: 0, Cell: buffer.NewCell("x")}}}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("draws = %#v, want %#v", got, want)
+	}
+	if got := backend.flushCount; got != 0 {
+		t.Fatalf("backend flush count = %d, want 0", got)
+	}
+}
+
+func TestTerminal_SwapBuffers_shouldPrepareNextFrame(t *testing.T) {
+	backend := newRecordingBackend(3, 1)
+	term, err := terminal.New(backend)
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+	frame := term.Frame()
+	frame.Buffer().SetSymbol(0, 0, "a")
+	if err := term.Flush(); err != nil {
+		t.Fatalf("Flush returned error: %v", err)
+	}
+	term.SwapBuffers()
+	backend.draws = nil
+
+	renderText(t, term, "a")
+
+	if got, want := backend.draws[0], []buffer.CellDiff{}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("next draw diffs = %#v, want %#v", got, want)
+	}
+}
+
+func TestTerminal_DirectCursorMethods_shouldCallBackend(t *testing.T) {
+	backend := newRecordingBackend(3, 1)
+	term, err := terminal.New(backend)
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+
+	if err := term.HideCursor(); err != nil {
+		t.Fatalf("HideCursor returned error: %v", err)
+	}
+	if err := term.ShowCursor(); err != nil {
+		t.Fatalf("ShowCursor returned error: %v", err)
+	}
+	if err := term.SetCursorPosition(layout.Position{X: 2, Y: 0}); err != nil {
+		t.Fatalf("SetCursorPosition returned error: %v", err)
+	}
+
+	if got, want := backend.hideCursorCount, 1; got != want {
+		t.Fatalf("hide cursor count = %d, want %d", got, want)
+	}
+	if got, want := backend.showCursorCount, 1; got != want {
+		t.Fatalf("show cursor count = %d, want %d", got, want)
+	}
+	if got, want := backend.cursorPositions, []layout.Position{{X: 2, Y: 0}}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("cursor positions = %#v, want %#v", got, want)
+	}
+}
+
+func TestTerminal_Draw_shouldUseTryDrawSuccessOrder(t *testing.T) {
+	backend := newRecordingBackend(3, 1)
+	term, err := terminal.New(backend)
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+
+	_, err = term.Draw(func(frame *terminal.Frame) {
+		frame.SetCursorPosition(layout.Position{X: 1, Y: 0})
+	})
+	if err != nil {
+		t.Fatalf("Draw returned error: %v", err)
+	}
+
+	if got, want := backend.operations, []string{"draw", "show-cursor", "set-cursor", "backend-flush"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("operations = %#v, want %#v", got, want)
+	}
+}
+
 func TestFrame_RenderWidget_shouldRenderIntoCurrentBuffer(t *testing.T) {
 	term, err := terminal.New(newRecordingBackend(4, 1))
 	if err != nil {
@@ -215,6 +419,7 @@ func TestTerminal_Resize_shouldResizeBothBuffers(t *testing.T) {
 		t.Fatalf("New returned error: %v", err)
 	}
 
+	backend.SetSize(4, 2)
 	term.Resize(layout.NewRect(0, 0, 4, 2))
 	completed, err := term.Draw(func(frame *terminal.Frame) {
 		if got, want := frame.Area(), layout.NewRect(0, 0, 4, 2); got != want {

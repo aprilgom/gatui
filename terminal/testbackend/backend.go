@@ -23,6 +23,10 @@ func (b *Backend) Size() (layout.Size, error) {
 	return b.size, nil
 }
 
+func (b *Backend) SetSize(width, height int) {
+	b.size = layout.Size{Width: width, Height: height}
+}
+
 func (b *Backend) Draw(diffs []buffer.CellDiff) error {
 	copied := make([]buffer.CellDiff, len(diffs))
 	copy(copied, diffs)
