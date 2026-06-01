@@ -211,6 +211,91 @@ func TestCanvas_shouldExposeCanvasMarkerParityAPI(t *testing.T) {
 	}
 }
 
+func TestCanvasMapResolution_shouldString(t *testing.T) {
+	tests := []struct {
+		resolution widgets.MapResolution
+		expected   string
+	}{
+		{resolution: widgets.MapResolutionLow, expected: "Low"},
+		{resolution: widgets.MapResolutionHigh, expected: "High"},
+		{resolution: widgets.MapResolution(99), expected: "MapResolution(99)"},
+	}
+
+	for _, tt := range tests {
+		if actual := tt.resolution.String(); actual != tt.expected {
+			t.Fatalf("String() = %q, want %q", actual, tt.expected)
+		}
+	}
+}
+
+func TestCanvasMap_shouldExposeDefaultLowResolution(t *testing.T) {
+	mapShape := widgets.NewMap()
+
+	if mapShape.Resolution != widgets.MapResolutionLow {
+		t.Fatalf("NewMap().Resolution = %v, want %v", mapShape.Resolution, widgets.MapResolutionLow)
+	}
+	if mapShape.Color != style.Reset {
+		t.Fatalf("NewMap().Color = %v, want %v", mapShape.Color, style.Reset)
+	}
+}
+
+func TestCanvas_shouldDrawLowResolutionMap(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 80, 40))
+
+	widgets.NewCanvas().
+		Marker(widgets.CanvasMarkerDot).
+		XBounds(-180, 180).
+		YBounds(-90, 90).
+		Paint(func(ctx *widgets.CanvasContext) {
+			ctx.Draw(widgets.NewMap())
+		}).
+		Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"                                                                                ",
+		"                               •                                                ",
+		"               • •• •••••••• ••   ••••    •••••  ••• ••     •••                 ",
+		"             •••••••••••••••       •      ••••      • •   •••••••     •••       ",
+		"    • •••• ••••••••••••••• ••     ••  •     •••    ••  ••••    ••  ••••••• •••  ",
+		"•••••     •••••••••••• •••• •  ••••••     •••• • ••• •••••                     •",
+		"   ••  • •   •••• ••••••••  ••••   ••  • •• •  •••                        •• •••",
+		"    •••• •••   •••••• •••••   •       •• ••••••                       • •••••   ",
+		"•••••     •••     •  ••   ••         •••••••                          ••  •• •• ",
+		"            ••    ••••  •••••          ••       •  • •                ••        ",
+		"            •  •    •••••••           •• •••• ••• •• •  ••          • ••        ",
+		"            •          ••             ••••••••• • ••             •••• •         ",
+		"             ••       ••              • • • •• •                  •••••         ",
+		"              ••   •••               •      ••••  •               • •           ",
+		"               •  •   ••             •         ••  •• •           •             ",
+		"    ••          • •••••••           •           •   •  •   •   •• •             ",
+		"                 •••••••••          •           •• •   •  • •• •  ••            ",
+		"                    ••  ••          •            •••     •   •••  ••            ",
+		"                     •••  • •        •  •         •     ••  •••  •••            ",
+		"                      •               •  ••                   • ••              ",
+		"                   •  •     •••                • •            •••   •••         ",
+		"                                •         •     •              • •    •••       ",
+		"  •                                        •    • •                  • • •      ",
+		"                       •       •                • •               ••• ••       •",
+		"                        •      •          •    • ••              •      •   •   ",
+		"                        •    •                   •               •       •      ",
+		"                        •   •              •   •                    •           ",
+		"                           ••               ••                   ••  ••  •   •  ",
+		"                       •  •                                           •••    •• ",
+		"                       •  •                                            ••   ••  ",
+		"                       • •                                                      ",
+		"                       •••••                                                    ",
+		"                                                                                ",
+		"                          ••                                                    ",
+		"                         •••           •       • ••••• • •••• • • •• •• ••      ",
+		"            •    • • ••••••        ••••••••• • ••      ••                  •••  ",
+		"•    ••• •••• ••••   • •  • ••• • •                                        ••• •",
+		"   •• •                •  ••  • ••                                         ••   ",
+		"•      •                                                                      • ",
+		"                                                                                ",
+	})
+	assertCellStyle(t, buf, 31, 1, style.NewStyle().Fg(style.Reset))
+}
+
 func TestCanvas_shouldRenderCharMarkersWithOneCellResolution(t *testing.T) {
 	tests := []struct {
 		name     string

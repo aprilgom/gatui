@@ -2,6 +2,7 @@ package widgets
 
 import (
 	"math"
+	"strconv"
 	"strings"
 
 	"gatui/buffer"
@@ -132,6 +133,18 @@ type Circle struct {
 	Color  style.Color
 }
 
+type MapResolution int
+
+const (
+	MapResolutionLow MapResolution = iota
+	MapResolutionHigh
+)
+
+type Map struct {
+	Resolution MapResolution
+	Color      style.Color
+}
+
 func NewCanvas() Canvas {
 	return Canvas{
 		backgroundColor: style.Default,
@@ -141,6 +154,21 @@ func NewCanvas() Canvas {
 		yMin:            0,
 		yMax:            1,
 	}
+}
+
+func (r MapResolution) String() string {
+	switch r {
+	case MapResolutionLow:
+		return "Low"
+	case MapResolutionHigh:
+		return "High"
+	default:
+		return "MapResolution(" + strconv.Itoa(int(r)) + ")"
+	}
+}
+
+func NewMap() Map {
+	return Map{Resolution: MapResolutionLow, Color: style.Reset}
 }
 
 func (c Canvas) BackgroundColor(color style.Color) Canvas {
@@ -273,6 +301,18 @@ func (c Circle) Draw(painter *CanvasPainter) {
 		y := c.Y + c.Radius*math.Sin(radians)
 		if gridX, gridY, ok := painter.GetPoint(x, y); ok {
 			painter.Paint(gridX, gridY, c.Color)
+		}
+	}
+}
+
+func (m Map) Draw(painter *CanvasPainter) {
+	points := worldLowResolution
+	if m.Resolution == MapResolutionHigh {
+		points = worldHighResolution
+	}
+	for _, point := range points {
+		if x, y, ok := painter.GetPoint(point.X, point.Y); ok {
+			painter.Paint(x, y, m.Color)
 		}
 	}
 }
