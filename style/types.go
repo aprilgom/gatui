@@ -37,6 +37,10 @@ func NewStyle() Style {
 	return Style{Foreground: Default, Background: Default}
 }
 
+func ResetStyle() Style {
+	return Style{Foreground: Reset, Background: Reset}
+}
+
 func (s Style) Fg(color Color) Style {
 	s.Foreground = color
 	return s

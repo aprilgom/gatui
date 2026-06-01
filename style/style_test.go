@@ -21,3 +21,16 @@ func TestStylePatch_shouldMergeOnlySpecifiedColorsAndModifiers(t *testing.T) {
 		t.Fatalf("Patch() = %#v, want %#v", got, want)
 	}
 }
+
+func TestStyle_ResetStyle_shouldSetForegroundAndBackgroundReset(t *testing.T) {
+	got := style.ResetStyle()
+	want := style.Style{
+		Foreground: style.Reset,
+		Background: style.Reset,
+		Modifiers:  0,
+	}
+
+	if got != want {
+		t.Fatalf("ResetStyle() = %#v, want %#v", got, want)
+	}
+}

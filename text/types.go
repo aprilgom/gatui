@@ -28,6 +28,10 @@ func (s Span) PatchStyle(spanStyle style.Style) Span {
 	return s
 }
 
+func (s Span) ResetStyle() Span {
+	return s.PatchStyle(style.ResetStyle())
+}
+
 func (s Span) Width() int {
 	return runewidth.StringWidth(s.Content)
 }
@@ -101,6 +105,10 @@ func StyledLine(content string, lineStyle style.Style) Line {
 func (l Line) PatchStyle(lineStyle style.Style) Line {
 	l.LineStyle = l.LineStyle.Patch(lineStyle)
 	return l
+}
+
+func (l Line) ResetStyle() Line {
+	return l.PatchStyle(style.ResetStyle())
 }
 
 func (l Line) PushSpan(span Span) Line {
@@ -239,6 +247,10 @@ func StyledText(content string, textStyle style.Style) Text {
 func (t Text) PatchStyle(textStyle style.Style) Text {
 	t.Style = t.Style.Patch(textStyle)
 	return t
+}
+
+func (t Text) ResetStyle() Text {
+	return t.PatchStyle(style.ResetStyle())
 }
 
 func (t Text) Align(alignment layout.Alignment) Text {

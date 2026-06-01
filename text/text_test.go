@@ -110,6 +110,22 @@ func TestSpan_PatchStyle_shouldPatchExistingStyle(t *testing.T) {
 	}
 }
 
+func TestSpan_ResetStyle_shouldResetStyleAndPreserveContent(t *testing.T) {
+	got := text.NewSpan("test content").
+		Fg(style.Green).
+		Bg(style.Yellow).
+		Italic().
+		ResetStyle()
+	wantStyle := style.ResetStyle().AddModifier(style.ModifierItalic)
+
+	if got.Content != "test content" {
+		t.Fatalf("content = %q, want test content", got.Content)
+	}
+	if got.Style != wantStyle {
+		t.Fatalf("style = %#v, want %#v", got.Style, wantStyle)
+	}
+}
+
 func TestSpan_LeftLine_shouldPreserveSpanAndSetAlignment(t *testing.T) {
 	greenItalic := style.NewStyle().
 		Fg(style.Green).
@@ -226,6 +242,27 @@ func TestLine_PatchStyle_shouldPatchExistingLineStyle(t *testing.T) {
 
 	if got.LineStyle != want {
 		t.Fatalf("style = %#v, want %#v", got.LineStyle, want)
+	}
+}
+
+func TestLine_ResetStyle_shouldResetLineStyleAndPreserveSpansAndAlignment(t *testing.T) {
+	span := text.NewSpan("test content").Fg(style.Cyan)
+	got := text.NewLine(span).
+		Fg(style.Green).
+		Bg(style.Yellow).
+		Italic().
+		Center().
+		ResetStyle()
+	wantStyle := style.ResetStyle().AddModifier(style.ModifierItalic)
+
+	if len(got.Spans) != 1 || got.Spans[0] != span {
+		t.Fatalf("spans = %#v, want %#v", got.Spans, []text.Span{span})
+	}
+	if got.Alignment == nil || *got.Alignment != layout.Center {
+		t.Fatalf("alignment = %#v, want Center", got.Alignment)
+	}
+	if got.LineStyle != wantStyle {
+		t.Fatalf("line style = %#v, want %#v", got.LineStyle, wantStyle)
 	}
 }
 
@@ -382,6 +419,30 @@ func TestText_PatchStyle_shouldPatchExistingTextStyle(t *testing.T) {
 	}
 }
 
+func TestText_ResetStyle_shouldResetTextStyleAndPreserveLinesAndAlignment(t *testing.T) {
+	lines := []text.Line{
+		text.LineFromString("first"),
+		text.LineFromString("second").Right(),
+	}
+	got := text.NewText(lines...).
+		Fg(style.Green).
+		Bg(style.Yellow).
+		Italic().
+		Center().
+		ResetStyle()
+	wantStyle := style.ResetStyle().AddModifier(style.ModifierItalic)
+
+	if !reflect.DeepEqual(got.Lines, lines) {
+		t.Fatalf("lines = %#v, want %#v", got.Lines, lines)
+	}
+	if got.Alignment == nil || *got.Alignment != layout.Center {
+		t.Fatalf("alignment = %#v, want Center", got.Alignment)
+	}
+	if got.Style != wantStyle {
+		t.Fatalf("text style = %#v, want %#v", got.Style, wantStyle)
+	}
+}
+
 func TestLine_shouldSupportStylizeAndAlignmentHelpers(t *testing.T) {
 	got := text.LineFromString("hello").Cyan().Bold().Right()
 	wantStyle := style.NewStyle().Fg(style.Cyan).AddModifier(style.ModifierBold)
@@ -443,6 +504,16 @@ func TestSpan_Render_shouldPatchExistingStyle(t *testing.T) {
 	want := style.NewStyle().Fg(style.Green).AddModifier(style.ModifierItalic)
 	assertTextCellStyle(t, buf, 0, 0, want)
 	assertTextCellStyle(t, buf, 1, 0, want)
+}
+
+func TestResetStyle_Render_shouldApplyResetColors(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 2, 1))
+	buf.SetStyle(buf.Area, style.NewStyle().Fg(style.Green).Bg(style.Yellow))
+
+	text.NewSpan("hi").ResetStyle().Render(buf.Area, buf)
+
+	assertTextCellStyle(t, buf, 0, 0, style.ResetStyle())
+	assertTextCellStyle(t, buf, 1, 0, style.ResetStyle())
 }
 
 func TestSpan_Render_shouldTruncateToAreaWidth(t *testing.T) {
