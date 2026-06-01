@@ -53,6 +53,12 @@ func TestPublicAPISurface_shouldExposeInitialRatatuiPortTypes(t *testing.T) {
 	_ = widgets.AllBorders
 
 	backend := testbackend.New(20, 3)
+	_ = terminal.FullscreenViewport()
+	_ = terminal.FixedViewport(area)
+	_ = terminal.DefaultTerminalOptions()
+	_, _ = terminal.NewWithOptions(backend, terminal.TerminalOptions{
+		Viewport: terminal.FixedViewport(area),
+	})
 	term, err := terminal.New(backend)
 	if err != nil {
 		t.Fatalf("terminal.New returned error: %v", err)

@@ -18,11 +18,28 @@ type Backend interface {
 	SetCursorPosition(layout.Position) error
 }
 
+type viewportKind int
+
+const (
+	viewportFullscreen viewportKind = iota
+	viewportFixed
+)
+
+type TerminalOptions struct {
+	Viewport Viewport
+}
+
+type Viewport struct {
+	kind viewportKind
+	area layout.Rect
+}
+
 type Terminal struct {
 	backend        Backend
 	previous       *buffer.Buffer
 	current        *buffer.Buffer
 	area           layout.Rect
+	viewport       Viewport
 	count          int
 	cursorPosition *layout.Position
 }
@@ -39,20 +56,40 @@ type CompletedFrame struct {
 	Count  int
 }
 
+func FullscreenViewport() Viewport {
+	return Viewport{kind: viewportFullscreen}
+}
+
+func FixedViewport(area layout.Rect) Viewport {
+	return Viewport{kind: viewportFixed, area: area}
+}
+
+func DefaultTerminalOptions() TerminalOptions {
+	return TerminalOptions{Viewport: FullscreenViewport()}
+}
+
 func New(backend Backend) (*Terminal, error) {
+	return NewWithOptions(backend, DefaultTerminalOptions())
+}
+
+func NewWithOptions(backend Backend, options TerminalOptions) (*Terminal, error) {
 	if backend == nil {
 		return nil, errors.New("terminal backend is nil")
 	}
-	size, err := backend.Size()
-	if err != nil {
-		return nil, err
+	area := options.Viewport.area
+	if options.Viewport.kind == viewportFullscreen {
+		size, err := backend.Size()
+		if err != nil {
+			return nil, err
+		}
+		area = layout.NewRect(0, 0, size.Width, size.Height)
 	}
-	area := layout.NewRect(0, 0, size.Width, size.Height)
 	return &Terminal{
 		backend:  backend,
 		previous: buffer.Empty(area),
 		current:  buffer.Empty(area),
 		area:     area,
+		viewport: options.Viewport,
 	}, nil
 }
 
@@ -96,6 +133,9 @@ func (t *Terminal) TryDraw(render func(*Frame) error) (*CompletedFrame, error) {
 }
 
 func (t *Terminal) Autoresize() error {
+	if t.viewport.kind == viewportFixed {
+		return nil
+	}
 	size, err := t.backend.Size()
 	if err != nil {
 		return err
@@ -127,6 +167,9 @@ func (t *Terminal) Frame() *Frame {
 
 func (t *Terminal) Resize(area layout.Rect) {
 	t.area = area
+	if t.viewport.kind == viewportFixed {
+		t.viewport.area = area
+	}
 	t.previous.Resize(area)
 	t.previous.Reset()
 	t.current.Resize(area)

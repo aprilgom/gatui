@@ -102,6 +102,86 @@ func TestTerminal_New_shouldCreateBuffersFromBackendSize(t *testing.T) {
 	}
 }
 
+func TestTerminal_NewWithOptions_fullscreenUsesBackendSize(t *testing.T) {
+	term, err := terminal.NewWithOptions(newRecordingBackend(5, 3), terminal.DefaultTerminalOptions())
+	if err != nil {
+		t.Fatalf("NewWithOptions returned error: %v", err)
+	}
+
+	completed, err := term.Draw(func(frame *terminal.Frame) {
+		if got, want := frame.Area(), layout.NewRect(0, 0, 5, 3); got != want {
+			t.Fatalf("frame area = %#v, want %#v", got, want)
+		}
+		if got, want := frame.Buffer().Area, layout.NewRect(0, 0, 5, 3); got != want {
+			t.Fatalf("buffer area = %#v, want %#v", got, want)
+		}
+	})
+	if err != nil {
+		t.Fatalf("Draw returned error: %v", err)
+	}
+
+	if got, want := completed.Area, layout.NewRect(0, 0, 5, 3); got != want {
+		t.Fatalf("completed area = %#v, want %#v", got, want)
+	}
+}
+
+func TestTerminal_NewWithOptions_fixedUsesProvidedArea(t *testing.T) {
+	area := layout.NewRect(2, 1, 4, 2)
+	term, err := terminal.NewWithOptions(newRecordingBackend(10, 5), terminal.TerminalOptions{
+		Viewport: terminal.FixedViewport(area),
+	})
+	if err != nil {
+		t.Fatalf("NewWithOptions returned error: %v", err)
+	}
+
+	completed, err := term.Draw(func(frame *terminal.Frame) {
+		if got, want := frame.Area(), area; got != want {
+			t.Fatalf("frame area = %#v, want %#v", got, want)
+		}
+		if got, want := frame.Buffer().Area, area; got != want {
+			t.Fatalf("buffer area = %#v, want %#v", got, want)
+		}
+	})
+	if err != nil {
+		t.Fatalf("Draw returned error: %v", err)
+	}
+
+	if got, want := completed.Area, area; got != want {
+		t.Fatalf("completed area = %#v, want %#v", got, want)
+	}
+	if got, want := completed.Buffer.Area, area; got != want {
+		t.Fatalf("completed buffer area = %#v, want %#v", got, want)
+	}
+}
+
+func TestTerminal_Draw_fixedViewportUsesFixedFrameArea(t *testing.T) {
+	area := layout.NewRect(2, 1, 2, 1)
+	backend := newRecordingBackend(5, 3)
+	term, err := terminal.NewWithOptions(backend, terminal.TerminalOptions{
+		Viewport: terminal.FixedViewport(area),
+	})
+	if err != nil {
+		t.Fatalf("NewWithOptions returned error: %v", err)
+	}
+
+	completed, err := term.Draw(func(frame *terminal.Frame) {
+		if got, want := frame.Area(), area; got != want {
+			t.Fatalf("frame area = %#v, want %#v", got, want)
+		}
+		frame.Buffer().SetSymbol(area.X, area.Y, "z")
+	})
+	if err != nil {
+		t.Fatalf("Draw returned error: %v", err)
+	}
+
+	if got, want := completed.Buffer.Lines(), []string{"z "}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("completed lines = %#v, want %#v", got, want)
+	}
+	if got, want := backend.draws[0], []buffer.CellDiff{{X: 2, Y: 1, Cell: buffer.NewCell("z")}}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("draw diffs = %#v, want %#v", got, want)
+	}
+}
+
 func TestTerminal_Draw_shouldRenderWidgetAndFlushDiff(t *testing.T) {
 	backend := newRecordingBackend(5, 1)
 	term, err := terminal.New(backend)
@@ -260,6 +340,59 @@ func TestTerminal_Autoresize_shouldNoopWhenSizeUnchanged(t *testing.T) {
 	}
 	if got, want := term.Area(), layout.NewRect(0, 0, 3, 1); got != want {
 		t.Fatalf("terminal area = %#v, want %#v", got, want)
+	}
+}
+
+func TestTerminal_Autoresize_fullscreenTracksBackendSize(t *testing.T) {
+	backend := newRecordingBackend(3, 1)
+	term, err := terminal.NewWithOptions(backend, terminal.TerminalOptions{
+		Viewport: terminal.FullscreenViewport(),
+	})
+	if err != nil {
+		t.Fatalf("NewWithOptions returned error: %v", err)
+	}
+	backend.SetSize(5, 2)
+
+	if err := term.Autoresize(); err != nil {
+		t.Fatalf("Autoresize returned error: %v", err)
+	}
+
+	if got, want := term.Area(), layout.NewRect(0, 0, 5, 2); got != want {
+		t.Fatalf("terminal area = %#v, want %#v", got, want)
+	}
+	completed, err := term.Draw(nil)
+	if err != nil {
+		t.Fatalf("Draw returned error: %v", err)
+	}
+	if got, want := completed.Buffer.Area, layout.NewRect(0, 0, 5, 2); got != want {
+		t.Fatalf("buffer area = %#v, want %#v", got, want)
+	}
+}
+
+func TestTerminal_Autoresize_fixedViewportNoop(t *testing.T) {
+	backend := newRecordingBackend(10, 5)
+	area := layout.NewRect(1, 1, 3, 2)
+	term, err := terminal.NewWithOptions(backend, terminal.TerminalOptions{
+		Viewport: terminal.FixedViewport(area),
+	})
+	if err != nil {
+		t.Fatalf("NewWithOptions returned error: %v", err)
+	}
+	backend.SetSize(20, 10)
+
+	if err := term.Autoresize(); err != nil {
+		t.Fatalf("Autoresize returned error: %v", err)
+	}
+
+	if got, want := term.Area(), area; got != want {
+		t.Fatalf("terminal area = %#v, want %#v", got, want)
+	}
+	completed, err := term.Draw(nil)
+	if err != nil {
+		t.Fatalf("Draw returned error: %v", err)
+	}
+	if got, want := completed.Buffer.Area, area; got != want {
+		t.Fatalf("buffer area = %#v, want %#v", got, want)
 	}
 }
 
@@ -436,6 +569,37 @@ func TestTerminal_Resize_shouldResizeBothBuffers(t *testing.T) {
 	}
 	if got, want := completed.Buffer.Lines(), []string{"abcd", "xy  "}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("completed lines = %#v, want %#v", got, want)
+	}
+}
+
+func TestTerminal_Resize_fixedViewportChangesAreaAndBuffers(t *testing.T) {
+	backend := newRecordingBackend(5, 3)
+	term, err := terminal.NewWithOptions(backend, terminal.TerminalOptions{
+		Viewport: terminal.FixedViewport(layout.NewRect(1, 1, 2, 1)),
+	})
+	if err != nil {
+		t.Fatalf("NewWithOptions returned error: %v", err)
+	}
+	area := layout.NewRect(0, 0, 3, 2)
+
+	term.Resize(area)
+
+	if got, want := term.Area(), area; got != want {
+		t.Fatalf("terminal area = %#v, want %#v", got, want)
+	}
+	completed, err := term.Draw(func(frame *terminal.Frame) {
+		if got, want := frame.Area(), area; got != want {
+			t.Fatalf("frame area = %#v, want %#v", got, want)
+		}
+		if got, want := frame.Buffer().Area, area; got != want {
+			t.Fatalf("frame buffer area = %#v, want %#v", got, want)
+		}
+	})
+	if err != nil {
+		t.Fatalf("Draw returned error: %v", err)
+	}
+	if got, want := completed.Buffer.Area, area; got != want {
+		t.Fatalf("completed buffer area = %#v, want %#v", got, want)
 	}
 }
 
