@@ -108,6 +108,15 @@ type CanvasLine struct {
 	Color style.Color
 }
 
+type FilledLine struct {
+	X1      float64
+	Y1      float64
+	X2      float64
+	Y2      float64
+	FillToY float64
+	Color   style.Color
+}
+
 type Rectangle struct {
 	X      float64
 	Y      float64
@@ -205,6 +214,39 @@ func (l CanvasLine) Draw(painter *CanvasPainter) {
 		return
 	}
 	painter.drawLine(startX, startY, endX, endY, l.Color)
+}
+
+func NewFilledLine(x1, y1, x2, y2, fillToY float64, color style.Color) FilledLine {
+	return FilledLine{X1: x1, Y1: y1, X2: x2, Y2: y2, FillToY: fillToY, Color: color}
+}
+
+func (l FilledLine) Draw(painter *CanvasPainter) {
+	x1, y1, x2, y2, ok := painter.clipLine(l.X1, l.Y1, l.X2, l.Y2)
+	if !ok {
+		return
+	}
+	startX, startY, ok := painter.GetPoint(x1, y1)
+	if !ok {
+		return
+	}
+	endX, endY, ok := painter.GetPoint(x2, y2)
+	if !ok {
+		return
+	}
+
+	fillToY := math.Min(math.Max(l.FillToY, painter.yMin), painter.yMax)
+	_, fillY, ok := painter.GetPoint(x1, fillToY)
+	if !ok {
+		return
+	}
+
+	forEachLinePoint(startX, startY, endX, endY, func(x, y int) {
+		start := minInt(y, fillY)
+		end := maxInt(y, fillY)
+		for fill := start; fill <= end; fill++ {
+			painter.Paint(x, fill, l.Color)
+		}
+	})
 }
 
 func NewRectangle(x, y, width, height float64, color style.Color) Rectangle {
@@ -349,6 +391,12 @@ func (m CanvasMarker) cellResolution() (int, int) {
 }
 
 func (p *CanvasPainter) drawLine(x1, y1, x2, y2 int, color style.Color) {
+	forEachLinePoint(x1, y1, x2, y2, func(x, y int) {
+		p.Paint(x, y, color)
+	})
+}
+
+func forEachLinePoint(x1, y1, x2, y2 int, paint func(x, y int)) {
 	dx := absInt(x2 - x1)
 	dy := -absInt(y2 - y1)
 	stepX := -1
@@ -362,7 +410,7 @@ func (p *CanvasPainter) drawLine(x1, y1, x2, y2 int, color style.Color) {
 	err := dx + dy
 
 	for {
-		p.Paint(x1, y1, color)
+		paint(x1, y1)
 		if x1 == x2 && y1 == y2 {
 			return
 		}

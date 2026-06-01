@@ -439,6 +439,121 @@ func TestCanvas_shouldDrawHorizontalVerticalDiagonalAndClippedLines(t *testing.T
 	}
 }
 
+func TestCanvas_shouldDrawFilledLinesWithDotMarker(t *testing.T) {
+	tests := []struct {
+		name     string
+		line     widgets.FilledLine
+		expected []string
+	}{
+		{
+			name: "off grid",
+			line: widgets.NewFilledLine(-1, 0, -1, 10, 0, style.Red),
+			expected: []string{
+				"          ",
+				"          ",
+				"          ",
+				"          ",
+				"          ",
+				"          ",
+				"          ",
+				"          ",
+				"          ",
+				"          ",
+			},
+		},
+		{
+			name: "horizontal fill to bottom",
+			line: widgets.NewFilledLine(0, 0, 10, 0, 0, style.Red),
+			expected: []string{
+				"          ",
+				"          ",
+				"          ",
+				"          ",
+				"          ",
+				"          ",
+				"          ",
+				"          ",
+				"          ",
+				"••••••••••",
+			},
+		},
+		{
+			name: "horizontal fill to top",
+			line: widgets.NewFilledLine(0, 0, 10, 0, 10, style.Red),
+			expected: []string{
+				"••••••••••",
+				"••••••••••",
+				"••••••••••",
+				"••••••••••",
+				"••••••••••",
+				"••••••••••",
+				"••••••••••",
+				"••••••••••",
+				"••••••••••",
+				"••••••••••",
+			},
+		},
+		{
+			name: "diagonal fill to bottom",
+			line: widgets.NewFilledLine(0, 0, 10, 10, 0, style.Red),
+			expected: []string{
+				"         •",
+				"        ••",
+				"       •••",
+				"      ••••",
+				"     •••••",
+				"    ••••••",
+				"   •••••••",
+				"  ••••••••",
+				" •••••••••",
+				"••••••••••",
+			},
+		},
+		{
+			name: "split fill",
+			line: widgets.NewFilledLine(0, 0, 10, 10, 5, style.Red),
+			expected: []string{
+				"         •",
+				"        ••",
+				"       •••",
+				"      ••••",
+				"     •••••",
+				"••••••••••",
+				"••••      ",
+				"•••       ",
+				"••        ",
+				"•         ",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := buffer.Empty(layout.NewRect(0, 0, 10, 10))
+
+			assertNotPanics(t, func() {
+				widgets.NewCanvas().
+					XBounds(0, 10).
+					YBounds(0, 10).
+					Marker(widgets.CanvasMarkerDot).
+					Paint(func(ctx *widgets.CanvasContext) {
+						ctx.Draw(tt.line)
+					}).
+					Render(buf.Area, buf)
+			})
+
+			assertLines(t, buf, tt.expected)
+			for y, line := range tt.expected {
+				for x, symbol := range []rune(line) {
+					if symbol == '•' {
+						assertCellStyle(t, buf, x, y, style.NewStyle().Fg(style.Red))
+					}
+				}
+			}
+		})
+	}
+}
+
 func TestCanvas_shouldSkipOffGridLinesWithoutPanicking(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 3, 3))
 
