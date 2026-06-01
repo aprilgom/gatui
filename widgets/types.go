@@ -27,6 +27,7 @@ type Wrap struct {
 
 type Paragraph struct {
 	text      text.Text
+	style     style.Style
 	wrap      *Wrap
 	block     *Block
 	alignment layout.Alignment
@@ -433,7 +434,7 @@ func (t Tabs) renderTitle(buf *buffer.Buffer, title text.Line, x, y, right int, 
 }
 
 func NewParagraph(content text.Text) Paragraph {
-	return Paragraph{text: content, alignment: layout.Left}
+	return Paragraph{text: content, style: style.NewStyle(), alignment: layout.Left}
 }
 
 func (p Paragraph) Wrap(wrap Wrap) Paragraph {
@@ -457,23 +458,28 @@ func (p Paragraph) Scroll(y, x int) Paragraph {
 	return p
 }
 
+func (p Paragraph) Style(paragraphStyle style.Style) Paragraph {
+	p.style = paragraphStyle
+	return p
+}
+
 func (p Paragraph) Fg(color style.Color) Paragraph {
-	p.text = p.text.Fg(color)
+	p.style = p.style.Fg(color)
 	return p
 }
 
 func (p Paragraph) Bg(color style.Color) Paragraph {
-	p.text = p.text.Bg(color)
+	p.style = p.style.Bg(color)
 	return p
 }
 
 func (p Paragraph) Bold() Paragraph {
-	p.text = p.text.Bold()
+	p.style = p.style.AddModifier(style.ModifierBold)
 	return p
 }
 
 func (p Paragraph) Italic() Paragraph {
-	p.text = p.text.Italic()
+	p.style = p.style.AddModifier(style.ModifierItalic)
 	return p
 }
 
@@ -511,6 +517,7 @@ func (p Paragraph) Render(area layout.Rect, buf *buffer.Buffer) {
 	if area.Width == 0 || area.Height == 0 {
 		return
 	}
+	buf.SetStyle(area, p.style)
 	textArea := area
 	if p.block != nil {
 		p.block.Render(area, buf)
@@ -533,6 +540,7 @@ func (p Paragraph) Render(area layout.Rect, buf *buffer.Buffer) {
 			if x >= textArea.X+textArea.Width {
 				break
 			}
+			cell.Style = p.style.Patch(cell.Style)
 			buf.SetCell(x, textArea.Y+y, cell)
 			x += cellDisplayWidth(cell)
 		}

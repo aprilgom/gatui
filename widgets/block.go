@@ -180,10 +180,20 @@ func (b Block) Render(area layout.Rect, buf *buffer.Buffer) {
 			if x >= area.X+area.Width {
 				return
 			}
-			buf.SetCell(x, area.Y, buffer.Cell{Symbol: string(r), Style: b.style.Patch(span.Style)})
+			b.setCell(buf, x, area.Y, string(r), b.style.Patch(span.Style))
 			x++
 		}
 	}
+}
+
+func (b Block) setCell(buf *buffer.Buffer, x, y int, symbol string, cellStyle style.Style) {
+	cell, ok := buf.CellAt(x, y)
+	if !ok {
+		return
+	}
+	cell.Symbol = symbol
+	cell.Style = cell.Style.Patch(cellStyle)
+	buf.SetCell(x, y, cell)
 }
 
 func (b Block) renderBorders(area layout.Rect, buf *buffer.Buffer) {
@@ -191,35 +201,35 @@ func (b Block) renderBorders(area layout.Rect, buf *buffer.Buffer) {
 	bottom := area.Y + area.Height - 1
 	if b.borders.Has(TopBorder) {
 		for x := area.X; x <= right; x++ {
-			buf.SetCell(x, area.Y, buffer.Cell{Symbol: "─", Style: b.style})
+			b.setCell(buf, x, area.Y, "─", b.style)
 		}
 	}
 	if b.borders.Has(BottomBorder) && bottom != area.Y {
 		for x := area.X; x <= right; x++ {
-			buf.SetCell(x, bottom, buffer.Cell{Symbol: "─", Style: b.style})
+			b.setCell(buf, x, bottom, "─", b.style)
 		}
 	}
 	if b.borders.Has(LeftBorder) {
 		for y := area.Y; y <= bottom; y++ {
-			buf.SetCell(area.X, y, buffer.Cell{Symbol: "│", Style: b.style})
+			b.setCell(buf, area.X, y, "│", b.style)
 		}
 	}
 	if b.borders.Has(RightBorder) && right != area.X {
 		for y := area.Y; y <= bottom; y++ {
-			buf.SetCell(right, y, buffer.Cell{Symbol: "│", Style: b.style})
+			b.setCell(buf, right, y, "│", b.style)
 		}
 	}
 	if b.borders.Has(TopBorder) && b.borders.Has(LeftBorder) {
-		buf.SetCell(area.X, area.Y, buffer.Cell{Symbol: "┌", Style: b.style})
+		b.setCell(buf, area.X, area.Y, "┌", b.style)
 	}
 	if b.borders.Has(TopBorder) && b.borders.Has(RightBorder) && right != area.X {
-		buf.SetCell(right, area.Y, buffer.Cell{Symbol: "┐", Style: b.style})
+		b.setCell(buf, right, area.Y, "┐", b.style)
 	}
 	if b.borders.Has(BottomBorder) && b.borders.Has(LeftBorder) && bottom != area.Y {
-		buf.SetCell(area.X, bottom, buffer.Cell{Symbol: "└", Style: b.style})
+		b.setCell(buf, area.X, bottom, "└", b.style)
 	}
 	if b.borders.Has(BottomBorder) && b.borders.Has(RightBorder) && right != area.X && bottom != area.Y {
-		buf.SetCell(right, bottom, buffer.Cell{Symbol: "┘", Style: b.style})
+		b.setCell(buf, right, bottom, "┘", b.style)
 	}
 }
 

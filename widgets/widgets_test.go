@@ -23,6 +23,64 @@ func TestParagraph_shouldPreserveStylizedSpanStyle(t *testing.T) {
 	}
 }
 
+func TestParagraph_shouldApplyWidgetStyleToEntireArea(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 5, 2))
+	paragraph := widgets.NewParagraph(text.FromString("hi")).
+		Style(style.NewStyle().Bg(style.Green))
+
+	paragraph.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"hi   ",
+		"     ",
+	})
+	assertAllCellsStyle(t, buf, style.NewStyle().Bg(style.Green))
+}
+
+func TestParagraph_shouldPatchSpanStyleOverWidgetStyle(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 5, 1))
+	line := text.NewLine(text.StyledSpan("hi", style.NewStyle().Fg(style.Red)))
+	paragraph := widgets.NewParagraph(text.NewText(line)).
+		Style(style.NewStyle().Fg(style.Yellow).Bg(style.Green))
+
+	paragraph.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"hi   "})
+	assertCellStyle(t, buf, 0, 0, style.NewStyle().Fg(style.Red).Bg(style.Green))
+	assertCellStyle(t, buf, 1, 0, style.NewStyle().Fg(style.Red).Bg(style.Green))
+	assertCellStyle(t, buf, 2, 0, style.NewStyle().Fg(style.Yellow).Bg(style.Green))
+}
+
+func TestParagraph_shouldApplyWidgetStyleBehindBlock(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 5, 3))
+	paragraph := widgets.NewParagraph(text.FromString("")).
+		Style(style.NewStyle().Bg(style.Green)).
+		Block(widgets.BorderedBlock().Fg(style.Cyan))
+
+	paragraph.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"┌───┐",
+		"│   │",
+		"└───┘",
+	})
+	assertCellStyle(t, buf, 0, 0, style.NewStyle().Fg(style.Cyan).Bg(style.Green))
+	assertCellStyle(t, buf, 2, 1, style.NewStyle().Bg(style.Green))
+}
+
+func TestParagraphStylize_shouldUpdateWidgetStyle(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 5, 2))
+	paragraph := widgets.NewParagraph(text.FromString("hi")).Cyan().Bold()
+
+	paragraph.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"hi   ",
+		"     ",
+	})
+	assertAllCellsStyle(t, buf, style.NewStyle().Fg(style.Cyan).AddModifier(style.ModifierBold))
+}
+
 func TestParagraph_LineCount_shouldReturnTextHeightWithoutWrap(t *testing.T) {
 	paragraph := widgets.NewParagraph(text.FromString("one\ntwo"))
 
@@ -382,6 +440,15 @@ func assertCellStyle(t *testing.T, buf *buffer.Buffer, x, y int, expected style.
 	}
 	if cell.Style != expected {
 		t.Fatalf("style at (%d,%d) = %#v, want %#v", x, y, cell.Style, expected)
+	}
+}
+
+func assertAllCellsStyle(t *testing.T, buf *buffer.Buffer, expected style.Style) {
+	t.Helper()
+	for y := buf.Area.Y; y < buf.Area.Y+buf.Area.Height; y++ {
+		for x := buf.Area.X; x < buf.Area.X+buf.Area.Width; x++ {
+			assertCellStyle(t, buf, x, y, expected)
+		}
 	}
 }
 
