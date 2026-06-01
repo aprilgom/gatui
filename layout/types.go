@@ -109,8 +109,9 @@ const (
 )
 
 type Constraint struct {
-	kind  constraintKind
-	value int
+	kind        constraintKind
+	value       int
+	denominator int
 }
 
 type constraintKind int
@@ -118,6 +119,8 @@ type constraintKind int
 const (
 	constraintLength constraintKind = iota
 	constraintMin
+	constraintPercentage
+	constraintRatio
 )
 
 func Length(value int) Constraint {
@@ -126,6 +129,34 @@ func Length(value int) Constraint {
 
 func Min(value int) Constraint {
 	return Constraint{kind: constraintMin, value: value}
+}
+
+func Percentage(percent int) Constraint {
+	return Constraint{kind: constraintPercentage, value: percent}
+}
+
+func Ratio(numerator, denominator int) Constraint {
+	return Constraint{kind: constraintRatio, value: numerator, denominator: denominator}
+}
+
+func (c Constraint) IsLength() bool {
+	return c.kind == constraintLength
+}
+
+func (c Constraint) IsPercentage() bool {
+	return c.kind == constraintPercentage
+}
+
+func (c Constraint) IsRatio() bool {
+	return c.kind == constraintRatio
+}
+
+func (c Constraint) Value() int {
+	return c.value
+}
+
+func (c Constraint) Denominator() int {
+	return c.denominator
 }
 
 type Layout struct {

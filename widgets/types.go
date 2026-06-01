@@ -70,6 +70,27 @@ type BarData struct {
 	Value uint64
 }
 
+type TableCell struct {
+	content text.Text
+	style   style.Style
+}
+
+type TableRow struct {
+	cells        []TableCell
+	height       int
+	bottomMargin int
+	style        style.Style
+}
+
+type Table struct {
+	rows          []TableRow
+	widths        []layout.Constraint
+	header        *TableRow
+	block         *Block
+	columnSpacing int
+	style         style.Style
+}
+
 type GraphType int
 
 const (
@@ -195,6 +216,297 @@ func NewChart(datasets []Dataset) Chart {
 		datasets: append([]Dataset(nil), datasets...),
 		xAxis:    NewAxis(),
 		yAxis:    NewAxis(),
+	}
+}
+
+func NewTableCell(content text.Text) TableCell {
+	return TableCell{content: content, style: style.NewStyle()}
+}
+
+func TableCellFromString(content string) TableCell {
+	return NewTableCell(text.FromString(content))
+}
+
+func (c TableCell) Style(cellStyle style.Style) TableCell {
+	c.style = cellStyle
+	return c
+}
+
+func NewTableRow(cells []TableCell) TableRow {
+	return TableRow{cells: append([]TableCell(nil), cells...), height: 1, style: style.NewStyle()}
+}
+
+func TableRowFromStrings(values []string) TableRow {
+	cells := make([]TableCell, 0, len(values))
+	for _, value := range values {
+		cells = append(cells, TableCellFromString(value))
+	}
+	return NewTableRow(cells)
+}
+
+func (r TableRow) Height(height int) TableRow {
+	r.height = maxInt(0, height)
+	return r
+}
+
+func (r TableRow) BottomMargin(margin int) TableRow {
+	r.bottomMargin = maxInt(0, margin)
+	return r
+}
+
+func (r TableRow) Style(rowStyle style.Style) TableRow {
+	r.style = rowStyle
+	return r
+}
+
+func NewTable(rows []TableRow, widths []layout.Constraint) Table {
+	return Table{
+		rows:          append([]TableRow(nil), rows...),
+		widths:        append([]layout.Constraint(nil), widths...),
+		columnSpacing: 1,
+		style:         style.NewStyle(),
+	}
+}
+
+func (t Table) Header(header TableRow) Table {
+	t.header = &header
+	return t
+}
+
+func (t Table) Block(block Block) Table {
+	t.block = &block
+	return t
+}
+
+func (t Table) ColumnSpacing(spacing int) Table {
+	t.columnSpacing = maxInt(0, spacing)
+	return t
+}
+
+func (t Table) Style(tableStyle style.Style) Table {
+	t.style = tableStyle
+	return t
+}
+
+func (t Table) Render(area layout.Rect, buf *buffer.Buffer) {
+	if area.Width == 0 || area.Height == 0 {
+		return
+	}
+	buf.SetStyle(area, t.style)
+	tableArea := area
+	if t.block != nil {
+		t.block.Render(area, buf)
+		tableArea = t.block.Inner(area)
+	}
+	if tableArea.Width == 0 || tableArea.Height == 0 {
+		return
+	}
+	widths := t.resolveColumnWidths(tableArea.Width)
+	y := tableArea.Y
+	if t.header != nil {
+		y = t.renderRow(*t.header, widths, tableArea, y, buf)
+		y += t.header.bottomMargin
+	}
+	for _, row := range t.rows {
+		if y >= tableArea.Y+tableArea.Height {
+			return
+		}
+		y = t.renderRow(row, widths, tableArea, y, buf)
+		y += row.bottomMargin
+	}
+}
+
+func (t Table) resolveColumnWidths(width int) []int {
+	widths := make([]int, len(t.widths))
+	if width <= 0 || len(widths) == 0 {
+		return widths
+	}
+	spacingTotal := t.columnSpacing * maxInt(0, len(widths)-1)
+	available := maxInt(0, width-spacingTotal)
+	hasLength := false
+	hasPercentage := false
+	percentageSum := 0
+	for _, constraint := range t.widths {
+		hasLength = hasLength || constraint.IsLength()
+		hasPercentage = hasPercentage || constraint.IsPercentage()
+		if constraint.IsPercentage() {
+			percentageSum += constraint.Value()
+		}
+	}
+	if hasLength && hasPercentage && percentageSum > 100 {
+		return t.resolveOverspecifiedMixedWidths(available)
+	}
+	for i, constraint := range t.widths {
+		switch {
+		case constraint.IsLength():
+			widths[i] = maxInt(0, constraint.Value())
+		case constraint.IsPercentage():
+			percentageBase := available
+			if hasLength && hasPercentage {
+				percentageBase = width
+			}
+			widths[i] = maxInt(0, percentageBase*constraint.Value()/100)
+		case constraint.IsRatio():
+			if constraint.Denominator() > 0 {
+				widths[i] = maxInt(0, available*constraint.Value()/constraint.Denominator())
+			}
+		default:
+			widths[i] = available
+		}
+	}
+	t.distributeRatioRemainder(widths, available)
+	t.fitWidths(widths, available, hasLength && !hasPercentage)
+	return widths
+}
+
+func (t Table) resolveOverspecifiedMixedWidths(available int) []int {
+	widths := make([]int, len(t.widths))
+	fixedTotal := 0
+	for i, constraint := range t.widths {
+		if constraint.IsLength() {
+			widths[i] = maxInt(0, constraint.Value())
+			fixedTotal += widths[i]
+		}
+	}
+	remaining := maxInt(0, available-fixedTotal)
+	percentageLeft := 0
+	for _, constraint := range t.widths {
+		if constraint.IsPercentage() {
+			percentageLeft++
+		}
+	}
+	for i, constraint := range t.widths {
+		if !constraint.IsPercentage() {
+			continue
+		}
+		percentageLeft--
+		percentageWidth := remaining
+		if percentageLeft > 0 {
+			percentageWidth = (remaining*constraint.Value() + 99) / 100
+		}
+		if percentageWidth > remaining {
+			percentageWidth = remaining
+		}
+		widths[i] = percentageWidth
+		remaining -= percentageWidth
+	}
+	t.fitWidths(widths, available, false)
+	return widths
+}
+
+func (t Table) distributeRatioRemainder(widths []int, available int) {
+	ratioIndexes := make([]int, 0, len(widths))
+	total := 0
+	ratioSum := 0.0
+	for i, width := range widths {
+		total += width
+		if t.widths[i].IsRatio() && t.widths[i].Value() > 0 && t.widths[i].Denominator() > 0 {
+			ratioIndexes = append(ratioIndexes, i)
+			ratioSum += float64(t.widths[i].Value()) / float64(t.widths[i].Denominator())
+		}
+	}
+	remainder := available - total
+	for remainder > 0 && len(ratioIndexes) > 0 && ratioSum >= 1 {
+		start := len(ratioIndexes) / 2
+		for offset := range ratioIndexes {
+			if remainder == 0 {
+				return
+			}
+			index := ratioIndexes[(start+offset)%len(ratioIndexes)]
+			widths[index]++
+			remainder--
+		}
+	}
+}
+
+func (t Table) fitWidths(widths []int, available int, preferMiddle bool) {
+	total := 0
+	for _, width := range widths {
+		total += width
+	}
+	for total > available {
+		if !preferMiddle {
+			for i := len(widths) - 1; i >= 0 && total > available; i-- {
+				for widths[i] > 0 && total > available {
+					widths[i]--
+					total--
+				}
+			}
+			continue
+		}
+		for _, i := range shrinkOrder(len(widths), preferMiddle) {
+			if total <= available {
+				break
+			}
+			if widths[i] > 0 {
+				widths[i]--
+				total--
+			}
+		}
+	}
+}
+
+func shrinkOrder(length int, preferMiddle bool) []int {
+	if length <= 0 {
+		return nil
+	}
+	if !preferMiddle {
+		order := make([]int, 0, length)
+		for i := length - 1; i >= 0; i-- {
+			order = append(order, i)
+		}
+		return order
+	}
+	order := make([]int, 0, length)
+	middle := length / 2
+	order = append(order, middle)
+	for offset := 1; len(order) < length; offset++ {
+		left := middle - offset
+		right := middle + offset
+		if left >= 0 {
+			order = append(order, left)
+		}
+		if right < length {
+			order = append(order, right)
+		}
+	}
+	return order
+}
+
+func (t Table) renderRow(row TableRow, widths []int, area layout.Rect, y int, buf *buffer.Buffer) int {
+	rowHeight := row.height
+	if rowHeight <= 0 {
+		rowHeight = 1
+	}
+	for line := 0; line < rowHeight && y+line < area.Y+area.Height; line++ {
+		x := area.X
+		for column, width := range widths {
+			if column > 0 {
+				x += t.columnSpacing
+			}
+			if width > 0 && column < len(row.cells) {
+				t.renderCell(row.cells[column], row.style, x, y+line, area.X+area.Width, width, buf)
+			}
+			x += width
+		}
+	}
+	return y + rowHeight
+}
+
+func (t Table) renderCell(cell TableCell, rowStyle style.Style, x, y, right, width int, buf *buffer.Buffer) {
+	if x >= right || width <= 0 {
+		return
+	}
+	cellStyle := t.style.Patch(rowStyle).Patch(cell.style)
+	line := text.LineFromString("")
+	if len(cell.content.Lines) > 0 {
+		line = cell.content.Lines[0]
+	}
+	cells := cellsFromLine(line)
+	for i := 0; i < width && i < len(cells) && x+i < right; i++ {
+		rendered := cells[i]
+		rendered.Style = cellStyle.Patch(rendered.Style)
+		buf.SetCell(x+i, y, rendered)
 	}
 }
 
