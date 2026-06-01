@@ -6,6 +6,8 @@ import (
 	"gatui/buffer"
 	"gatui/layout"
 	"gatui/style"
+	"gatui/terminal"
+	"gatui/terminal/testbackend"
 	"gatui/text"
 	"gatui/widgets"
 )
@@ -49,4 +51,29 @@ func TestPublicAPISurface_shouldExposeInitialRatatuiPortTypes(t *testing.T) {
 		Scroll(0, 1).
 		Cyan()
 	_ = widgets.AllBorders
+
+	backend := testbackend.New(20, 3)
+	term, err := terminal.New(backend)
+	if err != nil {
+		t.Fatalf("terminal.New returned error: %v", err)
+	}
+	completed, err := term.Draw(func(frame *terminal.Frame) {
+		frame.RenderWidget(widgets.NewParagraph(text.FromString("terminal")), frame.Area())
+		frame.SetCursorPosition(layout.Position{X: 1, Y: 0})
+	})
+	if err != nil {
+		t.Fatalf("terminal draw returned error: %v", err)
+	}
+	_ = completed.Area
+	_ = completed.Buffer
+	_ = completed.Count
+	term.Resize(layout.NewRect(0, 0, 10, 2))
+	_ = term.Clear()
+	_ = term.Backend()
+	_ = backend.Draws()
+	_ = backend.FlushCount()
+	_ = backend.ClearCount()
+	_ = backend.HideCursorCount()
+	_ = backend.ShowCursorCount()
+	_ = backend.CursorPositions()
 }
