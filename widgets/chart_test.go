@@ -520,6 +520,103 @@ func TestChart_shouldClampAreaFillToYToBounds(t *testing.T) {
 	})
 }
 
+func TestChart_shouldRenderOverlappingLineDatasetsWithDatasetMarkers(t *testing.T) {
+	tests := []struct {
+		name              string
+		marker            widgets.CanvasMarker
+		expected          []string
+		redMarkerCells    []layout.Position
+		blueBlockCells    []layout.Position
+		centerOverlapCell layout.Position
+	}{
+		{
+			name:   "dot",
+			marker: widgets.CanvasMarkerDot,
+			expected: []string{
+				"•   █",
+				" • █ ",
+				"  •  ",
+				" █ • ",
+				"█   •",
+			},
+			redMarkerCells: []layout.Position{
+				{X: 0, Y: 0},
+				{X: 1, Y: 1},
+				{X: 3, Y: 3},
+				{X: 4, Y: 4},
+			},
+			blueBlockCells: []layout.Position{
+				{X: 4, Y: 0},
+				{X: 3, Y: 1},
+				{X: 1, Y: 3},
+				{X: 0, Y: 4},
+			},
+			centerOverlapCell: layout.Position{X: 2, Y: 2},
+		},
+		{
+			name:   "braille",
+			marker: widgets.CanvasMarkerBraille,
+			expected: []string{
+				"⢣   █",
+				" ⢣ █ ",
+				"  ⢣  ",
+				" █ ⢣ ",
+				"█   ⢣",
+			},
+			redMarkerCells: []layout.Position{
+				{X: 0, Y: 0},
+				{X: 1, Y: 1},
+				{X: 3, Y: 3},
+				{X: 4, Y: 4},
+			},
+			blueBlockCells: []layout.Position{
+				{X: 4, Y: 0},
+				{X: 3, Y: 1},
+				{X: 1, Y: 3},
+				{X: 0, Y: 4},
+			},
+			centerOverlapCell: layout.Position{X: 2, Y: 2},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := buffer.Empty(layout.NewRect(0, 0, 5, 5))
+			chart := widgets.NewChart([]widgets.Dataset{
+				widgets.NewDataset().
+					GraphType(widgets.GraphTypeLine).
+					Marker(widgets.CanvasMarkerBlock).
+					Style(style.NewStyle().Fg(style.Blue)).
+					DataPoints([]widgets.ChartPoint{
+						{X: 0, Y: 0},
+						{X: 5, Y: 5},
+					}),
+				widgets.NewDataset().
+					GraphType(widgets.GraphTypeLine).
+					Marker(tt.marker).
+					Style(style.NewStyle().Fg(style.Red)).
+					DataPoints([]widgets.ChartPoint{
+						{X: 0, Y: 5},
+						{X: 5, Y: 0},
+					}),
+			}).
+				XAxis(widgets.NewAxis().Bounds(0, 5)).
+				YAxis(widgets.NewAxis().Bounds(0, 5))
+
+			chart.Render(buf.Area, buf)
+
+			assertLines(t, buf, tt.expected)
+			for _, point := range tt.redMarkerCells {
+				assertCellStyle(t, buf, point.X, point.Y, style.NewStyle().Fg(style.Red))
+			}
+			for _, point := range tt.blueBlockCells {
+				assertCellStyle(t, buf, point.X, point.Y, style.NewStyle().Fg(style.Blue).Bg(style.Blue))
+			}
+			assertCellStyle(t, buf, tt.centerOverlapCell.X, tt.centerOverlapCell.Y, style.NewStyle().Fg(style.Red).Bg(style.Blue))
+		})
+	}
+}
+
 func TestChart_datasetsWithoutNameShouldNotContributeToLegendHeight(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 50, 25))
 	chart := widgets.NewChart([]widgets.Dataset{

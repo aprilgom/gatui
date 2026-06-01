@@ -50,6 +50,7 @@ type Dataset struct {
 	data      []ChartPoint
 	graphType GraphType
 	style     style.Style
+	marker    CanvasMarker
 	fillToY   float64
 }
 
@@ -109,7 +110,7 @@ func (a Axis) LabelsAlignment(alignment layout.Alignment) Axis {
 }
 
 func NewDataset() Dataset {
-	return Dataset{graphType: GraphTypeScatter, style: style.NewStyle()}
+	return Dataset{graphType: GraphTypeScatter, style: style.NewStyle(), marker: CanvasMarkerDot}
 }
 
 func (d Dataset) Name(name string) Dataset {
@@ -143,6 +144,11 @@ func (d Dataset) FillToY(y float64) Dataset {
 
 func (d Dataset) Style(datasetStyle style.Style) Dataset {
 	d.style = datasetStyle
+	return d
+}
+
+func (d Dataset) Marker(marker CanvasMarker) Dataset {
+	d.marker = marker
 	return d
 }
 
@@ -408,9 +414,7 @@ func (c Chart) renderDatasets(buf *buffer.Buffer, l chartAxisLayout) {
 		case GraphTypeLine:
 			c.renderLineDataset(buf, graphArea, dataset, xMin, xMax, yMin, yMax)
 		case GraphTypeScatter:
-			for _, point := range dataset.data {
-				c.plotPoint(buf, graphArea, dataset.style, point, xMin, xMax, yMin, yMax)
-			}
+			c.renderScatterDataset(buf, graphArea, dataset, xMin, xMax, yMin, yMax)
 		}
 	}
 }
@@ -528,121 +532,97 @@ func (c Chart) graphArea(l chartAxisLayout) layout.Rect {
 	return layout.NewRect(l.graphLeft, l.area.Y, l.graphRight-l.graphLeft, bottom-l.area.Y+1)
 }
 
-func (c Chart) renderBarDataset(buf *buffer.Buffer, area layout.Rect, dataset Dataset, xMin, xMax, yMin, yMax float64) {
+func (c Chart) renderScatterDataset(buf *buffer.Buffer, area layout.Rect, dataset Dataset, xMin, xMax, yMin, yMax float64) {
+	painter := newCanvasPainter(area.Width, area.Height, xMin, xMax, yMin, yMax, dataset.marker)
 	for _, point := range dataset.data {
-		start, ok := c.mapPoint(area, ChartPoint{X: point.X, Y: 0}, xMin, xMax, yMin, yMax)
+		x, y, ok := painter.GetPoint(point.X, point.Y)
 		if !ok {
 			continue
 		}
-		end, ok := c.mapPoint(area, point, xMin, xMax, yMin, yMax)
-		if !ok {
-			continue
-		}
-		c.plotLine(buf, dataset.style, start, end)
+		painter.Paint(x, y, dataset.style.Foreground)
 	}
+	c.renderDatasetPainter(buf, area, painter, dataset.marker)
+}
+
+func (c Chart) renderBarDataset(buf *buffer.Buffer, area layout.Rect, dataset Dataset, xMin, xMax, yMin, yMax float64) {
+	painter := newCanvasPainter(area.Width, area.Height, xMin, xMax, yMin, yMax, dataset.marker)
+	for _, point := range dataset.data {
+		NewCanvasLine(point.X, 0, point.X, point.Y, dataset.style.Foreground).Draw(painter)
+	}
+	c.renderDatasetPainter(buf, area, painter, dataset.marker)
 }
 
 func (c Chart) renderAreaDataset(buf *buffer.Buffer, area layout.Rect, dataset Dataset, xMin, xMax, yMin, yMax float64) {
-	fillToY := math.Min(math.Max(dataset.fillToY, yMin), yMax)
+	painter := newCanvasPainter(area.Width, area.Height, xMin, xMax, yMin, yMax, dataset.marker)
 	for i := 1; i < len(dataset.data); i++ {
-		start, ok := c.mapPoint(area, dataset.data[i-1], xMin, xMax, yMin, yMax)
-		if !ok {
-			continue
-		}
-		end, ok := c.mapPoint(area, dataset.data[i], xMin, xMax, yMin, yMax)
-		if !ok {
-			continue
-		}
-		fillPoint, ok := c.mapPoint(area, ChartPoint{X: dataset.data[i-1].X, Y: fillToY}, xMin, xMax, yMin, yMax)
-		if !ok {
-			continue
-		}
-		forEachChartLinePoint(start, end, func(point layout.Position) {
-			fillStart := minInt(point.Y, fillPoint.Y)
-			fillEnd := maxInt(point.Y, fillPoint.Y)
-			for y := fillStart; y <= fillEnd; y++ {
-				c.plotMappedPoint(buf, dataset.style, layout.Position{X: point.X, Y: y})
-			}
-		})
+		NewFilledLine(
+			dataset.data[i-1].X,
+			dataset.data[i-1].Y,
+			dataset.data[i].X,
+			dataset.data[i].Y,
+			math.Min(math.Max(dataset.fillToY, yMin), yMax),
+			dataset.style.Foreground,
+		).Draw(painter)
 	}
+	c.renderDatasetPainter(buf, area, painter, dataset.marker)
 }
 
 func (c Chart) renderLineDataset(buf *buffer.Buffer, area layout.Rect, dataset Dataset, xMin, xMax, yMin, yMax float64) {
+	painter := newCanvasPainter(area.Width, area.Height, xMin, xMax, yMin, yMax, dataset.marker)
 	var previous *layout.Position
 	for _, point := range dataset.data {
-		mapped, ok := c.mapPoint(area, point, xMin, xMax, yMin, yMax)
+		x, y, ok := painter.GetPoint(point.X, point.Y)
 		if !ok {
 			previous = nil
 			continue
 		}
+		mapped := layout.Position{X: x, Y: y}
 		if previous == nil {
-			c.plotMappedPoint(buf, dataset.style, mapped)
+			painter.Paint(mapped.X, mapped.Y, dataset.style.Foreground)
 		} else {
-			c.plotLine(buf, dataset.style, *previous, mapped)
+			painter.drawLine(previous.X, previous.Y, mapped.X, mapped.Y, dataset.style.Foreground)
 		}
 		previous = &mapped
 	}
+	c.renderDatasetPainter(buf, area, painter, dataset.marker)
 }
 
-func (c Chart) plotPoint(buf *buffer.Buffer, area layout.Rect, pointStyle style.Style, point ChartPoint, xMin, xMax, yMin, yMax float64) {
-	mapped, ok := c.mapPoint(area, point, xMin, xMax, yMin, yMax)
-	if !ok {
+func (c Chart) renderDatasetPainter(buf *buffer.Buffer, area layout.Rect, painter *CanvasPainter, marker CanvasMarker) {
+	if painter == nil {
 		return
 	}
-	c.plotMappedPoint(buf, pointStyle, mapped)
-}
-
-func (c Chart) mapPoint(area layout.Rect, point ChartPoint, xMin, xMax, yMin, yMax float64) (layout.Position, bool) {
-	if point.X < xMin || point.X > xMax || point.Y < yMin || point.Y > yMax {
-		return layout.Position{}, false
-	}
-	xRatio := (point.X - xMin) / (xMax - xMin)
-	yRatio := (yMax - point.Y) / (yMax - yMin)
-	x := area.X + int(math.Round(xRatio*float64(area.Width-1)))
-	y := area.Y + int(math.Round(yRatio*float64(area.Height-1)))
-	if x < area.X || x >= area.X+area.Width || y < area.Y || y >= area.Y+area.Height {
-		return layout.Position{}, false
-	}
-	return layout.Position{X: x, Y: y}, true
-}
-
-func (c Chart) plotLine(buf *buffer.Buffer, lineStyle style.Style, start, end layout.Position) {
-	forEachChartLinePoint(start, end, func(point layout.Position) {
-		c.plotMappedPoint(buf, lineStyle, point)
-	})
-}
-
-func forEachChartLinePoint(start, end layout.Position, fn func(layout.Position)) {
-	dx := end.X - start.X
-	if dx < 0 {
-		dx = -dx
-	}
-	dy := end.Y - start.Y
-	if dy < 0 {
-		dy = -dy
-	}
-	steps := maxInt(dx, dy)
-	if steps == 0 {
-		fn(start)
-		return
-	}
-	for i := 0; i <= steps; i++ {
-		t := float64(i) / float64(steps)
-		x := int(math.Round(float64(start.X) + float64(end.X-start.X)*t))
-		y := int(math.Round(float64(start.Y) + float64(end.Y-start.Y)*t))
-		fn(layout.Position{X: x, Y: y})
-	}
-}
-
-func (c Chart) plotMappedPoint(buf *buffer.Buffer, pointStyle style.Style, point layout.Position) {
-	if cell, ok := buf.CellAt(point.X, point.Y); ok {
-		if cell.Symbol != " " {
-			return
+	for y := 0; y < painter.height; y++ {
+		for x := 0; x < painter.width; x++ {
+			pixel := painter.grid[y*painter.width+x]
+			if !pixel.painted {
+				continue
+			}
+			cellX := area.X + x
+			cellY := area.Y + y
+			cell, ok := buf.CellAt(cellX, cellY)
+			if !ok || (cell.Symbol != " " && !isChartDatasetSymbol(cell.Symbol)) {
+				continue
+			}
+			symbol, patch, ok := marker.renderPixel(pixel)
+			if !ok {
+				continue
+			}
+			cell.Symbol = symbol
+			cell.Style = cell.Style.Patch(patch)
+			buf.SetCell(cellX, cellY, cell)
 		}
-		cell.Symbol = "•"
-		cell.Style = cell.Style.Patch(pointStyle)
-		buf.SetCell(point.X, point.Y, cell)
 	}
+}
+
+func isChartDatasetSymbol(symbol string) bool {
+	if symbol == "•" || symbol == "█" || symbol == "▄" {
+		return true
+	}
+	runes := []rune(symbol)
+	if len(runes) != 1 {
+		return false
+	}
+	return runes[0] >= 0x2800 && runes[0] <= 0x28ff
 }
 
 func (c Chart) renderLabel(buf *buffer.Buffer, label text.Line, area layout.Rect, alignment layout.Alignment, baseStyle style.Style) {
