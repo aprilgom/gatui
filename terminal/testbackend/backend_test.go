@@ -461,3 +461,110 @@ func TestTestBackend_AppendLines_zeroNoop(t *testing.T) {
 		t.Fatalf("AppendLinesCalls() = %#v, want %#v", got, want)
 	}
 }
+
+func TestTestBackend_ScrollRegionUp_table(t *testing.T) {
+	const (
+		a = "aaaaaaaaaa"
+		b = "bbbbbbbbbb"
+		c = "cccccccccc"
+		d = "dddddddddd"
+		e = "eeeeeeeeee"
+		s = "          "
+	)
+	tests := []struct {
+		name                string
+		startY, endY, count int
+		wantScrollback      []string
+		wantLines           []string
+	}{
+		{name: "full screen zero", startY: 0, endY: 5, count: 0, wantLines: []string{a, b, c, d, e}},
+		{name: "full screen partial", startY: 0, endY: 5, count: 2, wantScrollback: []string{a, b}, wantLines: []string{c, d, e, s, s}},
+		{name: "full screen height", startY: 0, endY: 5, count: 5, wantScrollback: []string{a, b, c, d, e}, wantLines: []string{s, s, s, s, s}},
+		{name: "full screen past height", startY: 0, endY: 5, count: 7, wantScrollback: []string{a, b, c, d, e, s, s}, wantLines: []string{s, s, s, s, s}},
+		{name: "top partial zero", startY: 0, endY: 3, count: 0, wantLines: []string{a, b, c, d, e}},
+		{name: "top partial scroll", startY: 0, endY: 3, count: 2, wantScrollback: []string{a, b}, wantLines: []string{c, s, s, d, e}},
+		{name: "top partial height", startY: 0, endY: 3, count: 3, wantScrollback: []string{a, b, c}, wantLines: []string{s, s, s, d, e}},
+		{name: "top partial past height", startY: 0, endY: 3, count: 4, wantScrollback: []string{a, b, c, s}, wantLines: []string{s, s, s, d, e}},
+		{name: "middle partial zero", startY: 1, endY: 4, count: 0, wantLines: []string{a, b, c, d, e}},
+		{name: "middle partial scroll", startY: 1, endY: 4, count: 2, wantLines: []string{a, d, s, s, e}},
+		{name: "middle partial height", startY: 1, endY: 4, count: 3, wantLines: []string{a, s, s, s, e}},
+		{name: "middle partial past height", startY: 1, endY: 4, count: 4, wantLines: []string{a, s, s, s, e}},
+		{name: "empty at top zero", startY: 0, endY: 0, count: 0, wantLines: []string{a, b, c, d, e}},
+		{name: "empty at top scroll", startY: 0, endY: 0, count: 2, wantScrollback: []string{s, s}, wantLines: []string{a, b, c, d, e}},
+		{name: "empty middle zero", startY: 2, endY: 2, count: 0, wantLines: []string{a, b, c, d, e}},
+		{name: "empty middle scroll", startY: 2, endY: 2, count: 2, wantLines: []string{a, b, c, d, e}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			backend := WithLines([]string{a, b, c, d, e})
+			if err := backend.SetCursorPosition(layout.Position{X: 4, Y: 3}); err != nil {
+				t.Fatalf("SetCursorPosition() error = %v", err)
+			}
+
+			if err := backend.ScrollRegionUp(tt.startY, tt.endY, tt.count); err != nil {
+				t.Fatalf("ScrollRegionUp(%d, %d, %d) error = %v", tt.startY, tt.endY, tt.count, err)
+			}
+
+			backend.AssertScrollbackLines(t, tt.wantScrollback)
+			backend.AssertBufferLines(t, tt.wantLines)
+			backend.AssertCursorPosition(t, layout.Position{X: 4, Y: 3})
+			if got, want := backend.ScrollRegionUpCalls(), [][3]int{{tt.startY, tt.endY, tt.count}}; !reflect.DeepEqual(got, want) {
+				t.Fatalf("ScrollRegionUpCalls() = %#v, want %#v", got, want)
+			}
+		})
+	}
+}
+
+func TestTestBackend_ScrollRegionDown_table(t *testing.T) {
+	const (
+		a = "aaaaaaaaaa"
+		b = "bbbbbbbbbb"
+		c = "cccccccccc"
+		d = "dddddddddd"
+		e = "eeeeeeeeee"
+		s = "          "
+	)
+	tests := []struct {
+		name                string
+		startY, endY, count int
+		wantLines           []string
+	}{
+		{name: "full screen zero", startY: 0, endY: 5, count: 0, wantLines: []string{a, b, c, d, e}},
+		{name: "full screen partial", startY: 0, endY: 5, count: 2, wantLines: []string{s, s, a, b, c}},
+		{name: "full screen height", startY: 0, endY: 5, count: 5, wantLines: []string{s, s, s, s, s}},
+		{name: "full screen past height", startY: 0, endY: 5, count: 7, wantLines: []string{s, s, s, s, s}},
+		{name: "top partial zero", startY: 0, endY: 3, count: 0, wantLines: []string{a, b, c, d, e}},
+		{name: "top partial scroll", startY: 0, endY: 3, count: 2, wantLines: []string{s, s, a, d, e}},
+		{name: "top partial height", startY: 0, endY: 3, count: 3, wantLines: []string{s, s, s, d, e}},
+		{name: "top partial past height", startY: 0, endY: 3, count: 4, wantLines: []string{s, s, s, d, e}},
+		{name: "middle partial zero", startY: 1, endY: 4, count: 0, wantLines: []string{a, b, c, d, e}},
+		{name: "middle partial scroll", startY: 1, endY: 4, count: 2, wantLines: []string{a, s, s, b, e}},
+		{name: "middle partial height", startY: 1, endY: 4, count: 3, wantLines: []string{a, s, s, s, e}},
+		{name: "middle partial past height", startY: 1, endY: 4, count: 4, wantLines: []string{a, s, s, s, e}},
+		{name: "empty at top zero", startY: 0, endY: 0, count: 0, wantLines: []string{a, b, c, d, e}},
+		{name: "empty at top scroll", startY: 0, endY: 0, count: 2, wantLines: []string{a, b, c, d, e}},
+		{name: "empty middle zero", startY: 2, endY: 2, count: 0, wantLines: []string{a, b, c, d, e}},
+		{name: "empty middle scroll", startY: 2, endY: 2, count: 2, wantLines: []string{a, b, c, d, e}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			backend := WithLines([]string{a, b, c, d, e})
+			if err := backend.SetCursorPosition(layout.Position{X: 4, Y: 3}); err != nil {
+				t.Fatalf("SetCursorPosition() error = %v", err)
+			}
+
+			if err := backend.ScrollRegionDown(tt.startY, tt.endY, tt.count); err != nil {
+				t.Fatalf("ScrollRegionDown(%d, %d, %d) error = %v", tt.startY, tt.endY, tt.count, err)
+			}
+
+			backend.AssertScrollbackEmpty(t)
+			backend.AssertBufferLines(t, tt.wantLines)
+			backend.AssertCursorPosition(t, layout.Position{X: 4, Y: 3})
+			if got, want := backend.ScrollRegionDownCalls(), [][3]int{{tt.startY, tt.endY, tt.count}}; !reflect.DeepEqual(got, want) {
+				t.Fatalf("ScrollRegionDownCalls() = %#v, want %#v", got, want)
+			}
+		})
+	}
+}

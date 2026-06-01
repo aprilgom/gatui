@@ -297,34 +297,49 @@ func (b *Backend) ScrollRegionUp(startY, endY, count int) error {
 	if b.cells == nil {
 		b.cells = buffer.Empty(layout.NewRect(0, 0, b.size.Width, b.size.Height))
 	}
-	if count <= 0 || startY >= endY {
+	if count <= 0 {
 		return nil
 	}
 	if startY < 0 {
 		startY = 0
 	}
+	if startY > b.size.Height {
+		startY = b.size.Height
+	}
 	if endY > b.size.Height {
 		endY = b.size.Height
 	}
+	if endY < 0 {
+		endY = 0
+	}
 	height := endY - startY
 	if height <= 0 {
+		if startY == 0 {
+			for y := 0; y < count; y++ {
+				b.scrollback = append(b.scrollback, b.blankLine())
+			}
+		}
 		return nil
 	}
-	if count > height {
-		count = height
+	visibleScroll := count
+	if visibleScroll > height {
+		visibleScroll = height
 	}
 	if startY == 0 {
-		for y := 0; y < count; y++ {
+		for y := 0; y < visibleScroll; y++ {
 			b.scrollback = append(b.scrollback, b.lineAt(y))
 		}
+		for y := visibleScroll; y < count; y++ {
+			b.scrollback = append(b.scrollback, b.blankLine())
+		}
 	}
-	for y := startY; y < endY-count; y++ {
+	for y := startY; y < endY-visibleScroll; y++ {
 		for x := 0; x < b.size.Width; x++ {
-			cell, _ := b.cells.CellAt(x, y+count)
+			cell, _ := b.cells.CellAt(x, y+visibleScroll)
 			b.cells.SetCell(x, y, cell)
 		}
 	}
-	for y := endY - count; y < endY; y++ {
+	for y := endY - visibleScroll; y < endY; y++ {
 		b.clearLine(y)
 	}
 	return nil
@@ -341,8 +356,14 @@ func (b *Backend) ScrollRegionDown(startY, endY, count int) error {
 	if startY < 0 {
 		startY = 0
 	}
+	if startY > b.size.Height {
+		startY = b.size.Height
+	}
 	if endY > b.size.Height {
 		endY = b.size.Height
+	}
+	if endY < 0 {
+		endY = 0
 	}
 	height := endY - startY
 	if height <= 0 {
