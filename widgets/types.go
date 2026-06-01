@@ -503,10 +503,7 @@ func (p Paragraph) LineCount(width int) int {
 }
 
 func (p Paragraph) LineWidth() int {
-	width := 0
-	for _, line := range p.text.Lines {
-		width = maxInt(width, lineWidth(line))
-	}
+	width := p.text.Width()
 	if p.block != nil {
 		width += p.block.horizontalSpace()
 	}
@@ -571,7 +568,7 @@ func (p Paragraph) renderLines(width int) []renderLine {
 		if line.Alignment != nil {
 			alignment = *line.Alignment
 		}
-		cells := cellsFromLine(line)
+		cells := cellsFromLineWithStyle(line, p.text.Style)
 		if p.wrap == nil {
 			lines = append(lines, renderLine{cells: append([]buffer.Cell(nil), cells...), alignment: alignment})
 			continue

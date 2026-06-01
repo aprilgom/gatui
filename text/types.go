@@ -5,6 +5,8 @@ import (
 
 	"gatui/layout"
 	"gatui/style"
+
+	"github.com/mattn/go-runewidth"
 )
 
 type Span struct {
@@ -119,10 +121,11 @@ func (l Line) Right() Line {
 
 type Text struct {
 	Lines []Line
+	Style style.Style
 }
 
 func NewText(lines ...Line) Text {
-	return Text{Lines: append([]Line(nil), lines...)}
+	return Text{Lines: append([]Line(nil), lines...), Style: style.NewStyle()}
 }
 
 func FromString(content string) Text {
@@ -134,32 +137,49 @@ func FromString(content string) Text {
 	return NewText(lines...)
 }
 
-func (t Text) Fg(color style.Color) Text {
-	for i := range t.Lines {
-		t.Lines[i] = t.Lines[i].Fg(color)
-	}
+func StyledText(content string, textStyle style.Style) Text {
+	t := FromString(content)
+	t.Style = textStyle
 	return t
+}
+
+func (t Text) PatchStyle(textStyle style.Style) Text {
+	t.Style = t.Style.Patch(textStyle)
+	return t
+}
+
+func (t Text) Width() int {
+	width := 0
+	for _, line := range t.Lines {
+		lineWidth := 0
+		for _, span := range line.Spans {
+			lineWidth += runewidth.StringWidth(span.Content)
+		}
+		if lineWidth > width {
+			width = lineWidth
+		}
+	}
+	return width
+}
+
+func (t Text) Height() int {
+	return len(t.Lines)
+}
+
+func (t Text) Fg(color style.Color) Text {
+	return t.PatchStyle(style.NewStyle().Fg(color))
 }
 
 func (t Text) Bg(color style.Color) Text {
-	for i := range t.Lines {
-		t.Lines[i] = t.Lines[i].Bg(color)
-	}
-	return t
+	return t.PatchStyle(style.NewStyle().Bg(color))
 }
 
 func (t Text) Bold() Text {
-	for i := range t.Lines {
-		t.Lines[i] = t.Lines[i].Bold()
-	}
-	return t
+	return t.PatchStyle(style.NewStyle().AddModifier(style.ModifierBold))
 }
 
 func (t Text) Italic() Text {
-	for i := range t.Lines {
-		t.Lines[i] = t.Lines[i].Italic()
-	}
-	return t
+	return t.PatchStyle(style.NewStyle().AddModifier(style.ModifierItalic))
 }
 
 func (t Text) Cyan() Text {
