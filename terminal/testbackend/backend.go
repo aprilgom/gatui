@@ -251,24 +251,44 @@ func (b *Backend) AppendLines(count int) error {
 	if b.cells == nil {
 		b.cells = buffer.Empty(layout.NewRect(0, 0, b.size.Width, b.size.Height))
 	}
-	scroll := b.cursorPosition.Y + count - (b.size.Height - 1)
-	if scroll > b.size.Height {
-		scroll = b.size.Height
+	newX := b.cursorPosition.X + 1
+	if newX >= b.size.Width {
+		newX = b.size.Width - 1
 	}
-	if scroll > 0 {
-		for y := 0; y < b.size.Height-scroll; y++ {
+	maxY := b.size.Height - 1
+	linesAfterCursor := maxY - b.cursorPosition.Y
+	if linesAfterCursor < 0 {
+		linesAfterCursor = 0
+	}
+
+	if count > linesAfterCursor {
+		scroll := count - linesAfterCursor
+		visibleScroll := scroll
+		if visibleScroll > b.size.Height {
+			visibleScroll = b.size.Height
+		}
+		for y := 0; y < visibleScroll; y++ {
+			b.scrollback = append(b.scrollback, b.lineAt(y))
+		}
+		for y := 0; y < b.size.Height-visibleScroll; y++ {
 			for x := 0; x < b.size.Width; x++ {
-				cell, _ := b.cells.CellAt(x, y+scroll)
+				cell, _ := b.cells.CellAt(x, y+visibleScroll)
 				b.cells.SetCell(x, y, cell)
 			}
 		}
-		for y := b.size.Height - scroll; y < b.size.Height; y++ {
-			for x := 0; x < b.size.Width; x++ {
-				b.cells.SetCell(x, y, buffer.NewCell(" "))
-			}
+		for y := b.size.Height - visibleScroll; y < b.size.Height; y++ {
+			b.clearLine(y)
+		}
+		for y := visibleScroll; y < scroll; y++ {
+			b.scrollback = append(b.scrollback, b.blankLine())
 		}
 	}
-	b.cursorPosition = layout.Position{X: 0, Y: b.size.Height - 1}
+
+	newY := b.cursorPosition.Y + count
+	if newY > maxY {
+		newY = maxY
+	}
+	b.cursorPosition = layout.Position{X: newX, Y: newY}
 	return nil
 }
 
@@ -362,6 +382,10 @@ func (b *Backend) clearLine(y int) {
 	for x := 0; x < b.size.Width; x++ {
 		b.cells.SetCell(x, y, buffer.NewCell(" "))
 	}
+}
+
+func (b *Backend) blankLine() string {
+	return strings.Repeat(" ", b.size.Width)
 }
 
 func (b *Backend) Draws() [][]buffer.CellDiff {

@@ -253,3 +253,211 @@ func TestBackend_ClearRegion_untilNewLine(t *testing.T) {
 		t.Fatalf("Lines() = %#v, want %#v", got, want)
 	}
 }
+
+func TestTestBackend_AppendLines_notAtLastLineMovesCursorDownWithoutScrollback(t *testing.T) {
+	backend := WithLines([]string{
+		"aaaaaaaaaa",
+		"bbbbbbbbbb",
+		"cccccccccc",
+		"dddddddddd",
+		"eeeeeeeeee",
+	})
+	if err := backend.SetCursorPosition(layout.Position{X: 0, Y: 0}); err != nil {
+		t.Fatalf("SetCursorPosition() error = %v", err)
+	}
+
+	for _, want := range []layout.Position{
+		{X: 1, Y: 1},
+		{X: 2, Y: 2},
+		{X: 3, Y: 3},
+		{X: 4, Y: 4},
+	} {
+		if err := backend.AppendLines(1); err != nil {
+			t.Fatalf("AppendLines(1) error = %v", err)
+		}
+		backend.AssertCursorPosition(t, want)
+	}
+
+	backend.AssertBufferLines(t, []string{
+		"aaaaaaaaaa",
+		"bbbbbbbbbb",
+		"cccccccccc",
+		"dddddddddd",
+		"eeeeeeeeee",
+	})
+	backend.AssertScrollbackEmpty(t)
+}
+
+func TestTestBackend_AppendLines_atLastLineScrollsOneLineToScrollback(t *testing.T) {
+	backend := WithLines([]string{
+		"aaaaaaaaaa",
+		"bbbbbbbbbb",
+		"cccccccccc",
+		"dddddddddd",
+		"eeeeeeeeee",
+	})
+	if err := backend.SetCursorPosition(layout.Position{X: 0, Y: 4}); err != nil {
+		t.Fatalf("SetCursorPosition() error = %v", err)
+	}
+
+	if err := backend.AppendLines(1); err != nil {
+		t.Fatalf("AppendLines(1) error = %v", err)
+	}
+
+	backend.AssertCursorPosition(t, layout.Position{X: 1, Y: 4})
+	backend.AssertBufferLines(t, []string{
+		"bbbbbbbbbb",
+		"cccccccccc",
+		"dddddddddd",
+		"eeeeeeeeee",
+		"          ",
+	})
+	backend.AssertScrollbackLines(t, []string{"aaaaaaaaaa"})
+}
+
+func TestTestBackend_AppendLines_multipleLinesNotAtLastLine(t *testing.T) {
+	backend := WithLines([]string{
+		"aaaaaaaaaa",
+		"bbbbbbbbbb",
+		"cccccccccc",
+		"dddddddddd",
+		"eeeeeeeeee",
+	})
+	if err := backend.SetCursorPosition(layout.Position{X: 0, Y: 0}); err != nil {
+		t.Fatalf("SetCursorPosition() error = %v", err)
+	}
+
+	if err := backend.AppendLines(4); err != nil {
+		t.Fatalf("AppendLines(4) error = %v", err)
+	}
+
+	backend.AssertCursorPosition(t, layout.Position{X: 1, Y: 4})
+	backend.AssertBufferLines(t, []string{
+		"aaaaaaaaaa",
+		"bbbbbbbbbb",
+		"cccccccccc",
+		"dddddddddd",
+		"eeeeeeeeee",
+	})
+	backend.AssertScrollbackEmpty(t)
+}
+
+func TestTestBackend_AppendLines_multipleLinesPastLastLine(t *testing.T) {
+	backend := WithLines([]string{
+		"aaaaaaaaaa",
+		"bbbbbbbbbb",
+		"cccccccccc",
+		"dddddddddd",
+		"eeeeeeeeee",
+	})
+	if err := backend.SetCursorPosition(layout.Position{X: 0, Y: 3}); err != nil {
+		t.Fatalf("SetCursorPosition() error = %v", err)
+	}
+
+	if err := backend.AppendLines(3); err != nil {
+		t.Fatalf("AppendLines(3) error = %v", err)
+	}
+
+	backend.AssertCursorPosition(t, layout.Position{X: 1, Y: 4})
+	backend.AssertBufferLines(t, []string{
+		"cccccccccc",
+		"dddddddddd",
+		"eeeeeeeeee",
+		"          ",
+		"          ",
+	})
+	backend.AssertScrollbackLines(t, []string{"aaaaaaaaaa", "bbbbbbbbbb"})
+}
+
+func TestTestBackend_AppendLines_cursorAtEndAppendsHeightLines(t *testing.T) {
+	backend := WithLines([]string{
+		"aaaaaaaaaa",
+		"bbbbbbbbbb",
+		"cccccccccc",
+		"dddddddddd",
+		"eeeeeeeeee",
+	})
+	if err := backend.SetCursorPosition(layout.Position{X: 0, Y: 4}); err != nil {
+		t.Fatalf("SetCursorPosition() error = %v", err)
+	}
+
+	if err := backend.AppendLines(5); err != nil {
+		t.Fatalf("AppendLines(5) error = %v", err)
+	}
+
+	backend.AssertCursorPosition(t, layout.Position{X: 1, Y: 4})
+	backend.AssertBufferLines(t, []string{
+		"          ",
+		"          ",
+		"          ",
+		"          ",
+		"          ",
+	})
+	backend.AssertScrollbackLines(t, []string{
+		"aaaaaaaaaa",
+		"bbbbbbbbbb",
+		"cccccccccc",
+		"dddddddddd",
+		"eeeeeeeeee",
+	})
+}
+
+func TestTestBackend_AppendLines_moreThanHeightLinesKeepsOnlyVisibleTail(t *testing.T) {
+	backend := WithLines([]string{
+		"aaaaaaaaaa",
+		"bbbbbbbbbb",
+		"cccccccccc",
+		"dddddddddd",
+		"eeeeeeeeee",
+	})
+	if err := backend.SetCursorPosition(layout.Position{X: 0, Y: 4}); err != nil {
+		t.Fatalf("SetCursorPosition() error = %v", err)
+	}
+
+	if err := backend.AppendLines(8); err != nil {
+		t.Fatalf("AppendLines(8) error = %v", err)
+	}
+
+	backend.AssertCursorPosition(t, layout.Position{X: 1, Y: 4})
+	backend.AssertBufferLines(t, []string{
+		"          ",
+		"          ",
+		"          ",
+		"          ",
+		"          ",
+	})
+	backend.AssertScrollbackLines(t, []string{
+		"aaaaaaaaaa",
+		"bbbbbbbbbb",
+		"cccccccccc",
+		"dddddddddd",
+		"eeeeeeeeee",
+		"          ",
+		"          ",
+		"          ",
+	})
+}
+
+func TestTestBackend_AppendLines_zeroNoop(t *testing.T) {
+	backend := WithLines([]string{
+		"aaaaaaaaaa",
+		"bbbbbbbbbb",
+	})
+	if err := backend.SetCursorPosition(layout.Position{X: 1, Y: 1}); err != nil {
+		t.Fatalf("SetCursorPosition() error = %v", err)
+	}
+
+	if err := backend.AppendLines(0); err != nil {
+		t.Fatalf("AppendLines(0) error = %v", err)
+	}
+
+	backend.AssertCursorPosition(t, layout.Position{X: 1, Y: 1})
+	backend.AssertBufferLines(t, []string{
+		"aaaaaaaaaa",
+		"bbbbbbbbbb",
+	})
+	backend.AssertScrollbackEmpty(t)
+	if got, want := backend.AppendLinesCalls(), []int{0}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("AppendLinesCalls() = %#v, want %#v", got, want)
+	}
+}
