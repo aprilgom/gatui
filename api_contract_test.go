@@ -84,6 +84,9 @@ func TestPublicAPISurface_shouldExposeInitialRatatuiPortTypes(t *testing.T) {
 	frame := term.Frame()
 	frame.Buffer().SetSymbol(0, 0, "x")
 	_ = term.Flush()
+	_ = term.InsertBefore(1, func(buf *buffer.Buffer) {
+		buf.SetSymbol(0, 0, "i")
+	})
 	term.SwapBuffers()
 	_ = term.HideCursor()
 	_ = term.ShowCursor()
@@ -91,6 +94,7 @@ func TestPublicAPISurface_shouldExposeInitialRatatuiPortTypes(t *testing.T) {
 	term.Resize(layout.NewRect(0, 0, 10, 2))
 	_ = term.Clear()
 	_ = term.Backend()
+	_ = testbackend.WithLines([]string{"seed"})
 	_ = backend.Draws()
 	_ = backend.FlushCount()
 	_ = backend.ClearCount()

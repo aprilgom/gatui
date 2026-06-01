@@ -25,6 +25,14 @@ func New(width, height int) *Backend {
 	return &Backend{size: layout.Size{Width: width, Height: height}, cells: buffer.Empty(area)}
 }
 
+func WithLines(lines []string) *Backend {
+	cells := buffer.WithLines(lines)
+	return &Backend{
+		size:  layout.Size{Width: cells.Area.Width, Height: cells.Area.Height},
+		cells: cells,
+	}
+}
+
 func (b *Backend) Size() (layout.Size, error) {
 	return b.size, nil
 }
@@ -112,10 +120,27 @@ func (b *Backend) AppendLines(count int) error {
 	if count <= 0 {
 		return nil
 	}
-	b.cursorPosition = layout.Position{X: 0, Y: b.size.Height - 1}
-	if b.cells != nil {
-		b.cells.Reset()
+	if b.cells == nil {
+		b.cells = buffer.Empty(layout.NewRect(0, 0, b.size.Width, b.size.Height))
 	}
+	scroll := b.cursorPosition.Y + count - (b.size.Height - 1)
+	if scroll > b.size.Height {
+		scroll = b.size.Height
+	}
+	if scroll > 0 {
+		for y := 0; y < b.size.Height-scroll; y++ {
+			for x := 0; x < b.size.Width; x++ {
+				cell, _ := b.cells.CellAt(x, y+scroll)
+				b.cells.SetCell(x, y, cell)
+			}
+		}
+		for y := b.size.Height - scroll; y < b.size.Height; y++ {
+			for x := 0; x < b.size.Width; x++ {
+				b.cells.SetCell(x, y, buffer.NewCell(" "))
+			}
+		}
+	}
+	b.cursorPosition = layout.Position{X: 0, Y: b.size.Height - 1}
 	return nil
 }
 

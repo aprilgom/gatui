@@ -183,6 +183,100 @@ func (t *Terminal) Flush() error {
 	return t.backend.Draw(t.previous.Diff(t.current))
 }
 
+func (t *Terminal) InsertBefore(height int, render func(*buffer.Buffer)) error {
+	if t.viewport.kind != viewportInline {
+		return nil
+	}
+	if height < 0 {
+		height = 0
+	}
+	area := layout.NewRect(0, 0, t.area.Width, height)
+	insert := buffer.Empty(area)
+	if render != nil {
+		render(insert)
+	}
+
+	cells := insert.Cells
+	drawnHeight := t.area.Y
+	bufferHeight := height
+	viewportHeight := t.area.Height
+	size, err := t.backend.Size()
+	if err != nil {
+		return err
+	}
+	screenHeight := size.Height
+
+	for bufferHeight+viewportHeight > screenHeight {
+		toDraw := minInt(bufferHeight, screenHeight)
+		scrollUp := maxInt(0, drawnHeight+toDraw-screenHeight)
+		if err := t.scrollUp(scrollUp); err != nil {
+			return err
+		}
+		cells, err = t.drawLines(drawnHeight-scrollUp, toDraw, cells)
+		if err != nil {
+			return err
+		}
+		drawnHeight += toDraw - scrollUp
+		bufferHeight -= toDraw
+	}
+
+	scrollUp := maxInt(0, drawnHeight+bufferHeight+viewportHeight-screenHeight)
+	if err := t.scrollUp(scrollUp); err != nil {
+		return err
+	}
+	if _, err := t.drawLines(drawnHeight-scrollUp, bufferHeight, cells); err != nil {
+		return err
+	}
+	drawnHeight += bufferHeight - scrollUp
+
+	t.area.Y = drawnHeight
+	t.previous.Resize(t.area)
+	t.current.Resize(t.area)
+	return t.Clear()
+}
+
+func (t *Terminal) drawLines(yOffset, linesToDraw int, cells []buffer.Cell) ([]buffer.Cell, error) {
+	width := t.area.Width
+	count := width * linesToDraw
+	if count > len(cells) {
+		count = len(cells)
+	}
+	toDraw := cells[:count]
+	remainder := cells[count:]
+	if linesToDraw <= 0 {
+		return remainder, nil
+	}
+	diffs := make([]buffer.CellDiff, 0, len(toDraw))
+	for i, cell := range toDraw {
+		diffs = append(diffs, buffer.CellDiff{
+			X:    i % width,
+			Y:    yOffset + i/width,
+			Cell: cell,
+		})
+	}
+	if err := t.backend.Draw(diffs); err != nil {
+		return nil, err
+	}
+	if err := t.backend.Flush(); err != nil {
+		return nil, err
+	}
+	return remainder, nil
+}
+
+func (t *Terminal) scrollUp(lines int) error {
+	if lines <= 0 {
+		return nil
+	}
+	size, err := t.backend.Size()
+	if err != nil {
+		return err
+	}
+	if err := t.SetCursorPosition(layout.Position{X: 0, Y: size.Height - 1}); err != nil {
+		return err
+	}
+	return t.backend.AppendLines(lines)
+}
+
 func (t *Terminal) SwapBuffers() {
 	t.previous.Reset()
 	t.previous, t.current = t.current, t.previous
@@ -276,6 +370,20 @@ func computeInlineArea(backend Backend, height int, size layout.Size, offsetInPr
 	return layout.NewRect(0, row, size.Width, maxHeight), pos, nil
 }
 
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
 func (t *Terminal) Clear() error {
 	originalCursor, err := t.backend.GetCursorPosition()
 	if err != nil {
@@ -295,6 +403,13 @@ func (t *Terminal) clearViewport() error {
 		}
 	case viewportFixed:
 		if err := t.clearFixedViewport(t.area); err != nil {
+			return err
+		}
+	case viewportInline:
+		if err := t.backend.SetCursorPosition(layout.Position{X: t.area.X, Y: t.area.Y}); err != nil {
+			return err
+		}
+		if err := t.backend.ClearRegion(ClearAfterCursor); err != nil {
 			return err
 		}
 	}
