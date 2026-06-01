@@ -15,6 +15,7 @@ type Backend interface {
 	Clear() error
 	ClearRegion(ClearType) error
 	GetCursorPosition() (layout.Position, error)
+	AppendLines(count int) error
 	HideCursor() error
 	ShowCursor() error
 	SetCursorPosition(layout.Position) error
@@ -33,6 +34,7 @@ type viewportKind int
 const (
 	viewportFullscreen viewportKind = iota
 	viewportFixed
+	viewportInline
 )
 
 type TerminalOptions struct {
@@ -40,8 +42,9 @@ type TerminalOptions struct {
 }
 
 type Viewport struct {
-	kind viewportKind
-	area layout.Rect
+	kind   viewportKind
+	area   layout.Rect
+	height int
 }
 
 type Terminal struct {
@@ -74,6 +77,10 @@ func FixedViewport(area layout.Rect) Viewport {
 	return Viewport{kind: viewportFixed, area: area}
 }
 
+func InlineViewport(height int) Viewport {
+	return Viewport{kind: viewportInline, height: height}
+}
+
 func DefaultTerminalOptions() TerminalOptions {
 	return TerminalOptions{Viewport: FullscreenViewport()}
 }
@@ -87,19 +94,33 @@ func NewWithOptions(backend Backend, options TerminalOptions) (*Terminal, error)
 		return nil, errors.New("terminal backend is nil")
 	}
 	area := options.Viewport.area
-	if options.Viewport.kind == viewportFullscreen {
+	cursorPosition := (*layout.Position)(nil)
+	switch options.Viewport.kind {
+	case viewportFullscreen:
 		size, err := backend.Size()
 		if err != nil {
 			return nil, err
 		}
 		area = layout.NewRect(0, 0, size.Width, size.Height)
+	case viewportInline:
+		size, err := backend.Size()
+		if err != nil {
+			return nil, err
+		}
+		var cursor layout.Position
+		area, cursor, err = computeInlineArea(backend, options.Viewport.height, size, 0)
+		if err != nil {
+			return nil, err
+		}
+		cursorPosition = &cursor
 	}
 	return &Terminal{
-		backend:  backend,
-		previous: buffer.Empty(area),
-		current:  buffer.Empty(area),
-		area:     area,
-		viewport: options.Viewport,
+		backend:        backend,
+		previous:       buffer.Empty(area),
+		current:        buffer.Empty(area),
+		area:           area,
+		viewport:       options.Viewport,
+		cursorPosition: cursorPosition,
 	}, nil
 }
 
@@ -176,6 +197,10 @@ func (t *Terminal) Frame() *Frame {
 }
 
 func (t *Terminal) Resize(area layout.Rect) {
+	if t.viewport.kind == viewportInline {
+		t.resizeInline(area)
+		return
+	}
 	t.area = area
 	if t.viewport.kind == viewportFixed {
 		t.viewport.area = area
@@ -184,6 +209,71 @@ func (t *Terminal) Resize(area layout.Rect) {
 	t.previous.Reset()
 	t.current.Resize(area)
 	t.current.Reset()
+}
+
+func (t *Terminal) resizeInline(terminalArea layout.Rect) {
+	offset := 0
+	if t.cursorPosition != nil {
+		offset = t.cursorPosition.Y - t.area.Y
+		if offset < 0 {
+			offset = 0
+		}
+	}
+
+	originalCursor, err := t.backend.GetCursorPosition()
+	if err == nil {
+		nextArea, _, computeErr := computeInlineArea(t.backend, t.viewport.height, layout.Size{Width: terminalArea.Width, Height: terminalArea.Height}, offset)
+		if computeErr == nil {
+			t.area = nextArea
+		}
+		_ = t.backend.SetCursorPosition(originalCursor)
+	}
+
+	t.previous.Resize(t.area)
+	t.previous.Reset()
+	t.current.Resize(t.area)
+	t.current.Reset()
+}
+
+func computeInlineArea(backend Backend, height int, size layout.Size, offsetInPreviousViewport int) (layout.Rect, layout.Position, error) {
+	pos, err := backend.GetCursorPosition()
+	if err != nil {
+		return layout.Rect{}, layout.Position{}, err
+	}
+	row := pos.Y
+	maxHeight := height
+	if maxHeight > size.Height {
+		maxHeight = size.Height
+	}
+	if maxHeight < 0 {
+		maxHeight = 0
+	}
+
+	linesAfterCursor := height - offsetInPreviousViewport - 1
+	if linesAfterCursor < 0 {
+		linesAfterCursor = 0
+	}
+	if err := backend.AppendLines(linesAfterCursor); err != nil {
+		return layout.Rect{}, layout.Position{}, err
+	}
+
+	availableLines := size.Height - row - 1
+	if availableLines < 0 {
+		availableLines = 0
+	}
+	missingLines := linesAfterCursor - availableLines
+	if missingLines > 0 {
+		row -= missingLines
+		if row < 0 {
+			row = 0
+		}
+	}
+	row -= offsetInPreviousViewport
+	if row < 0 {
+		row = 0
+	}
+
+	return layout.NewRect(0, row, size.Width, maxHeight), pos, nil
 }
 
 func (t *Terminal) Clear() error {

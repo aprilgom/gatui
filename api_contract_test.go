@@ -55,6 +55,7 @@ func TestPublicAPISurface_shouldExposeInitialRatatuiPortTypes(t *testing.T) {
 	backend := testbackend.New(20, 3)
 	_ = terminal.FullscreenViewport()
 	_ = terminal.FixedViewport(area)
+	_ = terminal.InlineViewport(2)
 	_ = terminal.DefaultTerminalOptions()
 	_, _ = terminal.NewWithOptions(backend, terminal.TerminalOptions{
 		Viewport: terminal.FixedViewport(area),
@@ -96,4 +97,6 @@ func TestPublicAPISurface_shouldExposeInitialRatatuiPortTypes(t *testing.T) {
 	_ = backend.HideCursorCount()
 	_ = backend.ShowCursorCount()
 	_ = backend.CursorPositions()
+	_ = backend.AppendLines(1)
+	_ = backend.AppendLinesCalls()
 }

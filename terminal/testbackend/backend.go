@@ -16,6 +16,7 @@ type Backend struct {
 	showCursorCount int
 	cursorPositions []layout.Position
 	cursorPosition  layout.Position
+	appendLines     []int
 	cells           *buffer.Buffer
 }
 
@@ -106,6 +107,18 @@ func (b *Backend) GetCursorPosition() (layout.Position, error) {
 	return b.cursorPosition, nil
 }
 
+func (b *Backend) AppendLines(count int) error {
+	b.appendLines = append(b.appendLines, count)
+	if count <= 0 {
+		return nil
+	}
+	b.cursorPosition = layout.Position{X: 0, Y: b.size.Height - 1}
+	if b.cells != nil {
+		b.cells.Reset()
+	}
+	return nil
+}
+
 func (b *Backend) Draws() [][]buffer.CellDiff {
 	draws := make([][]buffer.CellDiff, len(b.draws))
 	for i := range b.draws {
@@ -144,4 +157,8 @@ func (b *Backend) ShowCursorCount() int {
 
 func (b *Backend) CursorPositions() []layout.Position {
 	return append([]layout.Position(nil), b.cursorPositions...)
+}
+
+func (b *Backend) AppendLinesCalls() []int {
+	return append([]int(nil), b.appendLines...)
 }

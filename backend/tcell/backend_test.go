@@ -113,6 +113,51 @@ func TestBackend_Size_shouldReturnScreenSize(t *testing.T) {
 	}
 }
 
+func TestBackend_shouldSatisfyTerminalInterface(t *testing.T) {
+	var _ terminal.Backend = (*Backend)(nil)
+}
+
+func TestBackend_AppendLines_shouldMoveCursorToLastRowAndBlankScreen(t *testing.T) {
+	screen := newSpyScreen(4, 3)
+	backend, err := NewWithScreen(screen)
+	if err != nil {
+		t.Fatalf("NewWithScreen() error = %v", err)
+	}
+	defer backend.Close()
+	screen.SetSize(4, 3)
+
+	if err := backend.AppendLines(2); err != nil {
+		t.Fatalf("AppendLines() error = %v", err)
+	}
+
+	if got, want := backend.cursorPosition, (layout.Position{X: 0, Y: 2}); got != want {
+		t.Fatalf("cursor position = %#v, want %#v", got, want)
+	}
+	if got, want := screen.showCursorCalls[len(screen.showCursorCalls)-1], (layout.Position{X: 0, Y: 2}); got != want {
+		t.Fatalf("show cursor call = %#v, want %#v", got, want)
+	}
+	if got, want := len(screen.contentCalls), 12; got != want {
+		t.Fatalf("blank content calls = %d, want %d", got, want)
+	}
+}
+
+func TestBackend_AppendLines_zeroCountNoop(t *testing.T) {
+	screen := newSpyScreen(4, 3)
+	backend, err := NewWithScreen(screen)
+	if err != nil {
+		t.Fatalf("NewWithScreen() error = %v", err)
+	}
+	defer backend.Close()
+
+	if err := backend.AppendLines(0); err != nil {
+		t.Fatalf("AppendLines() error = %v", err)
+	}
+
+	if got := len(screen.contentCalls); got != 0 {
+		t.Fatalf("blank content calls = %d, want 0", got)
+	}
+}
+
 func TestBackend_Draw_shouldSetContentForAsciiCell(t *testing.T) {
 	screen := newSpyScreen(10, 5)
 	backend, err := NewWithScreen(screen)

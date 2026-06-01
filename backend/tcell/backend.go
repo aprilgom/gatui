@@ -100,6 +100,27 @@ func (b *Backend) GetCursorPosition() (layout.Position, error) {
 	return b.cursorPosition, nil
 }
 
+func (b *Backend) AppendLines(count int) error {
+	if count <= 0 {
+		return nil
+	}
+	size, err := b.Size()
+	if err != nil {
+		return err
+	}
+	if size.Height <= 0 {
+		return nil
+	}
+	b.cursorPosition = layout.Position{X: 0, Y: size.Height - 1}
+	for y := 0; y < size.Height; y++ {
+		for x := 0; x < size.Width; x++ {
+			b.screen.SetContent(x, y, ' ', nil, tcelllib.StyleDefault)
+		}
+	}
+	b.screen.ShowCursor(b.cursorPosition.X, b.cursorPosition.Y)
+	return nil
+}
+
 func (b *Backend) HideCursor() error {
 	b.screen.HideCursor()
 	return nil

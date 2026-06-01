@@ -22,6 +22,7 @@ type recordingBackend struct {
 	showCursorCount int
 	cursorPositions []layout.Position
 	cursorPosition  layout.Position
+	appendLines     []int
 	operations      []string
 }
 
@@ -83,6 +84,12 @@ func (b *recordingBackend) SetCursorPosition(pos layout.Position) error {
 
 func (b *recordingBackend) GetCursorPosition() (layout.Position, error) {
 	return b.cursorPosition, nil
+}
+
+func (b *recordingBackend) AppendLines(count int) error {
+	b.appendLines = append(b.appendLines, count)
+	b.operations = append(b.operations, "append-lines")
+	return nil
 }
 
 func TestTerminalBackendInterface_shouldNotRequireEventPolling(t *testing.T) {
@@ -164,6 +171,63 @@ func TestTerminal_NewWithOptions_fixedUsesProvidedArea(t *testing.T) {
 	}
 	if got, want := completed.Buffer.Area, area; got != want {
 		t.Fatalf("completed buffer area = %#v, want %#v", got, want)
+	}
+}
+
+func TestTerminal_NewWithOptions_inlineAnchorsToCursorWhenSpaceAvailable(t *testing.T) {
+	backend := newRecordingBackend(10, 10)
+	backend.cursorPosition = layout.Position{X: 0, Y: 3}
+
+	term, err := terminal.NewWithOptions(backend, terminal.TerminalOptions{
+		Viewport: terminal.InlineViewport(4),
+	})
+	if err != nil {
+		t.Fatalf("NewWithOptions returned error: %v", err)
+	}
+
+	if got, want := term.Area(), layout.NewRect(0, 3, 10, 4); got != want {
+		t.Fatalf("terminal area = %#v, want %#v", got, want)
+	}
+	if got, want := backend.appendLines, []int{3}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("append lines = %#v, want %#v", got, want)
+	}
+}
+
+func TestTerminal_NewWithOptions_inlineShiftsUpWhenNearBottom(t *testing.T) {
+	backend := newRecordingBackend(10, 10)
+	backend.cursorPosition = layout.Position{X: 0, Y: 8}
+
+	term, err := terminal.NewWithOptions(backend, terminal.TerminalOptions{
+		Viewport: terminal.InlineViewport(4),
+	})
+	if err != nil {
+		t.Fatalf("NewWithOptions returned error: %v", err)
+	}
+
+	if got, want := term.Area(), layout.NewRect(0, 6, 10, 4); got != want {
+		t.Fatalf("terminal area = %#v, want %#v", got, want)
+	}
+	if got, want := backend.appendLines, []int{3}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("append lines = %#v, want %#v", got, want)
+	}
+}
+
+func TestTerminal_NewWithOptions_inlineClampsHeightToTerminal(t *testing.T) {
+	backend := newRecordingBackend(10, 3)
+	backend.cursorPosition = layout.Position{X: 0, Y: 0}
+
+	term, err := terminal.NewWithOptions(backend, terminal.TerminalOptions{
+		Viewport: terminal.InlineViewport(10),
+	})
+	if err != nil {
+		t.Fatalf("NewWithOptions returned error: %v", err)
+	}
+
+	if got, want := term.Area(), layout.NewRect(0, 0, 10, 3); got != want {
+		t.Fatalf("terminal area = %#v, want %#v", got, want)
+	}
+	if got, want := backend.appendLines, []int{9}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("append lines = %#v, want %#v", got, want)
 	}
 }
 
@@ -379,6 +443,27 @@ func TestTerminal_Autoresize_fullscreenTracksBackendSize(t *testing.T) {
 	}
 	if got, want := completed.Buffer.Area, layout.NewRect(0, 0, 5, 2); got != want {
 		t.Fatalf("buffer area = %#v, want %#v", got, want)
+	}
+}
+
+func TestTerminal_Autoresize_inlineTracksBackendSize(t *testing.T) {
+	backend := newRecordingBackend(10, 10)
+	backend.cursorPosition = layout.Position{X: 0, Y: 4}
+	term, err := terminal.NewWithOptions(backend, terminal.TerminalOptions{
+		Viewport: terminal.InlineViewport(4),
+	})
+	if err != nil {
+		t.Fatalf("NewWithOptions returned error: %v", err)
+	}
+	backend.SetSize(12, 8)
+	backend.cursorPosition = layout.Position{X: 0, Y: 5}
+
+	if err := term.Autoresize(); err != nil {
+		t.Fatalf("Autoresize returned error: %v", err)
+	}
+
+	if got, want := term.Area(), layout.NewRect(0, 4, 12, 4); got != want {
+		t.Fatalf("terminal area = %#v, want %#v", got, want)
 	}
 }
 
@@ -613,6 +698,85 @@ func TestTerminal_Resize_fixedViewportChangesAreaAndBuffers(t *testing.T) {
 	}
 	if got, want := completed.Buffer.Area, area; got != want {
 		t.Fatalf("completed buffer area = %#v, want %#v", got, want)
+	}
+}
+
+func TestTerminal_Resize_inlineRecomputesOriginUsingPreviousCursorOffset(t *testing.T) {
+	backend := newRecordingBackend(10, 10)
+	backend.cursorPosition = layout.Position{X: 0, Y: 4}
+	term, err := terminal.NewWithOptions(backend, terminal.TerminalOptions{
+		Viewport: terminal.InlineViewport(4),
+	})
+	if err != nil {
+		t.Fatalf("NewWithOptions returned error: %v", err)
+	}
+	if got, want := term.Area(), layout.NewRect(0, 4, 10, 4); got != want {
+		t.Fatalf("initial terminal area = %#v, want %#v", got, want)
+	}
+
+	if _, err := term.Draw(func(frame *terminal.Frame) {
+		frame.SetCursorPosition(layout.Position{X: 0, Y: 5})
+	}); err != nil {
+		t.Fatalf("Draw returned error: %v", err)
+	}
+	backend.cursorPosition = layout.Position{X: 0, Y: 6}
+	backend.SetSize(10, 12)
+
+	term.Resize(layout.NewRect(0, 0, 10, 12))
+
+	if got, want := term.Area(), layout.NewRect(0, 5, 10, 4); got != want {
+		t.Fatalf("terminal area = %#v, want %#v", got, want)
+	}
+}
+
+func TestTerminal_Resize_inlineClampsHeightToTerminalHeight(t *testing.T) {
+	backend := newRecordingBackend(10, 10)
+	backend.cursorPosition = layout.Position{X: 0, Y: 0}
+	term, err := terminal.NewWithOptions(backend, terminal.TerminalOptions{
+		Viewport: terminal.InlineViewport(10),
+	})
+	if err != nil {
+		t.Fatalf("NewWithOptions returned error: %v", err)
+	}
+	backend.SetSize(10, 3)
+
+	term.Resize(layout.NewRect(0, 0, 10, 3))
+
+	if got, want := term.Area(), layout.NewRect(0, 0, 10, 3); got != want {
+		t.Fatalf("terminal area = %#v, want %#v", got, want)
+	}
+}
+
+func TestTerminal_Resize_inlinePreservesBackendCursorAcrossRepeatedResizes(t *testing.T) {
+	backend := newRecordingBackend(10, 10)
+	backend.cursorPosition = layout.Position{X: 0, Y: 4}
+	term, err := terminal.NewWithOptions(backend, terminal.TerminalOptions{
+		Viewport: terminal.InlineViewport(4),
+	})
+	if err != nil {
+		t.Fatalf("NewWithOptions returned error: %v", err)
+	}
+	if _, err := term.Draw(func(frame *terminal.Frame) {
+		frame.SetCursorPosition(layout.Position{X: 0, Y: 5})
+	}); err != nil {
+		t.Fatalf("Draw returned error: %v", err)
+	}
+	backend.cursorPosition = layout.Position{X: 0, Y: 6}
+
+	term.Resize(layout.NewRect(0, 0, 10, 12))
+	if got, want := term.Area(), layout.NewRect(0, 5, 10, 4); got != want {
+		t.Fatalf("first resize area = %#v, want %#v", got, want)
+	}
+	if got, want := backend.cursorPosition, (layout.Position{X: 0, Y: 6}); got != want {
+		t.Fatalf("cursor after first resize = %#v, want %#v", got, want)
+	}
+
+	term.Resize(layout.NewRect(0, 0, 10, 14))
+	if got, want := term.Area(), layout.NewRect(0, 6, 10, 4); got != want {
+		t.Fatalf("second resize area = %#v, want %#v", got, want)
+	}
+	if got, want := backend.cursorPosition, (layout.Position{X: 0, Y: 6}); got != want {
+		t.Fatalf("cursor after second resize = %#v, want %#v", got, want)
 	}
 }
 
