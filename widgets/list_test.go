@@ -1,7 +1,7 @@
 package widgets_test
 
 import (
-	"reflect"
+	"slices"
 	"testing"
 
 	"gatui/buffer"
@@ -301,7 +301,7 @@ func TestList_highlightSpacing(t *testing.T) {
 
 			list.RenderStateful(buf.Area, buf, &state)
 
-			if actual := buf.Lines(); !reflect.DeepEqual(actual, tt.expected) {
+			if actual := buf.Lines(); !slices.Equal(actual, tt.expected) {
 				t.Fatalf("lines mismatch\nactual:   %#v\nexpected: %#v", actual, tt.expected)
 			}
 		})

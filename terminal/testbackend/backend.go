@@ -1,7 +1,7 @@
 package testbackend
 
 import (
-	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -471,7 +471,7 @@ func (b *Backend) Scrollback() *buffer.Buffer {
 func (b *Backend) AssertBufferLines(t testing.TB, lines []string) {
 	t.Helper()
 	got := b.Lines()
-	if !reflect.DeepEqual(got, lines) {
+	if !slices.Equal(got, lines) {
 		t.Fatalf("buffer lines mismatch:\nactual: %#v\nwant:   %#v", got, lines)
 	}
 }
@@ -479,7 +479,7 @@ func (b *Backend) AssertBufferLines(t testing.TB, lines []string) {
 func (b *Backend) AssertScrollbackLines(t testing.TB, lines []string) {
 	t.Helper()
 	got := b.ScrollbackLines()
-	if !reflect.DeepEqual(got, lines) {
+	if !slices.Equal(got, lines) {
 		t.Fatalf("scrollback lines mismatch:\nactual: %#v\nwant:   %#v", got, lines)
 	}
 }

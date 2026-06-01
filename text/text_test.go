@@ -1,7 +1,7 @@
 package text_test
 
 import (
-	"reflect"
+	"slices"
 	"strings"
 	"testing"
 
@@ -153,7 +153,7 @@ func TestSpan_StyledGraphemes_shouldPatchBaseStyleWithSpanStyle(t *testing.T) {
 		text.NewStyledGrapheme("t", wantStyle),
 	}
 
-	if !reflect.DeepEqual(got, want) {
+	if !slices.Equal(got, want) {
 		t.Fatalf("StyledGraphemes() = %#v, want %#v", got, want)
 	}
 }
@@ -168,7 +168,7 @@ func TestSpan_StyledGraphemes_shouldUseGraphemeClustersAndFilterControl(t *testi
 		text.NewStyledGrapheme("b", style.NewStyle()),
 	}
 
-	if !reflect.DeepEqual(got, want) {
+	if !slices.Equal(got, want) {
 		t.Fatalf("StyledGraphemes() = %#v, want %#v", got, want)
 	}
 }
@@ -300,7 +300,7 @@ func TestLine_StyledGraphemes_shouldPatchBaseLineAndSpanStyles(t *testing.T) {
 		text.NewStyledGrapheme("!", blueStyle),
 	}
 
-	if !reflect.DeepEqual(got, want) {
+	if !slices.Equal(got, want) {
 		t.Fatalf("StyledGraphemes() = %#v, want %#v", got, want)
 	}
 }
@@ -351,7 +351,7 @@ func TestLineFromSpans_shouldCreateLineFromStyledSpans(t *testing.T) {
 		text.StyledSpan("Hello,", red),
 		text.StyledSpan(" world!", green),
 	}
-	if !reflect.DeepEqual(got.Spans, wantSpans) {
+	if !slices.Equal(got.Spans, wantSpans) {
 		t.Fatalf("spans = %#v, want %#v", got.Spans, wantSpans)
 	}
 	if got.LineStyle != style.NewStyle() {
@@ -497,7 +497,7 @@ func TestTextFromLine_shouldCreateSingleLineText(t *testing.T) {
 	if len(got.Lines) != 1 {
 		t.Fatalf("line count = %d, want 1", len(got.Lines))
 	}
-	if !reflect.DeepEqual(got.Lines[0], line) {
+	if !lineEqual(got.Lines[0], line) {
 		t.Fatalf("line = %#v, want %#v", got.Lines[0], line)
 	}
 }
@@ -691,7 +691,7 @@ func TestText_ResetStyle_shouldResetTextStyleAndPreserveLinesAndAlignment(t *tes
 		ResetStyle()
 	wantStyle := style.ResetStyle().AddModifier(style.ModifierItalic)
 
-	if !reflect.DeepEqual(got.Lines, lines) {
+	if !linesEqual(got.Lines, lines) {
 		t.Fatalf("lines = %#v, want %#v", got.Lines, lines)
 	}
 	if got.Alignment == nil || *got.Alignment != layout.Center {
@@ -700,6 +700,23 @@ func TestText_ResetStyle_shouldResetTextStyleAndPreserveLinesAndAlignment(t *tes
 	if got.Style != wantStyle {
 		t.Fatalf("text style = %#v, want %#v", got.Style, wantStyle)
 	}
+}
+
+func lineEqual(a, b text.Line) bool {
+	if a.LineStyle != b.LineStyle {
+		return false
+	}
+	if (a.Alignment == nil) != (b.Alignment == nil) {
+		return false
+	}
+	if a.Alignment != nil && *a.Alignment != *b.Alignment {
+		return false
+	}
+	return slices.Equal(a.Spans, b.Spans)
+}
+
+func linesEqual(a, b []text.Line) bool {
+	return slices.EqualFunc(a, b, lineEqual)
 }
 
 func TestLine_shouldSupportStylizeAndAlignmentHelpers(t *testing.T) {
@@ -1114,7 +1131,7 @@ func TestText_Render_shouldPreferLineAlignmentOverTextAlignment(t *testing.T) {
 
 func assertTextLines(t *testing.T, buf *buffer.Buffer, expected []string) {
 	t.Helper()
-	if actual := buf.Lines(); !reflect.DeepEqual(actual, expected) {
+	if actual := buf.Lines(); !slices.Equal(actual, expected) {
 		t.Fatalf("lines = %#v, want %#v", actual, expected)
 	}
 }

@@ -1,7 +1,7 @@
 package layout_test
 
 import (
-	"reflect"
+	"slices"
 	"testing"
 
 	"gatui/layout"
@@ -70,7 +70,7 @@ func TestLayout_Split_shouldMatchRatatuiBasicConstraintPriority(t *testing.T) {
 				Constraints(tt.constraints...).
 				Split(area)
 
-			if !reflect.DeepEqual(got, tt.want) {
+			if !slices.Equal(got, tt.want) {
 				t.Fatalf("rects mismatch\nwant: %#v\n got: %#v", tt.want, got)
 			}
 		})
@@ -102,7 +102,7 @@ func TestNewVerticalLayout_shouldMatchRatatuiVerticalConstructor(t *testing.T) {
 		Constraints(layout.Min(0)).
 		Split(layout.NewRect(0, 0, 5, 10))
 
-	if !reflect.DeepEqual(got, want) {
+	if !slices.Equal(got, want) {
 		t.Fatalf("rects mismatch\nwant: %#v\n got: %#v", want, got)
 	}
 }
@@ -114,7 +114,7 @@ func TestNewHorizontalLayout_shouldMatchRatatuiHorizontalConstructor(t *testing.
 		Constraints(layout.Min(0)).
 		Split(layout.NewRect(0, 0, 10, 5))
 
-	if !reflect.DeepEqual(got, want) {
+	if !slices.Equal(got, want) {
 		t.Fatalf("rects mismatch\nwant: %#v\n got: %#v", want, got)
 	}
 }
@@ -130,7 +130,7 @@ func TestLayoutConstructors_shouldCopyConstraintsFromCallerSlice(t *testing.T) {
 		layout.NewRect(0, 0, 2, 1),
 		layout.NewRect(2, 0, 8, 1),
 	}
-	if !reflect.DeepEqual(got, want) {
+	if !slices.Equal(got, want) {
 		t.Fatalf("rects mismatch\nwant: %#v\n got: %#v", want, got)
 	}
 }
@@ -143,7 +143,7 @@ func TestLayout_Direction_shouldPreserveConstraintsAndChangeSplitAxis(t *testing
 		layout.NewRect(0, 0, 5, 10),
 		layout.NewRect(5, 0, 5, 10),
 	}
-	if !reflect.DeepEqual(horizontal, wantHorizontal) {
+	if !slices.Equal(horizontal, wantHorizontal) {
 		t.Fatalf("horizontal rects mismatch\nwant: %#v\n got: %#v", wantHorizontal, horizontal)
 	}
 
@@ -154,7 +154,7 @@ func TestLayout_Direction_shouldPreserveConstraintsAndChangeSplitAxis(t *testing
 		layout.NewRect(0, 0, 10, 5),
 		layout.NewRect(0, 5, 10, 5),
 	}
-	if !reflect.DeepEqual(vertical, wantVertical) {
+	if !slices.Equal(vertical, wantVertical) {
 		t.Fatalf("vertical rects mismatch\nwant: %#v\n got: %#v", wantVertical, vertical)
 	}
 }
@@ -195,7 +195,7 @@ func TestLayout_Split_shouldApplyMarginsBeforeSplitting(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := tt.layout.Split(layout.NewRect(0, 0, 10, 10))
-			if !reflect.DeepEqual(got, tt.want) {
+			if !slices.Equal(got, tt.want) {
 				t.Fatalf("rects mismatch\nwant: %#v\n got: %#v", tt.want, got)
 			}
 		})
@@ -294,7 +294,7 @@ func TestLayout_Split_shouldMatchRatatuiMaxAndFillConstraints(t *testing.T) {
 				Constraints(tt.constraints...).
 				Split(layout.NewRect(0, 0, tt.width, 1))
 
-			if !reflect.DeepEqual(got, tt.want) {
+			if !slices.Equal(got, tt.want) {
 				t.Fatalf("rects mismatch\nwant: %#v\n got: %#v", tt.want, got)
 			}
 		})
@@ -324,7 +324,7 @@ func TestLayout_Split_shouldAlignSingleFixedSegmentByFlex(t *testing.T) {
 				Split(layout.NewRect(0, 0, 100, 1))
 
 			want := []layout.Rect{tt.want}
-			if !reflect.DeepEqual(got, want) {
+			if !slices.Equal(got, want) {
 				t.Fatalf("rects mismatch\nwant: %#v\n got: %#v", want, got)
 			}
 		})
@@ -402,7 +402,7 @@ func TestLayout_Split_shouldAlignTwoFixedSegmentsByFlex(t *testing.T) {
 				Constraints(layout.Length(25), layout.Length(25)).
 				Split(layout.NewRect(0, 0, 100, 1))
 
-			if !reflect.DeepEqual(got, tt.want) {
+			if !slices.Equal(got, tt.want) {
 				t.Fatalf("rects mismatch\nwant: %#v\n got: %#v", tt.want, got)
 			}
 		})
@@ -439,7 +439,7 @@ func TestLayout_Split_shouldLetMinAndFillAbsorbSurplusBeforeFlexAlignment(t *tes
 					Constraints(tt.constraints...).
 					Split(layout.NewRect(0, 0, 100, 1))
 
-				if !reflect.DeepEqual(got, want) {
+				if !slices.Equal(got, want) {
 					t.Fatalf("rects mismatch for flex %d\nwant: %#v\n got: %#v", flex, want, got)
 				}
 			})
@@ -457,7 +457,7 @@ func TestLayout_Split_shouldApplyFlexAlignmentToMaxConstraints(t *testing.T) {
 		layout.NewRect(25, 0, 25, 1),
 		layout.NewRect(50, 0, 25, 1),
 	}
-	if !reflect.DeepEqual(got, want) {
+	if !slices.Equal(got, want) {
 		t.Fatalf("rects mismatch\nwant: %#v\n got: %#v", want, got)
 	}
 }
@@ -589,7 +589,7 @@ func TestLayout_Split_shouldMatchRatatuiFlexSpacing(t *testing.T) {
 				Constraints(layout.Length(20), layout.Length(20), layout.Length(20)).
 				Split(layout.NewRect(0, 0, 100, 1))
 
-			if !reflect.DeepEqual(got, tt.want) {
+			if !slices.Equal(got, tt.want) {
 				t.Fatalf("rects mismatch\nwant: %#v\n got: %#v", tt.want, got)
 			}
 		})
@@ -805,13 +805,13 @@ func TestLayout_SplitWithSpacers_shouldMatchRatatuiSpacerRects(t *testing.T) {
 				Spacing(tt.spacing).
 				Constraints(layout.Length(10), layout.Length(10)).
 				Split(layout.NewRect(0, 0, 100, 1))
-			if !reflect.DeepEqual(segments, wantSegments) {
+			if !slices.Equal(segments, wantSegments) {
 				t.Fatalf("segments mismatch\nwant: %#v\n got: %#v", wantSegments, segments)
 			}
 			if len(spacers) != 3 {
 				t.Fatalf("spacer count mismatch: want 3 got %d", len(spacers))
 			}
-			if !reflect.DeepEqual(spacers, tt.want) {
+			if !slices.Equal(spacers, tt.want) {
 				t.Fatalf("spacers mismatch\nwant: %#v\n got: %#v", tt.want, spacers)
 			}
 		})
@@ -834,10 +834,10 @@ func TestLayout_SplitWithSpacers_shouldApplyMarginsBeforeSplitting(t *testing.T)
 		layout.NewRect(9, 2, 0, 2),
 	}
 
-	if !reflect.DeepEqual(segments, wantSegments) {
+	if !slices.Equal(segments, wantSegments) {
 		t.Fatalf("segments mismatch\nwant: %#v\n got: %#v", wantSegments, segments)
 	}
-	if !reflect.DeepEqual(spacers, wantSpacers) {
+	if !slices.Equal(spacers, wantSpacers) {
 		t.Fatalf("spacers mismatch\nwant: %#v\n got: %#v", wantSpacers, spacers)
 	}
 }
@@ -854,7 +854,7 @@ func TestLayout_Split_shouldHandleVerticalPercentageMin(t *testing.T) {
 		layout.NewRect(2, 7, 8, 5),
 		layout.NewRect(2, 12, 8, 2),
 	}
-	if !reflect.DeepEqual(got, want) {
+	if !slices.Equal(got, want) {
 		t.Fatalf("rects mismatch\nwant: %#v\n got: %#v", want, got)
 	}
 

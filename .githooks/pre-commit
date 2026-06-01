@@ -1,6 +1,12 @@
 #!/bin/sh
 set -eu
 
+echo "checking forbidden reflect imports"
+if rg -n '^[[:space:]]*(import[[:space:]]+)?([._[:alnum:]]+[[:space:]]+)?"reflect"[[:space:]]*$' --glob '*.go' .; then
+  echo "reflect imports are forbidden; use typed comparisons instead" >&2
+  exit 1
+fi
+
 echo "running go fix ./..."
 go fix ./...
 

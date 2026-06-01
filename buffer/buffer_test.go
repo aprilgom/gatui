@@ -1,7 +1,7 @@
 package buffer_test
 
 import (
-	"reflect"
+	"slices"
 	"testing"
 
 	"gatui/buffer"
@@ -15,7 +15,7 @@ func TestWithLines_shouldCreateBlankPaddedBuffer(t *testing.T) {
 	if got, want := buf.Area, layout.NewRect(0, 0, 2, 2); got != want {
 		t.Fatalf("area = %#v, want %#v", got, want)
 	}
-	if got, want := buf.Lines(), []string{"ab", "c "}; !reflect.DeepEqual(got, want) {
+	if got, want := buf.Lines(), []string{"ab", "c "}; !slices.Equal(got, want) {
 		t.Fatalf("lines = %#v, want %#v", got, want)
 	}
 }
@@ -246,7 +246,7 @@ func TestBuffer_Merge_shouldUnionAreasAndOverlayOther(t *testing.T) {
 			if got := one.Area; got != tt.wantArea {
 				t.Fatalf("area = %#v, want %#v", got, tt.wantArea)
 			}
-			if got := one.Lines(); !reflect.DeepEqual(got, tt.want) {
+			if got := one.Lines(); !slices.Equal(got, tt.want) {
 				t.Fatalf("lines = %#v, want %#v", got, tt.want)
 			}
 		})
@@ -262,7 +262,7 @@ func TestBuffer_Merge_shouldHandleOffset(t *testing.T) {
 	if got, want := one.Area, layout.NewRect(1, 1, 4, 4); got != want {
 		t.Fatalf("area = %#v, want %#v", got, want)
 	}
-	if got, want := one.Lines(), []string{"222 ", "222 ", "2221", "2221"}; !reflect.DeepEqual(got, want) {
+	if got, want := one.Lines(), []string{"222 ", "222 ", "2221", "2221"}; !slices.Equal(got, want) {
 		t.Fatalf("lines = %#v, want %#v", got, want)
 	}
 }
@@ -317,7 +317,7 @@ func TestBuffer_Lines_shouldSkipHiddenFlagEmojiCell(t *testing.T) {
 	buf.SetSymbol(1, 0, " ")
 	buf.SetSymbol(2, 0, "a")
 
-	if got, want := buf.Lines(), []string{"🇺🇸a"}; !reflect.DeepEqual(got, want) {
+	if got, want := buf.Lines(), []string{"🇺🇸a"}; !slices.Equal(got, want) {
 		t.Fatalf("lines = %#v, want %#v", got, want)
 	}
 }
@@ -354,7 +354,7 @@ func TestBuffer_Diff_shouldReturnSingleCellChange(t *testing.T) {
 	diff := prev.Diff(next)
 
 	want := []buffer.CellDiff{{X: 1, Y: 0, Cell: buffer.NewCell("a")}}
-	if !reflect.DeepEqual(diff, want) {
+	if !slices.Equal(diff, want) {
 		t.Fatalf("diff = %#v, want %#v", diff, want)
 	}
 }
@@ -370,7 +370,7 @@ func TestBuffer_Diff_shouldReturnAllChangedCells(t *testing.T) {
 		{X: 1, Y: 0, Cell: buffer.NewCell("b")},
 		{X: 2, Y: 0, Cell: buffer.NewCell("b")},
 	}
-	if !reflect.DeepEqual(diff, want) {
+	if !slices.Equal(diff, want) {
 		t.Fatalf("diff = %#v, want %#v", diff, want)
 	}
 }
@@ -391,7 +391,7 @@ func TestBuffer_Diff_shouldSkipCellsMarkedSkip(t *testing.T) {
 		{X: 0, Y: 0, Cell: buffer.NewCell("x")},
 		{X: 2, Y: 0, Cell: buffer.NewCell("z")},
 	}
-	if !reflect.DeepEqual(diff, want) {
+	if !slices.Equal(diff, want) {
 		t.Fatalf("diff = %#v, want %#v", diff, want)
 	}
 }
@@ -409,7 +409,7 @@ func TestBuffer_Diff_shouldAlwaysUpdateMarkedCells(t *testing.T) {
 	diff := prev.Diff(next)
 
 	want := []buffer.CellDiff{{X: 1, Y: 0, Cell: cell}}
-	if !reflect.DeepEqual(diff, want) {
+	if !slices.Equal(diff, want) {
 		t.Fatalf("diff = %#v, want %#v", diff, want)
 	}
 }
@@ -428,7 +428,7 @@ func TestBuffer_Diff_shouldSkipTrailingForcedWidthCells(t *testing.T) {
 	diff := prev.Diff(next)
 
 	want := []buffer.CellDiff{{X: 0, Y: 0, Cell: cell}}
-	if !reflect.DeepEqual(diff, want) {
+	if !slices.Equal(diff, want) {
 		t.Fatalf("diff = %#v, want %#v", diff, want)
 	}
 }
@@ -450,7 +450,7 @@ func TestBuffer_Diff_shouldHandleMultiWidthCells(t *testing.T) {
 		{X: 3, Y: 0, Cell: buffer.NewCell("号")},
 		{X: 5, Y: 0, Cell: buffer.NewCell("─")},
 	}
-	if !reflect.DeepEqual(diff, want) {
+	if !slices.Equal(diff, want) {
 		t.Fatalf("diff = %#v, want %#v", diff, want)
 	}
 }
@@ -466,7 +466,7 @@ func TestBuffer_Diff_shouldHandleMultiWidthOffset(t *testing.T) {
 		{X: 2, Y: 0, Cell: buffer.NewCell("称")},
 		{X: 4, Y: 0, Cell: buffer.NewCell("号")},
 	}
-	if !reflect.DeepEqual(diff, want) {
+	if !slices.Equal(diff, want) {
 		t.Fatalf("diff = %#v, want %#v", diff, want)
 	}
 }

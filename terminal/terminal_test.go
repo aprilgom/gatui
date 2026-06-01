@@ -2,7 +2,7 @@ package terminal_test
 
 import (
 	"errors"
-	"reflect"
+	"slices"
 	"testing"
 
 	"gatui/buffer"
@@ -314,7 +314,7 @@ func TestTerminal_NewWithOptions_inlineAnchorsToCursorWhenSpaceAvailable(t *test
 	if got, want := term.Area(), layout.NewRect(0, 3, 10, 4); got != want {
 		t.Fatalf("terminal area = %#v, want %#v", got, want)
 	}
-	if got, want := backend.appendLines, []int{3}; !reflect.DeepEqual(got, want) {
+	if got, want := backend.appendLines, []int{3}; !slices.Equal(got, want) {
 		t.Fatalf("append lines = %#v, want %#v", got, want)
 	}
 }
@@ -333,7 +333,7 @@ func TestTerminal_NewWithOptions_inlineShiftsUpWhenNearBottom(t *testing.T) {
 	if got, want := term.Area(), layout.NewRect(0, 6, 10, 4); got != want {
 		t.Fatalf("terminal area = %#v, want %#v", got, want)
 	}
-	if got, want := backend.appendLines, []int{3}; !reflect.DeepEqual(got, want) {
+	if got, want := backend.appendLines, []int{3}; !slices.Equal(got, want) {
 		t.Fatalf("append lines = %#v, want %#v", got, want)
 	}
 }
@@ -352,7 +352,7 @@ func TestTerminal_NewWithOptions_inlineClampsHeightToTerminal(t *testing.T) {
 	if got, want := term.Area(), layout.NewRect(0, 0, 10, 3); got != want {
 		t.Fatalf("terminal area = %#v, want %#v", got, want)
 	}
-	if got, want := backend.appendLines, []int{9}; !reflect.DeepEqual(got, want) {
+	if got, want := backend.appendLines, []int{9}; !slices.Equal(got, want) {
 		t.Fatalf("append lines = %#v, want %#v", got, want)
 	}
 }
@@ -377,10 +377,10 @@ func TestTerminal_Draw_fixedViewportUsesFixedFrameArea(t *testing.T) {
 		t.Fatalf("Draw returned error: %v", err)
 	}
 
-	if got, want := completed.Buffer.Lines(), []string{"z "}; !reflect.DeepEqual(got, want) {
+	if got, want := completed.Buffer.Lines(), []string{"z "}; !slices.Equal(got, want) {
 		t.Fatalf("completed lines = %#v, want %#v", got, want)
 	}
-	if got, want := backend.draws[0], []buffer.CellDiff{{X: 2, Y: 1, Cell: buffer.NewCell("z")}}; !reflect.DeepEqual(got, want) {
+	if got, want := backend.draws[0], []buffer.CellDiff{{X: 2, Y: 1, Cell: buffer.NewCell("z")}}; !slices.Equal(got, want) {
 		t.Fatalf("draw diffs = %#v, want %#v", got, want)
 	}
 }
@@ -399,13 +399,13 @@ func TestTerminal_Draw_shouldRenderWidgetAndFlushDiff(t *testing.T) {
 		t.Fatalf("Draw returned error: %v", err)
 	}
 
-	if got, want := completed.Buffer.Lines(), []string{"abc  "}; !reflect.DeepEqual(got, want) {
+	if got, want := completed.Buffer.Lines(), []string{"abc  "}; !slices.Equal(got, want) {
 		t.Fatalf("completed lines = %#v, want %#v", got, want)
 	}
 	if got, want := len(backend.draws), 1; got != want {
 		t.Fatalf("draw call count = %d, want %d", got, want)
 	}
-	if got, want := diffSymbols(backend.draws[0]), []string{"a", "b", "c"}; !reflect.DeepEqual(got, want) {
+	if got, want := diffSymbols(backend.draws[0]), []string{"a", "b", "c"}; !slices.Equal(got, want) {
 		t.Fatalf("draw diff symbols = %#v, want %#v", got, want)
 	}
 	if got, want := backend.flushCount, 1; got != want {
@@ -460,7 +460,7 @@ func TestFrame_Count_returnsCurrentFrameCount(t *testing.T) {
 		}
 	}
 
-	if want := []int{0, 1, 2}; !reflect.DeepEqual(counts, want) {
+	if want := []int{0, 1, 2}; !slices.Equal(counts, want) {
 		t.Fatalf("frame counts = %#v, want %#v", counts, want)
 	}
 }
@@ -602,7 +602,7 @@ func TestTerminal_Draw_shouldOnlySendChangedCellsOnSecondDraw(t *testing.T) {
 	renderText(t, term, "abc")
 	renderText(t, term, "axc")
 
-	if got, want := backend.draws[1], []buffer.CellDiff{{X: 1, Y: 0, Cell: buffer.NewCell("x")}}; !reflect.DeepEqual(got, want) {
+	if got, want := backend.draws[1], []buffer.CellDiff{{X: 1, Y: 0, Cell: buffer.NewCell("x")}}; !slices.Equal(got, want) {
 		t.Fatalf("second draw diffs = %#v, want %#v", got, want)
 	}
 }
@@ -617,7 +617,7 @@ func TestTerminal_Draw_shouldSwapAndResetBuffers(t *testing.T) {
 	renderText(t, term, "axc")
 	renderText(t, term, "axc")
 
-	if got, want := backend.draws[2], []buffer.CellDiff{}; !reflect.DeepEqual(got, want) {
+	if got, want := backend.draws[2], []buffer.CellDiff{}; !slices.Equal(got, want) {
 		t.Fatalf("third draw diffs = %#v, want %#v", got, want)
 	}
 }
@@ -659,7 +659,7 @@ func TestTerminal_TryDraw_shouldReturnCallbackErrorWithoutMutatingTerminal(t *te
 	}
 
 	renderText(t, term, "abc")
-	if got, want := backend.draws[0], []buffer.CellDiff{}; !reflect.DeepEqual(got, want) {
+	if got, want := backend.draws[0], []buffer.CellDiff{}; !slices.Equal(got, want) {
 		t.Fatalf("next draw diffs = %#v, want %#v", got, want)
 	}
 }
@@ -958,7 +958,7 @@ func TestTerminal_Flush_shouldDrawCurrentDiffOnly(t *testing.T) {
 		t.Fatalf("Flush returned error: %v", err)
 	}
 
-	if got, want := backend.draws, [][]buffer.CellDiff{{{X: 1, Y: 0, Cell: buffer.NewCell("x")}}}; !reflect.DeepEqual(got, want) {
+	if got, want := backend.draws, [][]buffer.CellDiff{{{X: 1, Y: 0, Cell: buffer.NewCell("x")}}}; !cellDiffBatchesEqual(got, want) {
 		t.Fatalf("draws = %#v, want %#v", got, want)
 	}
 	if got := backend.flushCount; got != 0 {
@@ -987,14 +987,14 @@ func TestTerminal_CurrentBuffer_changesBecomeVisibleAfterFlush(t *testing.T) {
 	}
 
 	term.CurrentBuffer().SetSymbol(0, 0, "x")
-	if got, want := backend.Lines(), []string{"   ", "   "}; !reflect.DeepEqual(got, want) {
+	if got, want := backend.Lines(), []string{"   ", "   "}; !slices.Equal(got, want) {
 		t.Fatalf("backend lines before flush = %#v, want %#v", got, want)
 	}
 	if err := term.Flush(); err != nil {
 		t.Fatalf("Flush returned error: %v", err)
 	}
 
-	if got, want := backend.Lines(), []string{"x  ", "   "}; !reflect.DeepEqual(got, want) {
+	if got, want := backend.Lines(), []string{"x  ", "   "}; !slices.Equal(got, want) {
 		t.Fatalf("backend lines after flush = %#v, want %#v", got, want)
 	}
 }
@@ -1013,13 +1013,13 @@ func TestTerminal_CurrentBuffer_doesNotFlushOrSwap(t *testing.T) {
 	if got != before {
 		t.Fatalf("current buffer pointer changed: got %p, want %p", got, before)
 	}
-	if got, want := backend.draws, [][]buffer.CellDiff(nil); !reflect.DeepEqual(got, want) {
+	if got, want := backend.draws, [][]buffer.CellDiff(nil); !cellDiffBatchesEqual(got, want) {
 		t.Fatalf("draws = %#v, want %#v", got, want)
 	}
 	if got, want := backend.flushCount, 0; got != want {
 		t.Fatalf("flush count = %d, want %d", got, want)
 	}
-	if got, want := backend.operations, []string(nil); !reflect.DeepEqual(got, want) {
+	if got, want := backend.operations, []string(nil); !slices.Equal(got, want) {
 		t.Fatalf("operations = %#v, want %#v", got, want)
 	}
 }
@@ -1047,7 +1047,7 @@ func TestTerminal_InsertBefore_nonInlineViewportNoop(t *testing.T) {
 	if got, want := term.Area(), area; got != want {
 		t.Fatalf("terminal area = %#v, want %#v", got, want)
 	}
-	if got, want := backend.Lines(), []string{"x  ", "   "}; !reflect.DeepEqual(got, want) {
+	if got, want := backend.Lines(), []string{"x  ", "   "}; !slices.Equal(got, want) {
 		t.Fatalf("backend lines = %#v, want %#v", got, want)
 	}
 }
@@ -1097,7 +1097,7 @@ func TestTerminal_InsertBefore_inlinePushesViewportDownWhenSpaceAvailable(t *tes
 		"          ",
 		"          ",
 	}
-	if got := backend.Lines(); !reflect.DeepEqual(got, wantLines) {
+	if got := backend.Lines(); !slices.Equal(got, wantLines) {
 		t.Fatalf("backend lines = %#v, want %#v", got, wantLines)
 	}
 }
@@ -1148,7 +1148,7 @@ func TestTerminal_InsertBefore_inlineScrollsWhenViewportIsAtBottom(t *testing.T)
 		"          ",
 		"          ",
 	}
-	if got := backend.Lines(); !reflect.DeepEqual(got, wantLines) {
+	if got := backend.Lines(); !slices.Equal(got, wantLines) {
 		t.Fatalf("backend lines = %#v, want %#v", got, wantLines)
 	}
 }
@@ -1187,7 +1187,7 @@ func TestTerminal_InsertBefore_thenDrawRepaintsClearedViewport(t *testing.T) {
 		"BBBBBBBBBB",
 		"BBBBBBBBBB",
 	}
-	if got := backend.Lines(); !reflect.DeepEqual(got, wantLines) {
+	if got := backend.Lines(); !slices.Equal(got, wantLines) {
 		t.Fatalf("backend lines = %#v, want %#v", got, wantLines)
 	}
 }
@@ -1237,7 +1237,7 @@ func TestTerminal_InsertBefore_scrollingRegionMovesViewportDownWithoutClearing(t
 		"8888888888",
 		"9999999999",
 	}
-	if got := backend.Lines(); !reflect.DeepEqual(got, wantLines) {
+	if got := backend.Lines(); !slices.Equal(got, wantLines) {
 		t.Fatalf("backend lines = %#v, want %#v", got, wantLines)
 	}
 	if got := backend.ClearRegions(); len(got) != 0 {
@@ -1287,10 +1287,10 @@ func TestTerminal_InsertBefore_scrollingRegionAtBottomPreservesViewport(t *testi
 		"8888888888",
 		"9999999999",
 	}
-	if got := backend.Lines(); !reflect.DeepEqual(got, wantLines) {
+	if got := backend.Lines(); !slices.Equal(got, wantLines) {
 		t.Fatalf("backend lines = %#v, want %#v", got, wantLines)
 	}
-	if got, want := backend.ScrollbackLines(), []string{"0000000000", "1111111111"}; !reflect.DeepEqual(got, want) {
+	if got, want := backend.ScrollbackLines(), []string{"0000000000", "1111111111"}; !slices.Equal(got, want) {
 		t.Fatalf("scrollback lines = %#v, want %#v", got, want)
 	}
 }
@@ -1330,10 +1330,10 @@ func TestTerminal_InsertBefore_scrollingRegionFullscreenAppendsToScrollback(t *t
 		"VIEWLINE02",
 		"VIEWLINE03",
 	}
-	if got := backend.Lines(); !reflect.DeepEqual(got, wantLines) {
+	if got := backend.Lines(); !slices.Equal(got, wantLines) {
 		t.Fatalf("backend lines = %#v, want %#v", got, wantLines)
 	}
-	if got, want := backend.ScrollbackLines(), []string{"INSERTED00", "INSERTED01"}; !reflect.DeepEqual(got, want) {
+	if got, want := backend.ScrollbackLines(), []string{"INSERTED00", "INSERTED01"}; !slices.Equal(got, want) {
 		t.Fatalf("scrollback lines = %#v, want %#v", got, want)
 	}
 }
@@ -1354,7 +1354,7 @@ func TestTerminal_SwapBuffers_shouldPrepareNextFrame(t *testing.T) {
 
 	renderText(t, term, "a")
 
-	if got, want := backend.draws[0], []buffer.CellDiff{}; !reflect.DeepEqual(got, want) {
+	if got, want := backend.draws[0], []buffer.CellDiff{}; !slices.Equal(got, want) {
 		t.Fatalf("next draw diffs = %#v, want %#v", got, want)
 	}
 }
@@ -1382,7 +1382,7 @@ func TestTerminal_DirectCursorMethods_shouldCallBackend(t *testing.T) {
 	if got, want := backend.showCursorCount, 1; got != want {
 		t.Fatalf("show cursor count = %d, want %d", got, want)
 	}
-	if got, want := backend.cursorPositions, []layout.Position{{X: 2, Y: 0}}; !reflect.DeepEqual(got, want) {
+	if got, want := backend.cursorPositions, []layout.Position{{X: 2, Y: 0}}; !slices.Equal(got, want) {
 		t.Fatalf("cursor positions = %#v, want %#v", got, want)
 	}
 }
@@ -1528,7 +1528,7 @@ func TestTerminal_Resize_fullscreenTriggersClearAndResetsBackBuffer(t *testing.T
 		t.Fatalf("Resize returned error: %v", err)
 	}
 
-	if got, want := backend.Lines(), []string{"    ", "    ", "    "}; !reflect.DeepEqual(got, want) {
+	if got, want := backend.Lines(), []string{"    ", "    ", "    "}; !slices.Equal(got, want) {
 		t.Fatalf("backend lines = %#v, want %#v", got, want)
 	}
 	drawRows(t, term, "yyyy")
@@ -1556,7 +1556,7 @@ func TestTerminal_Resize_inlineClearsScreenOnHorizontalShrink(t *testing.T) {
 		t.Fatalf("Resize returned error: %v", err)
 	}
 
-	if got, want := backend.clearRegions, []terminal.ClearType{terminal.ClearAll, terminal.ClearAfterCursor}; !reflect.DeepEqual(got, want) {
+	if got, want := backend.clearRegions, []terminal.ClearType{terminal.ClearAll, terminal.ClearAfterCursor}; !slices.Equal(got, want) {
 		t.Fatalf("clear regions = %#v, want %#v", got, want)
 	}
 	if got, want := term.Area(), layout.NewRect(0, 0, 8, 4); got != want {
@@ -1617,7 +1617,7 @@ func TestTerminal_Draw_shouldUseTryDrawSuccessOrder(t *testing.T) {
 		t.Fatalf("Draw returned error: %v", err)
 	}
 
-	if got, want := backend.operations, []string{"draw", "show-cursor", "set-cursor", "backend-flush"}; !reflect.DeepEqual(got, want) {
+	if got, want := backend.operations, []string{"draw", "show-cursor", "set-cursor", "backend-flush"}; !slices.Equal(got, want) {
 		t.Fatalf("operations = %#v, want %#v", got, want)
 	}
 }
@@ -1635,7 +1635,7 @@ func TestFrame_RenderWidget_shouldRenderIntoCurrentBuffer(t *testing.T) {
 		t.Fatalf("Draw returned error: %v", err)
 	}
 
-	if got, want := completed.Buffer.Lines(), []string{"go  "}; !reflect.DeepEqual(got, want) {
+	if got, want := completed.Buffer.Lines(), []string{"go  "}; !slices.Equal(got, want) {
 		t.Fatalf("buffer lines = %#v, want %#v", got, want)
 	}
 }
@@ -1659,7 +1659,7 @@ func TestFrame_RenderStatefulWidget_shouldRenderListWithState(t *testing.T) {
 		t.Fatalf("Draw returned error: %v", err)
 	}
 
-	if got, want := completed.Buffer.Lines(), []string{"   Item 1 ", ">> Item 2 ", "   Item 3 "}; !reflect.DeepEqual(got, want) {
+	if got, want := completed.Buffer.Lines(), []string{"   Item 1 ", ">> Item 2 ", "   Item 3 "}; !slices.Equal(got, want) {
 		t.Fatalf("buffer lines = %#v, want %#v", got, want)
 	}
 }
@@ -1681,7 +1681,7 @@ func TestFrame_RenderStatefulWidget_shouldRenderTableWithState(t *testing.T) {
 		t.Fatalf("Draw returned error: %v", err)
 	}
 
-	if got, want := completed.Buffer.Lines(), []string{"   one ", ">> two "}; !reflect.DeepEqual(got, want) {
+	if got, want := completed.Buffer.Lines(), []string{"   one ", ">> two "}; !slices.Equal(got, want) {
 		t.Fatalf("buffer lines = %#v, want %#v", got, want)
 	}
 }
@@ -1704,7 +1704,7 @@ func TestFrame_RenderStatefulWidget_shouldRenderScrollbarWithState(t *testing.T)
 		t.Fatalf("Draw returned error: %v", err)
 	}
 
-	if got, want := completed.Buffer.Lines(), []string{"═█"}; !reflect.DeepEqual(got, want) {
+	if got, want := completed.Buffer.Lines(), []string{"═█"}; !slices.Equal(got, want) {
 		t.Fatalf("buffer lines = %#v, want %#v", got, want)
 	}
 }
@@ -1742,7 +1742,7 @@ func TestFrame_RenderStatefulWidget_shouldIgnoreNilWidget(t *testing.T) {
 		t.Fatalf("Draw returned error: %v", err)
 	}
 
-	if got, want := completed.Buffer.Lines(), []string{"    "}; !reflect.DeepEqual(got, want) {
+	if got, want := completed.Buffer.Lines(), []string{"    "}; !slices.Equal(got, want) {
 		t.Fatalf("buffer lines = %#v, want %#v", got, want)
 	}
 }
@@ -1784,7 +1784,7 @@ func TestTerminal_Draw_shouldShowAndPositionCursorWhenSet(t *testing.T) {
 	if got, want := backend.hideCursorCount, 0; got != want {
 		t.Fatalf("hide cursor count = %d, want %d", got, want)
 	}
-	if got, want := backend.cursorPositions, []layout.Position{{X: 1, Y: 0}}; !reflect.DeepEqual(got, want) {
+	if got, want := backend.cursorPositions, []layout.Position{{X: 1, Y: 0}}; !slices.Equal(got, want) {
 		t.Fatalf("cursor positions = %#v, want %#v", got, want)
 	}
 }
@@ -1813,7 +1813,7 @@ func TestTerminal_Resize_shouldResizeBothBuffers(t *testing.T) {
 	if got, want := completed.Buffer.Area, layout.NewRect(0, 0, 4, 2); got != want {
 		t.Fatalf("completed buffer area = %#v, want %#v", got, want)
 	}
-	if got, want := completed.Buffer.Lines(), []string{"abcd", "xy  "}; !reflect.DeepEqual(got, want) {
+	if got, want := completed.Buffer.Lines(), []string{"abcd", "xy  "}; !slices.Equal(got, want) {
 		t.Fatalf("completed lines = %#v, want %#v", got, want)
 	}
 }
@@ -1951,10 +1951,10 @@ func TestTerminal_Clear_shouldClearBackendAndForceFullRedraw(t *testing.T) {
 	}
 	renderText(t, term, "abc")
 
-	if got, want := backend.clearRegions, []terminal.ClearType{terminal.ClearAll}; !reflect.DeepEqual(got, want) {
+	if got, want := backend.clearRegions, []terminal.ClearType{terminal.ClearAll}; !slices.Equal(got, want) {
 		t.Fatalf("clear regions = %#v, want %#v", got, want)
 	}
-	if got, want := diffSymbols(backend.draws[1]), []string{"a", "b", "c"}; !reflect.DeepEqual(got, want) {
+	if got, want := diffSymbols(backend.draws[1]), []string{"a", "b", "c"}; !slices.Equal(got, want) {
 		t.Fatalf("second draw diff symbols = %#v, want %#v", got, want)
 	}
 }
@@ -1973,7 +1973,7 @@ func TestTerminal_Clear_fullscreenClearsBackendAndResetsBackBuffer(t *testing.T)
 	}
 	renderText(t, term, "abc\ndef")
 
-	if got, want := backend.clearRegions, []terminal.ClearType{terminal.ClearAll}; !reflect.DeepEqual(got, want) {
+	if got, want := backend.clearRegions, []terminal.ClearType{terminal.ClearAll}; !slices.Equal(got, want) {
 		t.Fatalf("clear regions = %#v, want %#v", got, want)
 	}
 	if got, want := len(backend.draws[0]), 6; got != want {
@@ -1995,10 +1995,10 @@ func TestTerminal_Clear_fixedFullWidthAtBottomClearsAfterViewportOrigin(t *testi
 		t.Fatalf("Clear returned error: %v", err)
 	}
 
-	if got, want := backend.clearRegions, []terminal.ClearType{terminal.ClearAfterCursor}; !reflect.DeepEqual(got, want) {
+	if got, want := backend.clearRegions, []terminal.ClearType{terminal.ClearAfterCursor}; !slices.Equal(got, want) {
 		t.Fatalf("clear regions = %#v, want %#v", got, want)
 	}
-	if got, want := backend.cursorPositions, []layout.Position{{X: 0, Y: 1}, {X: 2, Y: 0}}; !reflect.DeepEqual(got, want) {
+	if got, want := backend.cursorPositions, []layout.Position{{X: 0, Y: 1}, {X: 2, Y: 0}}; !slices.Equal(got, want) {
 		t.Fatalf("cursor positions = %#v, want %#v", got, want)
 	}
 }
@@ -2017,10 +2017,10 @@ func TestTerminal_Clear_fixedFullWidthNotAtBottomClearsViewportRowsOnly(t *testi
 		t.Fatalf("Clear returned error: %v", err)
 	}
 
-	if got, want := backend.clearRegions, []terminal.ClearType{terminal.ClearCurrentLine, terminal.ClearCurrentLine}; !reflect.DeepEqual(got, want) {
+	if got, want := backend.clearRegions, []terminal.ClearType{terminal.ClearCurrentLine, terminal.ClearCurrentLine}; !slices.Equal(got, want) {
 		t.Fatalf("clear regions = %#v, want %#v", got, want)
 	}
-	if got, want := backend.cursorPositions, []layout.Position{{X: 0, Y: 1}, {X: 0, Y: 2}, {X: 1, Y: 0}}; !reflect.DeepEqual(got, want) {
+	if got, want := backend.cursorPositions, []layout.Position{{X: 0, Y: 1}, {X: 0, Y: 2}, {X: 1, Y: 0}}; !slices.Equal(got, want) {
 		t.Fatalf("cursor positions = %#v, want %#v", got, want)
 	}
 }
@@ -2047,12 +2047,18 @@ func TestTerminal_Clear_fixedNonFullWidthClearsViewportCellsOnly(t *testing.T) {
 		{X: 2, Y: 2, Cell: buffer.NewCell(" ")},
 		{X: 3, Y: 2, Cell: buffer.NewCell(" ")},
 	}
-	if got := backend.draws; !reflect.DeepEqual(got, [][]buffer.CellDiff{wantDraw}) {
+	if got := backend.draws; !cellDiffBatchesEqual(got, [][]buffer.CellDiff{wantDraw}) {
 		t.Fatalf("draws = %#v, want %#v", got, [][]buffer.CellDiff{wantDraw})
 	}
-	if got, want := backend.cursorPositions, []layout.Position{{X: 3, Y: 0}}; !reflect.DeepEqual(got, want) {
+	if got, want := backend.cursorPositions, []layout.Position{{X: 3, Y: 0}}; !slices.Equal(got, want) {
 		t.Fatalf("cursor positions = %#v, want %#v", got, want)
 	}
+}
+
+func cellDiffBatchesEqual(a, b [][]buffer.CellDiff) bool {
+	return slices.EqualFunc(a, b, func(left, right []buffer.CellDiff) bool {
+		return slices.Equal(left, right)
+	})
 }
 
 func TestTerminal_Clear_preservesBackendCursorPosition(t *testing.T) {

@@ -3,7 +3,7 @@ package testbackend
 import (
 	"os"
 	"os/exec"
-	"reflect"
+	"slices"
 	"testing"
 
 	"gatui/buffer"
@@ -57,7 +57,7 @@ func TestTestBackend_Buffer_shouldReturnCurrentBuffer(t *testing.T) {
 		"abc",
 		"def",
 	})
-	if !reflect.DeepEqual(got, want) {
+	if !buffersEqual(got, want) {
 		t.Fatalf("Buffer() = %#v, want %#v", got, want)
 	}
 }
@@ -78,9 +78,16 @@ func TestTestBackend_Scrollback_shouldReturnScrollbackBuffer(t *testing.T) {
 		"aaaa",
 		"bbbb",
 	})
-	if !reflect.DeepEqual(got, want) {
+	if !buffersEqual(got, want) {
 		t.Fatalf("Scrollback() = %#v, want %#v", got, want)
 	}
+}
+
+func buffersEqual(a, b *buffer.Buffer) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return a.Area == b.Area && slices.Equal(a.Cells, b.Cells)
 }
 
 func TestTestBackend_String_shouldRenderQuotedBufferRows(t *testing.T) {
@@ -221,7 +228,7 @@ func TestBackend_ClearRegion_beforeCursor(t *testing.T) {
 		"      aaaa",
 		"aaaaaaaaaa",
 	}
-	if got := backend.Lines(); !reflect.DeepEqual(got, want) {
+	if got := backend.Lines(); !slices.Equal(got, want) {
 		t.Fatalf("Lines() = %#v, want %#v", got, want)
 	}
 }
@@ -249,7 +256,7 @@ func TestBackend_ClearRegion_untilNewLine(t *testing.T) {
 		"aaaaaaaaaa",
 		"aaaaaaaaaa",
 	}
-	if got := backend.Lines(); !reflect.DeepEqual(got, want) {
+	if got := backend.Lines(); !slices.Equal(got, want) {
 		t.Fatalf("Lines() = %#v, want %#v", got, want)
 	}
 }
@@ -457,7 +464,7 @@ func TestTestBackend_AppendLines_zeroNoop(t *testing.T) {
 		"bbbbbbbbbb",
 	})
 	backend.AssertScrollbackEmpty(t)
-	if got, want := backend.AppendLinesCalls(), []int{0}; !reflect.DeepEqual(got, want) {
+	if got, want := backend.AppendLinesCalls(), []int{0}; !slices.Equal(got, want) {
 		t.Fatalf("AppendLinesCalls() = %#v, want %#v", got, want)
 	}
 }
@@ -509,7 +516,7 @@ func TestTestBackend_ScrollRegionUp_table(t *testing.T) {
 			backend.AssertScrollbackLines(t, tt.wantScrollback)
 			backend.AssertBufferLines(t, tt.wantLines)
 			backend.AssertCursorPosition(t, layout.Position{X: 4, Y: 3})
-			if got, want := backend.ScrollRegionUpCalls(), [][3]int{{tt.startY, tt.endY, tt.count}}; !reflect.DeepEqual(got, want) {
+			if got, want := backend.ScrollRegionUpCalls(), [][3]int{{tt.startY, tt.endY, tt.count}}; !slices.Equal(got, want) {
 				t.Fatalf("ScrollRegionUpCalls() = %#v, want %#v", got, want)
 			}
 		})
@@ -562,7 +569,7 @@ func TestTestBackend_ScrollRegionDown_table(t *testing.T) {
 			backend.AssertScrollbackEmpty(t)
 			backend.AssertBufferLines(t, tt.wantLines)
 			backend.AssertCursorPosition(t, layout.Position{X: 4, Y: 3})
-			if got, want := backend.ScrollRegionDownCalls(), [][3]int{{tt.startY, tt.endY, tt.count}}; !reflect.DeepEqual(got, want) {
+			if got, want := backend.ScrollRegionDownCalls(), [][3]int{{tt.startY, tt.endY, tt.count}}; !slices.Equal(got, want) {
 				t.Fatalf("ScrollRegionDownCalls() = %#v, want %#v", got, want)
 			}
 		})

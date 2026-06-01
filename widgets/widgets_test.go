@@ -1,7 +1,7 @@
 package widgets_test
 
 import (
-	"reflect"
+	"slices"
 	"testing"
 
 	"gatui/buffer"
@@ -524,7 +524,7 @@ func TestClear_shouldResetCellsToBlankDefaultStyle(t *testing.T) {
 
 func assertLines(t *testing.T, buf *buffer.Buffer, expected []string) {
 	t.Helper()
-	if actual := buf.Lines(); !reflect.DeepEqual(actual, expected) {
+	if actual := buf.Lines(); !slices.Equal(actual, expected) {
 		t.Fatalf("lines mismatch\nactual:   %#v\nexpected: %#v", actual, expected)
 	}
 }
