@@ -78,6 +78,7 @@ type TableCell struct {
 type TableRow struct {
 	cells        []TableCell
 	height       int
+	topMargin    int
 	bottomMargin int
 	style        style.Style
 }
@@ -86,6 +87,7 @@ type Table struct {
 	rows                 []TableRow
 	widths               []layout.Constraint
 	header               *TableRow
+	footer               *TableRow
 	block                *Block
 	columnSpacing        int
 	style                style.Style
@@ -254,6 +256,11 @@ func (r TableRow) Height(height int) TableRow {
 	return r
 }
 
+func (r TableRow) TopMargin(margin int) TableRow {
+	r.topMargin = maxInt(0, margin)
+	return r
+}
+
 func (r TableRow) BottomMargin(margin int) TableRow {
 	r.bottomMargin = maxInt(0, margin)
 	return r
@@ -355,6 +362,11 @@ func (t Table) Header(header TableRow) Table {
 	return t
 }
 
+func (t Table) Footer(footer TableRow) Table {
+	t.footer = &footer
+	return t
+}
+
 func (t Table) Block(block Block) Table {
 	t.block = &block
 	return t
@@ -437,7 +449,16 @@ func (t Table) RenderStateful(area layout.Rect, buf *buffer.Buffer, state *Table
 		y += t.header.bottomMargin
 	}
 
-	bodyHeight := tableArea.Y + tableArea.Height - y
+	footerHeight := 0
+	footerY := tableArea.Y + tableArea.Height
+	if t.footer != nil {
+		footerHeight = t.footer.topMargin + normalizedRowHeight(*t.footer) + t.footer.bottomMargin
+		footerY -= footerHeight
+	}
+	bodyHeight := tableArea.Y + tableArea.Height - y - footerHeight
+	if bodyHeight < 0 {
+		bodyHeight = 0
+	}
 	first, last := t.visibleBounds(state, bodyHeight)
 	state.offset = first
 	for index := first; index < last; index++ {
@@ -471,6 +492,9 @@ func (t Table) RenderStateful(area layout.Rect, buf *buffer.Buffer, state *Table
 			}
 		}
 		y += row.bottomMargin
+	}
+	if t.footer != nil {
+		t.renderRow(*t.footer, widths, rowArea, footerY, -1, state, buf)
 	}
 }
 
@@ -745,6 +769,7 @@ func shrinkOrder(length int, preferMiddle bool) []int {
 }
 
 func (t Table) renderRow(row TableRow, widths []int, area layout.Rect, y int, rowIndex int, state *TableState, buf *buffer.Buffer) int {
+	y += row.topMargin
 	rowHeight := row.height
 	if rowHeight <= 0 {
 		rowHeight = 1

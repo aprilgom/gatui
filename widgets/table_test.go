@@ -778,6 +778,90 @@ func TestTable_shouldPatchCellHighlightOverRowAndColumnHighlight(t *testing.T) {
 	assertCellStyle(t, buf, 2, 0, style.NewStyle().Fg(style.Red).AddModifier(style.ModifierBold|style.ModifierItalic|style.ModifierDim))
 }
 
+func TestTable_shouldRenderFooter(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 15, 3))
+	rows := []widgets.TableRow{
+		widgets.TableRowFromStrings([]string{"Cell1", "Cell2"}),
+		widgets.TableRowFromStrings([]string{"Cell3", "Cell4"}),
+	}
+	table := widgets.NewTable(rows, []layout.Constraint{
+		layout.Length(5),
+		layout.Length(5),
+	}).Footer(widgets.TableRowFromStrings([]string{"Foot1", "Foot2"}))
+
+	table.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"Cell1 Cell2    ",
+		"Cell3 Cell4    ",
+		"Foot1 Foot2    ",
+	})
+}
+
+func TestTable_shouldRenderFooterWithTopMargin(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 15, 3))
+	rows := []widgets.TableRow{
+		widgets.TableRowFromStrings([]string{"Cell1", "Cell2"}),
+	}
+	table := widgets.NewTable(rows, []layout.Constraint{
+		layout.Length(5),
+		layout.Length(5),
+	}).Footer(widgets.TableRowFromStrings([]string{"Foot1", "Foot2"}).TopMargin(1))
+
+	table.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"Cell1 Cell2    ",
+		"               ",
+		"Foot1 Foot2    ",
+	})
+}
+
+func TestTable_shouldRenderFooterAtBottomWhenBodyIsShort(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 15, 5))
+	rows := []widgets.TableRow{
+		widgets.TableRowFromStrings([]string{"Cell1", "Cell2"}),
+	}
+	table := widgets.NewTable(rows, []layout.Constraint{
+		layout.Length(5),
+		layout.Length(5),
+	}).Footer(widgets.TableRowFromStrings([]string{"Foot1", "Foot2"}))
+
+	table.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"Cell1 Cell2    ",
+		"               ",
+		"               ",
+		"               ",
+		"Foot1 Foot2    ",
+	})
+}
+
+func TestTable_shouldRenderHeaderAndFooterOnEmptyTable(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 30, 6))
+	table := widgets.NewTable(nil, []layout.Constraint{
+		layout.Length(6),
+		layout.Length(6),
+		layout.Length(6),
+	}).
+		Header(widgets.TableRowFromStrings([]string{"Head1", "Head2", "Head3"}).BottomMargin(1)).
+		Footer(widgets.TableRowFromStrings([]string{"Foot1", "Foot2", "Foot3"}).TopMargin(1)).
+		Block(widgets.BorderedBlock()).
+		ColumnSpacing(1)
+
+	table.RenderStateful(buf.Area, buf, &widgets.TableState{})
+
+	assertLines(t, buf, []string{
+		"┌────────────────────────────┐",
+		"│Head1  Head2  Head3         │",
+		"│                            │",
+		"│                            │",
+		"│Foot1  Foot2  Foot3         │",
+		"└────────────────────────────┘",
+	})
+}
+
 func tableFixture(widths []layout.Constraint) widgets.Table {
 	return widgets.NewTable([]widgets.TableRow{
 		widgets.TableRowFromStrings([]string{"Row11", "Row12", "Row13"}),
