@@ -1,32 +1,5 @@
 package style
 
-type Color int
-
-const (
-	Default Color = iota
-	Reset
-	Black
-	Red
-	Green
-	Yellow
-	Blue
-	Magenta
-	Cyan
-	White
-	LightBlue
-	LightGreen
-)
-
-type Modifier uint16
-
-const (
-	ModifierBold Modifier = 1 << iota
-	ModifierDim
-	ModifierItalic
-	ModifierUnderlined
-	ModifierReversed
-)
-
 type Style struct {
 	Foreground Color
 	Background Color
@@ -65,16 +38,4 @@ func (s Style) Patch(other Style) Style {
 	}
 	s.Modifiers |= other.Modifiers
 	return s
-}
-
-type Styled[T any] struct {
-	Value T
-	Style Style
-}
-
-type Stylize[T any] interface {
-	Fg(Color) T
-	Bg(Color) T
-	Bold() T
-	Italic() T
 }

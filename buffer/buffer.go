@@ -2,7 +2,6 @@ package buffer
 
 import (
 	"strings"
-	"unicode"
 
 	"gatui/layout"
 	"gatui/style"
@@ -10,77 +9,9 @@ import (
 	"github.com/rivo/uniseg"
 )
 
-type Cell struct {
-	Symbol      string
-	Style       style.Style
-	DiffOption  CellDiffOption
-	ForcedWidth int
-}
-
-type CellDiffOption int
-
-const (
-	CellDiffNone CellDiffOption = iota
-	CellDiffSkip
-	CellDiffAlwaysUpdate
-	CellDiffForcedWidth
-)
-
 type Buffer struct {
 	Area  layout.Rect
 	Cells []Cell
-}
-
-type CellDiff struct {
-	X    int
-	Y    int
-	Cell Cell
-}
-
-func NewCell(symbol string) Cell {
-	return Cell{Symbol: symbol, Style: style.NewStyle()}
-}
-
-func (c Cell) DisplaySymbol() string {
-	if c.Symbol == "" {
-		return " "
-	}
-	return c.Symbol
-}
-
-func (c Cell) Width() int {
-	if c.ForcedWidth > 0 {
-		return c.ForcedWidth
-	}
-	return uniseg.StringWidth(c.DisplaySymbol())
-}
-
-func (c *Cell) SetSymbol(symbol string) {
-	c.Symbol = symbol
-}
-
-func (c *Cell) SetChar(char rune) {
-	c.SetSymbol(string(char))
-}
-
-func (c *Cell) AppendSymbol(symbol string) {
-	c.Symbol += symbol
-}
-
-func (c *Cell) SetStyle(cellStyle style.Style) {
-	c.Style = c.Style.Patch(cellStyle)
-}
-
-func (c *Cell) Reset() {
-	*c = NewCell(" ")
-}
-
-func (c *Cell) SetDiffOption(option CellDiffOption) {
-	c.DiffOption = option
-}
-
-func (c *Cell) SetForcedWidth(width int) {
-	c.ForcedWidth = width
 }
 
 func Empty(area layout.Rect) *Buffer {
@@ -272,41 +203,6 @@ func (b *Buffer) Merge(other *Buffer) {
 	b.Cells = cells
 }
 
-func (b *Buffer) Diff(next *Buffer) []CellDiff {
-	if b.Area.X != next.Area.X || b.Area.Y != next.Area.Y || b.Area.Width != next.Area.Width {
-		panic("buffer areas must have the same x, y, and width")
-	}
-
-	height := b.Area.Height
-	if next.Area.Height < height {
-		height = next.Area.Height
-	}
-	diffs := make([]CellDiff, 0)
-	for y := 0; y < height; y++ {
-		for x := 0; x < b.Area.Width; x++ {
-			index := y*b.Area.Width + x
-			previous := b.Cells[index]
-			current := next.Cells[index]
-			width := current.Width()
-
-			if current.DiffOption == CellDiffSkip {
-				continue
-			}
-			if current.DiffOption == CellDiffAlwaysUpdate || current != previous {
-				diffs = append(diffs, CellDiff{
-					X:    next.Area.X + x,
-					Y:    next.Area.Y + y,
-					Cell: current,
-				})
-			}
-			if current.DiffOption == CellDiffForcedWidth || current.ForcedWidth > 0 || width > 1 {
-				x += width - 1
-			}
-		}
-	}
-	return diffs
-}
-
 func (b *Buffer) Lines() []string {
 	if b == nil || b.Area.Height == 0 {
 		return nil
@@ -331,41 +227,4 @@ func (b *Buffer) Lines() []string {
 		lines[y] = builder.String()
 	}
 	return lines
-}
-
-func unionRect(a, b layout.Rect) layout.Rect {
-	if a.Width == 0 || a.Height == 0 {
-		return b
-	}
-	if b.Width == 0 || b.Height == 0 {
-		return a
-	}
-	x1 := minInt(a.X, b.X)
-	y1 := minInt(a.Y, b.Y)
-	x2 := maxInt(a.X+a.Width, b.X+b.Width)
-	y2 := maxInt(a.Y+a.Height, b.Y+b.Height)
-	return layout.NewRect(x1, y1, x2-x1, y2-y1)
-}
-
-func minInt(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func maxInt(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
-func containsControl(value string) bool {
-	for _, r := range value {
-		if unicode.IsControl(r) {
-			return true
-		}
-	}
-	return false
 }
