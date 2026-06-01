@@ -2,6 +2,7 @@ package buffer
 
 import (
 	"strings"
+	"unicode"
 
 	"gatui/layout"
 	"gatui/style"
@@ -136,6 +137,55 @@ func (b *Buffer) SetSymbol(x, y int, symbol string) {
 	}
 	index := (y-b.Area.Y)*b.Area.Width + (x - b.Area.X)
 	b.Cells[index].Symbol = symbol
+}
+
+func (b *Buffer) SetString(x, y int, value string, cellStyle style.Style) (endX, endY int) {
+	if b == nil || x < b.Area.X || y < b.Area.Y || x >= b.Area.X+b.Area.Width || y >= b.Area.Y+b.Area.Height {
+		return x, y
+	}
+	return b.SetStringN(x, y, value, b.Area.X+b.Area.Width-x, cellStyle)
+}
+
+func (b *Buffer) SetStringN(x, y int, value string, maxWidth int, cellStyle style.Style) (endX, endY int) {
+	if b == nil || maxWidth <= 0 || x < b.Area.X || y < b.Area.Y || x >= b.Area.X+b.Area.Width || y >= b.Area.Y+b.Area.Height {
+		return x, y
+	}
+
+	remainingWidth := minInt(b.Area.X+b.Area.Width-x, maxWidth)
+	graphemes := uniseg.NewGraphemes(value)
+	for graphemes.Next() {
+		symbol := graphemes.Str()
+		if containsControl(symbol) {
+			continue
+		}
+
+		width := uniseg.StringWidth(symbol)
+		if width == 0 {
+			if x > b.Area.X {
+				index := (y-b.Area.Y)*b.Area.Width + (x - 1 - b.Area.X)
+				b.Cells[index].AppendSymbol(symbol)
+			}
+			continue
+		}
+		if width > remainingWidth {
+			break
+		}
+
+		index := (y-b.Area.Y)*b.Area.Width + (x - b.Area.X)
+		b.Cells[index].SetSymbol(symbol)
+		b.Cells[index].SetStyle(cellStyle)
+		x++
+		remainingWidth--
+
+		for trailing := 1; trailing < width; trailing++ {
+			index := (y-b.Area.Y)*b.Area.Width + (x - b.Area.X)
+			b.Cells[index].Reset()
+			x++
+			remainingWidth--
+		}
+	}
+
+	return x, y
 }
 
 func (b *Buffer) SetStyle(area layout.Rect, cellStyle style.Style) {
@@ -309,4 +359,13 @@ func maxInt(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func containsControl(value string) bool {
+	for _, r := range value {
+		if unicode.IsControl(r) {
+			return true
+		}
+	}
+	return false
 }

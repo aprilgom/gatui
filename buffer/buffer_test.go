@@ -322,6 +322,161 @@ func TestBuffer_Lines_shouldSkipHiddenFlagEmojiCell(t *testing.T) {
 	}
 }
 
+func TestBuffer_SetString_shouldWriteAsciiWithStyle(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 5, 1))
+	red := style.NewStyle().Fg(style.Red)
+
+	endX, endY := buf.SetString(1, 0, "abc", red)
+
+	if endX != 4 || endY != 0 {
+		t.Fatalf("end = (%d,%d), want (4,0)", endX, endY)
+	}
+	if got, want := buf.Lines(), []string{" abc "}; !slices.Equal(got, want) {
+		t.Fatalf("lines = %#v, want %#v", got, want)
+	}
+	for x := 1; x <= 3; x++ {
+		cell, ok := buf.CellAt(x, 0)
+		if !ok {
+			t.Fatalf("missing cell at %d,0", x)
+		}
+		if cell.Style != red {
+			t.Fatalf("cell %d style = %#v, want %#v", x, cell.Style, red)
+		}
+	}
+}
+
+func TestBuffer_SetString_shouldClipAtRightBoundary(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 4, 1))
+
+	endX, endY := buf.SetString(2, 0, "abcd", style.NewStyle())
+
+	if endX != 4 || endY != 0 {
+		t.Fatalf("end = (%d,%d), want (4,0)", endX, endY)
+	}
+	if got, want := buf.Lines(), []string{"  ab"}; !slices.Equal(got, want) {
+		t.Fatalf("lines = %#v, want %#v", got, want)
+	}
+}
+
+func TestBuffer_SetStringN_shouldClipToMaxWidth(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 5, 1))
+
+	endX, endY := buf.SetStringN(0, 0, "abcdef", 3, style.NewStyle())
+
+	if endX != 3 || endY != 0 {
+		t.Fatalf("end = (%d,%d), want (3,0)", endX, endY)
+	}
+	if got, want := buf.Lines(), []string{"abc  "}; !slices.Equal(got, want) {
+		t.Fatalf("lines = %#v, want %#v", got, want)
+	}
+}
+
+func TestBuffer_SetString_shouldHandleWideGraphemes(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 5, 1))
+	red := style.NewStyle().Fg(style.Red)
+
+	endX, endY := buf.SetString(0, 0, "コ🙂a", red)
+
+	if endX != 5 || endY != 0 {
+		t.Fatalf("end = (%d,%d), want (5,0)", endX, endY)
+	}
+	if got, want := buf.Lines(), []string{"コ🙂a"}; !slices.Equal(got, want) {
+		t.Fatalf("lines = %#v, want %#v", got, want)
+	}
+	for _, x := range []int{0, 2, 4} {
+		cell, ok := buf.CellAt(x, 0)
+		if !ok {
+			t.Fatalf("missing cell at %d,0", x)
+		}
+		if cell.Style != red {
+			t.Fatalf("cell %d style = %#v, want %#v", x, cell.Style, red)
+		}
+	}
+	for _, x := range []int{1, 3} {
+		cell, ok := buf.CellAt(x, 0)
+		if !ok {
+			t.Fatalf("missing cell at %d,0", x)
+		}
+		if want := buffer.NewCell(" "); cell != want {
+			t.Fatalf("trailing cell %d = %#v, want %#v", x, cell, want)
+		}
+	}
+}
+
+func TestBuffer_SetString_shouldNotWriteWideGraphemeIntoOneRemainingCell(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 3, 1))
+
+	endX, endY := buf.SetString(2, 0, "コ", style.NewStyle().Fg(style.Red))
+
+	if endX != 2 || endY != 0 {
+		t.Fatalf("end = (%d,%d), want (2,0)", endX, endY)
+	}
+	if got, want := buf.Lines(), []string{"   "}; !slices.Equal(got, want) {
+		t.Fatalf("lines = %#v, want %#v", got, want)
+	}
+}
+
+func TestBuffer_SetStringN_shouldAppendZeroWidthMarkToPreviousCell(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 3, 1))
+
+	endX, endY := buf.SetStringN(0, 0, "a\u200Bb", 3, style.NewStyle())
+
+	if endX != 2 || endY != 0 {
+		t.Fatalf("end = (%d,%d), want (2,0)", endX, endY)
+	}
+	cell, ok := buf.CellAt(0, 0)
+	if !ok {
+		t.Fatal("missing cell at 0,0")
+	}
+	if got, want := cell.Symbol, "a\u200B"; got != want {
+		t.Fatalf("symbol = %q, want %q", got, want)
+	}
+	if got, want := buf.Lines(), []string{"a\u200Bb "}; !slices.Equal(got, want) {
+		t.Fatalf("lines = %#v, want %#v", got, want)
+	}
+}
+
+func TestBuffer_SetStringN_shouldSkipControlSequences(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 5, 1))
+
+	endX, endY := buf.SetStringN(0, 0, "a\nb\tc", 5, style.NewStyle())
+
+	if endX != 3 || endY != 0 {
+		t.Fatalf("end = (%d,%d), want (3,0)", endX, endY)
+	}
+	if got, want := buf.Lines(), []string{"abc  "}; !slices.Equal(got, want) {
+		t.Fatalf("lines = %#v, want %#v", got, want)
+	}
+}
+
+func TestBuffer_SetString_shouldNoOpOutsideArea(t *testing.T) {
+	buf := buffer.WithLines([]string{"abc"})
+
+	tests := []struct {
+		name string
+		x    int
+		y    int
+	}{
+		{name: "left", x: -1, y: 0},
+		{name: "right", x: 3, y: 0},
+		{name: "above", x: 0, y: -1},
+		{name: "below", x: 0, y: 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			endX, endY := buf.SetString(tt.x, tt.y, "xyz", style.NewStyle().Fg(style.Red))
+
+			if endX != tt.x || endY != tt.y {
+				t.Fatalf("end = (%d,%d), want (%d,%d)", endX, endY, tt.x, tt.y)
+			}
+			if got, want := buf.Lines(), []string{"abc"}; !slices.Equal(got, want) {
+				t.Fatalf("lines = %#v, want %#v", got, want)
+			}
+		})
+	}
+}
+
 func TestSetStyleHelpers_shouldPatchExistingCells(t *testing.T) {
 	buf := buffer.WithLines([]string{"ab"})
 	buf.SetFg(layout.NewRect(0, 0, 1, 1), style.Red)
