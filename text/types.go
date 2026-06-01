@@ -86,6 +86,16 @@ func (l Line) PatchStyle(lineStyle style.Style) Line {
 	return l
 }
 
+func (l Line) PushSpan(span Span) Line {
+	l.Spans = append(append([]Span(nil), l.Spans...), span)
+	return l
+}
+
+func (l Line) AppendSpans(spans ...Span) Line {
+	l.Spans = append(append([]Span(nil), l.Spans...), spans...)
+	return l
+}
+
 func (l Line) Width() int {
 	width := 0
 	for _, span := range l.Spans {
@@ -167,6 +177,23 @@ func StyledText(content string, textStyle style.Style) Text {
 
 func (t Text) PatchStyle(textStyle style.Style) Text {
 	t.Style = t.Style.Patch(textStyle)
+	return t
+}
+
+func (t Text) PushLine(line Line) Text {
+	t.Lines = append(append([]Line(nil), t.Lines...), line)
+	return t
+}
+
+func (t Text) PushSpan(span Span) Text {
+	if len(t.Lines) == 0 {
+		return t.PushLine(NewLine(span))
+	}
+
+	lines := append([]Line(nil), t.Lines...)
+	last := len(lines) - 1
+	lines[last] = lines[last].PushSpan(span)
+	t.Lines = lines
 	return t
 }
 

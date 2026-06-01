@@ -155,6 +155,44 @@ func TestLine_PatchStyle_shouldPatchExistingLineStyle(t *testing.T) {
 	}
 }
 
+func TestLine_PushSpan_shouldAppendSpanAndPreserveLineMetadata(t *testing.T) {
+	got := text.LineFromString("Hello, ").Cyan().Center().PushSpan(text.NewSpan("world!"))
+	wantStyle := style.NewStyle().Fg(style.Cyan)
+
+	if len(got.Spans) != 2 {
+		t.Fatalf("span count = %d, want 2", len(got.Spans))
+	}
+	if got.Spans[0].Content != "Hello, " || got.Spans[1].Content != "world!" {
+		t.Fatalf("spans = %#v, want Hello, /world!", got.Spans)
+	}
+	if got.LineStyle != wantStyle {
+		t.Fatalf("style = %#v, want %#v", got.LineStyle, wantStyle)
+	}
+	if got.Alignment == nil || *got.Alignment != layout.Center {
+		t.Fatalf("alignment = %#v, want Center", got.Alignment)
+	}
+}
+
+func TestLine_AppendSpans_shouldAppendMultipleSpans(t *testing.T) {
+	got := text.LineFromString("Hello, ").AppendSpans(
+		text.NewSpan("world! "),
+		text.NewSpan("How are you?"),
+	)
+
+	if len(got.Spans) != 3 {
+		t.Fatalf("span count = %d, want 3", len(got.Spans))
+	}
+	wantContent := []string{"Hello, ", "world! ", "How are you?"}
+	for i, want := range wantContent {
+		if got.Spans[i].Content != want {
+			t.Fatalf("span[%d] = %q, want %q", i, got.Spans[i].Content, want)
+		}
+	}
+	if got.Width() != 26 {
+		t.Fatalf("Width() = %d, want 26", got.Width())
+	}
+}
+
 func TestText_Width_shouldReuseLineWidth(t *testing.T) {
 	got := text.NewText(
 		text.NewLine(text.NewSpan("a"), text.NewSpan("コンピ")),
@@ -163,6 +201,57 @@ func TestText_Width_shouldReuseLineWidth(t *testing.T) {
 
 	if got.Width() != 7 {
 		t.Fatalf("Width() = %d, want 7", got.Width())
+	}
+}
+
+func TestText_PushLine_shouldAppendLineAndPreserveTextStyle(t *testing.T) {
+	got := text.FromString("A").Cyan().PushLine(text.LineFromString("B"))
+	wantStyle := style.NewStyle().Fg(style.Cyan)
+
+	if len(got.Lines) != 2 {
+		t.Fatalf("line count = %d, want 2", len(got.Lines))
+	}
+	if got.Lines[0].Spans[0].Content != "A" || got.Lines[1].Spans[0].Content != "B" {
+		t.Fatalf("lines = %#v, want A/B", got.Lines)
+	}
+	if got.Style != wantStyle {
+		t.Fatalf("style = %#v, want %#v", got.Style, wantStyle)
+	}
+}
+
+func TestText_PushSpan_shouldAppendToLastLine(t *testing.T) {
+	got := text.FromString("A").
+		PushSpan(text.NewSpan("B")).
+		PushSpan(text.NewSpan("C"))
+
+	if len(got.Lines) != 1 {
+		t.Fatalf("line count = %d, want 1", len(got.Lines))
+	}
+	wantContent := []string{"A", "B", "C"}
+	for i, want := range wantContent {
+		if got.Lines[0].Spans[i].Content != want {
+			t.Fatalf("span[%d] = %q, want %q", i, got.Lines[0].Spans[i].Content, want)
+		}
+	}
+	if got.Width() != 3 || got.Height() != 1 {
+		t.Fatalf("dimensions = %dx%d, want 3x1", got.Width(), got.Height())
+	}
+}
+
+func TestText_PushSpan_shouldCreateLineWhenTextIsEmpty(t *testing.T) {
+	got := text.NewText().PushSpan(text.NewSpan("Hello"))
+
+	if len(got.Lines) != 1 {
+		t.Fatalf("line count = %d, want 1", len(got.Lines))
+	}
+	if len(got.Lines[0].Spans) != 1 {
+		t.Fatalf("span count = %d, want 1", len(got.Lines[0].Spans))
+	}
+	if got.Lines[0].Spans[0].Content != "Hello" {
+		t.Fatalf("content = %q, want Hello", got.Lines[0].Spans[0].Content)
+	}
+	if got.Width() != 5 || got.Height() != 1 {
+		t.Fatalf("dimensions = %dx%d, want 5x1", got.Width(), got.Height())
 	}
 }
 
