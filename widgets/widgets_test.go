@@ -61,6 +61,37 @@ func TestBlock_shouldBeStylizable(t *testing.T) {
 	assertCellStyle(t, buf, 3, 2, style.NewStyle().Fg(style.Cyan))
 }
 
+func TestPaddingConstructors_shouldMatchRatatuiSemantics(t *testing.T) {
+	assertPadding := func(name string, actual, expected widgets.Padding) {
+		t.Helper()
+		if actual != expected {
+			t.Fatalf("%s = %#v, want %#v", name, actual, expected)
+		}
+	}
+
+	assertPadding("PaddingZero", widgets.PaddingZero(), widgets.NewPadding(0, 0, 0, 0))
+	assertPadding("PaddingHorizontal", widgets.PaddingHorizontal(1), widgets.NewPadding(1, 1, 0, 0))
+	assertPadding("PaddingVertical", widgets.PaddingVertical(1), widgets.NewPadding(0, 0, 1, 1))
+	assertPadding("PaddingUniform", widgets.PaddingUniform(1), widgets.NewPadding(1, 1, 1, 1))
+	assertPadding("PaddingProportional", widgets.PaddingProportional(1), widgets.NewPadding(2, 2, 1, 1))
+	assertPadding("PaddingSymmetric", widgets.PaddingSymmetric(1, 2), widgets.NewPadding(1, 1, 2, 2))
+	assertPadding("PaddingLeft", widgets.PaddingLeft(1), widgets.NewPadding(1, 0, 0, 0))
+	assertPadding("PaddingRight", widgets.PaddingRight(1), widgets.NewPadding(0, 1, 0, 0))
+	assertPadding("PaddingTop", widgets.PaddingTop(1), widgets.NewPadding(0, 0, 1, 0))
+	assertPadding("PaddingBottom", widgets.PaddingBottom(1), widgets.NewPadding(0, 0, 0, 1))
+}
+
+func TestBlockInner_shouldAccountForBordersAndPadding(t *testing.T) {
+	block := widgets.BorderedBlock().Padding(widgets.NewPadding(2, 2, 1, 1))
+
+	actual := block.Inner(layout.NewRect(0, 0, 22, 12))
+	expected := layout.NewRect(3, 2, 16, 8)
+
+	if actual != expected {
+		t.Fatalf("inner = %#v, want %#v", actual, expected)
+	}
+}
+
 func TestParagraph_shouldRenderInsideBlockWithWrapAlignmentAndScroll(t *testing.T) {
 	content := text.FromString("The library is based on immediate rendering.\nLittle line")
 	paragraph := widgets.NewParagraph(content).
@@ -76,7 +107,7 @@ func TestParagraph_shouldRenderInsideBlockWithWrapAlignmentAndScroll(t *testing.
 		"│  The library is  │",
 		"│based on immediate│",
 		"│    rendering.    │",
-		"│   Little line    │",
+		"│    Little line   │",
 		"└──────────────────┘",
 	})
 
@@ -91,6 +122,74 @@ func TestParagraph_shouldRenderInsideBlockWithWrapAlignmentAndScroll(t *testing.
 		"┌──────────────────┐",
 		"│can scroll horizon│",
 		"└──────────────────┘",
+	})
+}
+
+func TestParagraph_shouldWorkWithBlockPadding(t *testing.T) {
+	const sampleString = "The library is based on the principle of immediate rendering with intermediate buffers. This means that at each new frame you should build all widgets that are supposed to be part of the UI."
+	block := widgets.BorderedBlock().Padding(widgets.NewPadding(2, 2, 1, 1))
+	paragraph := widgets.NewParagraph(text.NewText(text.LineFromString(sampleString))).
+		Block(block).
+		Wrap(widgets.Wrap{Trim: true})
+
+	buf := buffer.Empty(layout.NewRect(0, 0, 22, 12))
+	paragraph.Alignment(layout.Left).Render(buf.Area, buf)
+	assertLines(t, buf, []string{
+		"┌────────────────────┐",
+		"│                    │",
+		"│  The library is    │",
+		"│  based on the      │",
+		"│  principle of      │",
+		"│  immediate         │",
+		"│  rendering with    │",
+		"│  intermediate      │",
+		"│  buffers. This     │",
+		"│  means that at     │",
+		"│                    │",
+		"└────────────────────┘",
+	})
+
+	buf = buffer.Empty(layout.NewRect(0, 0, 22, 12))
+	paragraph.Alignment(layout.Right).Render(buf.Area, buf)
+	assertLines(t, buf, []string{
+		"┌────────────────────┐",
+		"│                    │",
+		"│    The library is  │",
+		"│      based on the  │",
+		"│      principle of  │",
+		"│         immediate  │",
+		"│    rendering with  │",
+		"│      intermediate  │",
+		"│     buffers. This  │",
+		"│     means that at  │",
+		"│                    │",
+		"└────────────────────┘",
+	})
+
+	paragraphWithLineAlignment := widgets.NewParagraph(text.NewText(
+		text.LineFromString("This is always centered.").Center(),
+		text.LineFromString(sampleString),
+	)).
+		Block(block).
+		Wrap(widgets.Wrap{Trim: true}).
+		Alignment(layout.Right)
+	buf = buffer.Empty(layout.NewRect(0, 0, 22, 14))
+	paragraphWithLineAlignment.Render(buf.Area, buf)
+	assertLines(t, buf, []string{
+		"┌────────────────────┐",
+		"│                    │",
+		"│   This is always   │",
+		"│      centered.     │",
+		"│    The library is  │",
+		"│      based on the  │",
+		"│      principle of  │",
+		"│         immediate  │",
+		"│    rendering with  │",
+		"│      intermediate  │",
+		"│     buffers. This  │",
+		"│     means that at  │",
+		"│                    │",
+		"└────────────────────┘",
 	})
 }
 

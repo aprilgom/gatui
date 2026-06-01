@@ -498,10 +498,10 @@ func (p Paragraph) Render(area layout.Rect, buf *buffer.Buffer) {
 	}
 	for y := 0; y < textArea.Height && y < len(lines); y++ {
 		line := lines[y]
-		if p.scrollX > 0 && p.alignment == layout.Left {
+		if p.scrollX > 0 && line.alignment == layout.Left {
 			line = line.skip(p.scrollX)
 		}
-		offset := alignedOffset(line.width(), textArea.Width, p.alignment)
+		offset := paragraphLineOffset(line.width(), textArea.Width, line.alignment)
 		x := textArea.X + offset
 		for _, cell := range line.cells {
 			if x >= textArea.X+textArea.Width {
@@ -510,6 +510,20 @@ func (p Paragraph) Render(area layout.Rect, buf *buffer.Buffer) {
 			buf.SetCell(x, textArea.Y+y, cell)
 			x++
 		}
+	}
+}
+
+func paragraphLineOffset(lineWidth, areaWidth int, alignment layout.Alignment) int {
+	if lineWidth >= areaWidth {
+		return 0
+	}
+	switch alignment {
+	case layout.Center:
+		return areaWidth/2 - lineWidth/2
+	case layout.Right:
+		return areaWidth - lineWidth
+	default:
+		return 0
 	}
 }
 

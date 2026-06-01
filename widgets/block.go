@@ -10,7 +10,59 @@ import (
 type Block struct {
 	title   text.Line
 	borders Borders
+	padding Padding
 	style   style.Style
+}
+
+type Padding struct {
+	Left   int
+	Right  int
+	Top    int
+	Bottom int
+}
+
+func NewPadding(left, right, top, bottom int) Padding {
+	return Padding{Left: left, Right: right, Top: top, Bottom: bottom}
+}
+
+func PaddingZero() Padding {
+	return Padding{}
+}
+
+func PaddingHorizontal(value int) Padding {
+	return NewPadding(value, value, 0, 0)
+}
+
+func PaddingVertical(value int) Padding {
+	return NewPadding(0, 0, value, value)
+}
+
+func PaddingUniform(value int) Padding {
+	return NewPadding(value, value, value, value)
+}
+
+func PaddingProportional(value int) Padding {
+	return NewPadding(value*2, value*2, value, value)
+}
+
+func PaddingSymmetric(horizontal, vertical int) Padding {
+	return NewPadding(horizontal, horizontal, vertical, vertical)
+}
+
+func PaddingLeft(value int) Padding {
+	return NewPadding(value, 0, 0, 0)
+}
+
+func PaddingRight(value int) Padding {
+	return NewPadding(0, value, 0, 0)
+}
+
+func PaddingTop(value int) Padding {
+	return NewPadding(0, 0, value, 0)
+}
+
+func PaddingBottom(value int) Padding {
+	return NewPadding(0, 0, 0, value)
 }
 
 func NewBlock() Block {
@@ -31,10 +83,12 @@ func (b Block) Borders(borders Borders) Block {
 	return b
 }
 
+func (b Block) Padding(padding Padding) Block {
+	b.padding = padding
+	return b
+}
+
 func (b Block) Inner(area layout.Rect) layout.Rect {
-	if b.borders == NoBorders {
-		return area
-	}
 	left := 0
 	right := 0
 	top := 0
@@ -56,6 +110,10 @@ func (b Block) Inner(area layout.Rect) layout.Rect {
 	inner.Y += top
 	inner.Width = maxInt(0, inner.Width-left-right)
 	inner.Height = maxInt(0, inner.Height-top-bottom)
+	inner.X += b.padding.Left
+	inner.Y += b.padding.Top
+	inner.Width = maxInt(0, inner.Width-b.padding.Left-b.padding.Right)
+	inner.Height = maxInt(0, inner.Height-b.padding.Top-b.padding.Bottom)
 	return inner
 }
 
