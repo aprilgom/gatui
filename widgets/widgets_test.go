@@ -120,6 +120,15 @@ func TestParagraph_shouldUseTextAlignmentWhenLineAlignmentIsAbsent(t *testing.T)
 	assertLines(t, buf, []string{"  foo  "})
 }
 
+func TestParagraph_shouldRenderSpanConvertedCenteredLine(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 7, 1))
+	paragraph := widgets.NewParagraph(text.NewText(text.NewSpan("foo").CenterLine()))
+
+	paragraph.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"  foo  "})
+}
+
 func TestParagraph_shouldPreferLineAlignmentOverTextAlignment(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 7, 1))
 	content := text.NewText(text.LineFromString("foo").Center()).Right()

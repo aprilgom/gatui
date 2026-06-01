@@ -31,6 +31,18 @@ func (s Span) Width() int {
 	return runewidth.StringWidth(s.Content)
 }
 
+func (s Span) LeftLine() Line {
+	return NewLine(s).Left()
+}
+
+func (s Span) CenterLine() Line {
+	return NewLine(s).Center()
+}
+
+func (s Span) RightLine() Line {
+	return NewLine(s).Right()
+}
+
 func (s Span) Fg(color style.Color) Span {
 	s.Style = s.Style.Fg(color)
 	return s

@@ -108,6 +108,78 @@ func TestSpan_PatchStyle_shouldPatchExistingStyle(t *testing.T) {
 	}
 }
 
+func TestSpan_LeftLine_shouldPreserveSpanAndSetAlignment(t *testing.T) {
+	greenItalic := style.NewStyle().
+		Fg(style.Green).
+		AddModifier(style.ModifierItalic)
+
+	got := text.StyledSpan("Test Content", greenItalic).LeftLine()
+
+	if len(got.Spans) != 1 {
+		t.Fatalf("span count = %d, want 1", len(got.Spans))
+	}
+	if got.Spans[0].Content != "Test Content" {
+		t.Fatalf("content = %q, want Test Content", got.Spans[0].Content)
+	}
+	if got.Spans[0].Style != greenItalic {
+		t.Fatalf("span style = %#v, want %#v", got.Spans[0].Style, greenItalic)
+	}
+	if got.LineStyle != style.NewStyle() {
+		t.Fatalf("line style = %#v, want default", got.LineStyle)
+	}
+	if got.Alignment == nil || *got.Alignment != layout.Left {
+		t.Fatalf("alignment = %#v, want Left", got.Alignment)
+	}
+}
+
+func TestSpan_CenterLine_shouldPreserveSpanAndSetAlignment(t *testing.T) {
+	greenItalic := style.NewStyle().
+		Fg(style.Green).
+		AddModifier(style.ModifierItalic)
+
+	got := text.StyledSpan("Test Content", greenItalic).CenterLine()
+
+	if len(got.Spans) != 1 {
+		t.Fatalf("span count = %d, want 1", len(got.Spans))
+	}
+	if got.Spans[0].Content != "Test Content" {
+		t.Fatalf("content = %q, want Test Content", got.Spans[0].Content)
+	}
+	if got.Spans[0].Style != greenItalic {
+		t.Fatalf("span style = %#v, want %#v", got.Spans[0].Style, greenItalic)
+	}
+	if got.LineStyle != style.NewStyle() {
+		t.Fatalf("line style = %#v, want default", got.LineStyle)
+	}
+	if got.Alignment == nil || *got.Alignment != layout.Center {
+		t.Fatalf("alignment = %#v, want Center", got.Alignment)
+	}
+}
+
+func TestSpan_RightLine_shouldPreserveSpanAndSetAlignment(t *testing.T) {
+	greenItalic := style.NewStyle().
+		Fg(style.Green).
+		AddModifier(style.ModifierItalic)
+
+	got := text.StyledSpan("Test Content", greenItalic).RightLine()
+
+	if len(got.Spans) != 1 {
+		t.Fatalf("span count = %d, want 1", len(got.Spans))
+	}
+	if got.Spans[0].Content != "Test Content" {
+		t.Fatalf("content = %q, want Test Content", got.Spans[0].Content)
+	}
+	if got.Spans[0].Style != greenItalic {
+		t.Fatalf("span style = %#v, want %#v", got.Spans[0].Style, greenItalic)
+	}
+	if got.LineStyle != style.NewStyle() {
+		t.Fatalf("line style = %#v, want default", got.LineStyle)
+	}
+	if got.Alignment == nil || *got.Alignment != layout.Right {
+		t.Fatalf("alignment = %#v, want Right", got.Alignment)
+	}
+}
+
 func TestLine_Width_shouldSumSpanDisplayWidths(t *testing.T) {
 	tests := []struct {
 		name string
