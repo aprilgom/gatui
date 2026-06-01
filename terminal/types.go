@@ -43,6 +43,40 @@ const (
 	ClearUntilNewLine
 )
 
+func (c ClearType) String() string {
+	switch c {
+	case ClearAll:
+		return "All"
+	case ClearAfterCursor:
+		return "AfterCursor"
+	case ClearBeforeCursor:
+		return "BeforeCursor"
+	case ClearCurrentLine:
+		return "CurrentLine"
+	case ClearUntilNewLine:
+		return "UntilNewLine"
+	default:
+		return "Unknown"
+	}
+}
+
+func ParseClearType(value string) (ClearType, error) {
+	switch value {
+	case "All":
+		return ClearAll, nil
+	case "AfterCursor":
+		return ClearAfterCursor, nil
+	case "BeforeCursor":
+		return ClearBeforeCursor, nil
+	case "CurrentLine":
+		return ClearCurrentLine, nil
+	case "UntilNewLine":
+		return ClearUntilNewLine, nil
+	default:
+		return ClearType(0), fmt.Errorf("unknown clear type: %s", value)
+	}
+}
+
 type viewportKind int
 
 const (

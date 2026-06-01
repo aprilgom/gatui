@@ -115,6 +115,8 @@ func TestPublicAPISurface_shouldExposeInitialRatatuiPortTypes(t *testing.T) {
 	_ = term.Clear()
 	_ = term.Backend()
 	_ = terminal.ClearAll
+	_ = terminal.ClearAll.String()
+	_, _ = terminal.ParseClearType("All")
 	_ = terminal.ClearAfterCursor
 	_ = terminal.ClearBeforeCursor
 	_ = terminal.ClearCurrentLine

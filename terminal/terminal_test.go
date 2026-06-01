@@ -153,6 +153,75 @@ func TestViewport_String_fixed(t *testing.T) {
 	}
 }
 
+func TestClearType_String_all(t *testing.T) {
+	if got, want := terminal.ClearAll.String(), "All"; got != want {
+		t.Fatalf("ClearAll.String() = %q, want %q", got, want)
+	}
+}
+
+func TestClearType_String_afterCursor(t *testing.T) {
+	if got, want := terminal.ClearAfterCursor.String(), "AfterCursor"; got != want {
+		t.Fatalf("ClearAfterCursor.String() = %q, want %q", got, want)
+	}
+}
+
+func TestClearType_String_beforeCursor(t *testing.T) {
+	if got, want := terminal.ClearBeforeCursor.String(), "BeforeCursor"; got != want {
+		t.Fatalf("ClearBeforeCursor.String() = %q, want %q", got, want)
+	}
+}
+
+func TestClearType_String_currentLine(t *testing.T) {
+	if got, want := terminal.ClearCurrentLine.String(), "CurrentLine"; got != want {
+		t.Fatalf("ClearCurrentLine.String() = %q, want %q", got, want)
+	}
+}
+
+func TestClearType_String_untilNewLine(t *testing.T) {
+	if got, want := terminal.ClearUntilNewLine.String(), "UntilNewLine"; got != want {
+		t.Fatalf("ClearUntilNewLine.String() = %q, want %q", got, want)
+	}
+}
+
+func TestClearType_String_unknown(t *testing.T) {
+	if got, want := terminal.ClearType(99).String(), "Unknown"; got != want {
+		t.Fatalf("ClearType(99).String() = %q, want %q", got, want)
+	}
+}
+
+func TestParseClearType_shouldParseKnownNames(t *testing.T) {
+	tests := []struct {
+		value string
+		want  terminal.ClearType
+	}{
+		{value: "All", want: terminal.ClearAll},
+		{value: "AfterCursor", want: terminal.ClearAfterCursor},
+		{value: "BeforeCursor", want: terminal.ClearBeforeCursor},
+		{value: "CurrentLine", want: terminal.ClearCurrentLine},
+		{value: "UntilNewLine", want: terminal.ClearUntilNewLine},
+	}
+
+	for _, tt := range tests {
+		got, err := terminal.ParseClearType(tt.value)
+		if err != nil {
+			t.Fatalf("ParseClearType(%q) returned error: %v", tt.value, err)
+		}
+		if got != tt.want {
+			t.Fatalf("ParseClearType(%q) = %v, want %v", tt.value, got, tt.want)
+		}
+	}
+}
+
+func TestParseClearType_shouldRejectUnknownName(t *testing.T) {
+	got, err := terminal.ParseClearType("all")
+	if err == nil {
+		t.Fatalf("ParseClearType(%q) = %v, want error", "all", got)
+	}
+	if got, want := err.Error(), "unknown clear type: all"; got != want {
+		t.Fatalf("ParseClearType(%q) error = %q, want %q", "all", got, want)
+	}
+}
+
 func TestTerminal_New_shouldCreateBuffersFromBackendSize(t *testing.T) {
 	term, err := terminal.New(newRecordingBackend(5, 3))
 	if err != nil {
