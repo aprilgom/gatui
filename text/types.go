@@ -152,8 +152,9 @@ func (l Line) Right() Line {
 }
 
 type Text struct {
-	Lines []Line
-	Style style.Style
+	Lines     []Line
+	Style     style.Style
+	Alignment *layout.Alignment
 }
 
 func NewText(lines ...Line) Text {
@@ -177,6 +178,11 @@ func StyledText(content string, textStyle style.Style) Text {
 
 func (t Text) PatchStyle(textStyle style.Style) Text {
 	t.Style = t.Style.Patch(textStyle)
+	return t
+}
+
+func (t Text) Align(alignment layout.Alignment) Text {
+	t.Alignment = &alignment
 	return t
 }
 
@@ -230,4 +236,16 @@ func (t Text) Italic() Text {
 
 func (t Text) Cyan() Text {
 	return t.Fg(style.Cyan)
+}
+
+func (t Text) Left() Text {
+	return t.Align(layout.Left)
+}
+
+func (t Text) Center() Text {
+	return t.Align(layout.Center)
+}
+
+func (t Text) Right() Text {
+	return t.Align(layout.Right)
 }

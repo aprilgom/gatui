@@ -111,6 +111,34 @@ func TestParagraph_shouldPatchTextLineAndSpanStylesInOrder(t *testing.T) {
 	assertCellStyle(t, buf, 1, 0, wantStyle)
 }
 
+func TestParagraph_shouldUseTextAlignmentWhenLineAlignmentIsAbsent(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 7, 1))
+	paragraph := widgets.NewParagraph(text.FromString("foo").Center())
+
+	paragraph.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"  foo  "})
+}
+
+func TestParagraph_shouldPreferLineAlignmentOverTextAlignment(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 7, 1))
+	content := text.NewText(text.LineFromString("foo").Center()).Right()
+	paragraph := widgets.NewParagraph(content)
+
+	paragraph.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"  foo  "})
+}
+
+func TestParagraph_shouldUseParagraphAlignmentWhenTextAlignmentIsAbsent(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 7, 1))
+	paragraph := widgets.NewParagraph(text.FromString("foo")).Alignment(layout.Right)
+
+	paragraph.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"    foo"})
+}
+
 func TestParagraph_shouldApplyWidgetStyleBehindBlock(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 5, 3))
 	paragraph := widgets.NewParagraph(text.FromString("")).

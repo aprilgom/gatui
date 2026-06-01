@@ -219,6 +219,41 @@ func TestText_PushLine_shouldAppendLineAndPreserveTextStyle(t *testing.T) {
 	}
 }
 
+func TestText_shouldSupportAlignmentHelpers(t *testing.T) {
+	tests := []struct {
+		name string
+		got  text.Text
+		want layout.Alignment
+	}{
+		{name: "left", got: text.FromString("hello").Left(), want: layout.Left},
+		{name: "center", got: text.FromString("hello").Center(), want: layout.Center},
+		{name: "right", got: text.FromString("hello").Right(), want: layout.Right},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.got.Alignment == nil || *tt.got.Alignment != tt.want {
+				t.Fatalf("alignment = %#v, want %v", tt.got.Alignment, tt.want)
+			}
+		})
+	}
+}
+
+func TestTextAlignment_shouldPreserveStyleAndMutationHelpers(t *testing.T) {
+	got := text.FromString("A").Cyan().Center().PushLine(text.LineFromString("B"))
+	wantStyle := style.NewStyle().Fg(style.Cyan)
+
+	if got.Style != wantStyle {
+		t.Fatalf("style = %#v, want %#v", got.Style, wantStyle)
+	}
+	if got.Alignment == nil || *got.Alignment != layout.Center {
+		t.Fatalf("alignment = %#v, want Center", got.Alignment)
+	}
+	if len(got.Lines) != 2 {
+		t.Fatalf("line count = %d, want 2", len(got.Lines))
+	}
+}
+
 func TestText_PushSpan_shouldAppendToLastLine(t *testing.T) {
 	got := text.FromString("A").
 		PushSpan(text.NewSpan("B")).

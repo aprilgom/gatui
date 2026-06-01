@@ -565,6 +565,9 @@ func (p Paragraph) renderLines(width int) []renderLine {
 	var lines []renderLine
 	for _, line := range p.text.Lines {
 		alignment := p.alignment
+		if p.text.Alignment != nil {
+			alignment = *p.text.Alignment
+		}
 		if line.Alignment != nil {
 			alignment = *line.Alignment
 		}
