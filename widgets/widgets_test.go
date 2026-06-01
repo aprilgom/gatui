@@ -23,6 +23,64 @@ func TestParagraph_shouldPreserveStylizedSpanStyle(t *testing.T) {
 	}
 }
 
+func TestParagraph_LineCount_shouldReturnTextHeightWithoutWrap(t *testing.T) {
+	paragraph := widgets.NewParagraph(text.FromString("one\ntwo"))
+
+	if got := paragraph.LineCount(20); got != 2 {
+		t.Fatalf("LineCount(20) = %d, want 2", got)
+	}
+}
+
+func TestParagraph_LineCount_shouldWrapContent(t *testing.T) {
+	paragraph := widgets.NewParagraph(text.FromString("Hello World")).
+		Wrap(widgets.Wrap{Trim: false})
+
+	if got := paragraph.LineCount(20); got != 1 {
+		t.Fatalf("LineCount(20) = %d, want 1", got)
+	}
+	if got := paragraph.LineCount(10); got != 2 {
+		t.Fatalf("LineCount(10) = %d, want 2", got)
+	}
+}
+
+func TestParagraph_LineCount_shouldAccountForBlockPaddingAndBorders(t *testing.T) {
+	paragraph := widgets.NewParagraph(text.FromString("Hello World")).
+		Block(widgets.BorderedBlock().Padding(widgets.PaddingVertical(1))).
+		Wrap(widgets.Wrap{Trim: false})
+
+	if got := paragraph.LineCount(20); got != 5 {
+		t.Fatalf("LineCount(20) = %d, want 5", got)
+	}
+	if got := paragraph.LineCount(10); got != 6 {
+		t.Fatalf("LineCount(10) = %d, want 6", got)
+	}
+}
+
+func TestParagraph_LineWidth_shouldReturnLongestDisplayWidth(t *testing.T) {
+	paragraph := widgets.NewParagraph(text.FromString("Hello World\nhi\nHello World!!!"))
+
+	if got := paragraph.LineWidth(); got != 14 {
+		t.Fatalf("LineWidth() = %d, want 14", got)
+	}
+}
+
+func TestParagraph_LineWidth_shouldAccountForUnicodeDisplayWidth(t *testing.T) {
+	paragraph := widgets.NewParagraph(text.FromString("コンピ"))
+
+	if got := paragraph.LineWidth(); got != 6 {
+		t.Fatalf("LineWidth() = %d, want 6", got)
+	}
+}
+
+func TestParagraph_LineWidth_shouldAccountForBlockPaddingAndBorders(t *testing.T) {
+	paragraph := widgets.NewParagraph(text.FromString("abc")).
+		Block(widgets.BorderedBlock().Padding(widgets.PaddingHorizontal(2)))
+
+	if got := paragraph.LineWidth(); got != 9 {
+		t.Fatalf("LineWidth() = %d, want 9", got)
+	}
+}
+
 func TestBlock_shouldRenderBorderTitleAndTitleStyle(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 10, 10))
 	block := widgets.BorderedBlock().

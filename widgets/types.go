@@ -481,6 +481,32 @@ func (p Paragraph) Cyan() Paragraph {
 	return p.Fg(style.Cyan)
 }
 
+func (p Paragraph) LineCount(width int) int {
+	if width < 1 {
+		return 0
+	}
+	verticalSpace := 0
+	if p.block != nil {
+		width = maxInt(0, width-p.block.horizontalSpace())
+		verticalSpace = p.block.verticalSpace()
+	}
+	if p.wrap == nil {
+		return len(p.text.Lines) + verticalSpace
+	}
+	return len(p.renderLines(width)) + verticalSpace
+}
+
+func (p Paragraph) LineWidth() int {
+	width := 0
+	for _, line := range p.text.Lines {
+		width = maxInt(width, lineWidth(line))
+	}
+	if p.block != nil {
+		width += p.block.horizontalSpace()
+	}
+	return width
+}
+
 func (p Paragraph) Render(area layout.Rect, buf *buffer.Buffer) {
 	if area.Width == 0 || area.Height == 0 {
 		return

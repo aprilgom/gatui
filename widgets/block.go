@@ -117,6 +117,28 @@ func (b Block) Inner(area layout.Rect) layout.Rect {
 	return inner
 }
 
+func (b Block) horizontalSpace() int {
+	space := b.padding.Left + b.padding.Right
+	if b.borders.Has(LeftBorder) {
+		space++
+	}
+	if b.borders.Has(RightBorder) {
+		space++
+	}
+	return space
+}
+
+func (b Block) verticalSpace() int {
+	space := b.padding.Top + b.padding.Bottom
+	if b.borders.Has(TopBorder) {
+		space++
+	}
+	if b.borders.Has(BottomBorder) {
+		space++
+	}
+	return space
+}
+
 func (b Block) Fg(color style.Color) Block {
 	b.style = b.style.Fg(color)
 	return b
