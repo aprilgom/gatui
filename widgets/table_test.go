@@ -425,6 +425,50 @@ func TestTable_shouldPatchRowAndCellStyles(t *testing.T) {
 	assertCellStyle(t, buf, 2, 0, style.NewStyle().Fg(style.Cyan).Bg(style.Yellow))
 }
 
+func TestTable_shouldRenderElementsStyledIndividually(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 25, 4))
+	rows := []widgets.TableRow{
+		widgets.TableRowFromStrings([]string{"Row11", "Row12", "Row13"}).
+			Style(style.NewStyle().Fg(style.Green)),
+		widgets.NewTableRow([]widgets.TableCell{
+			widgets.TableCellFromString("Row21"),
+			widgets.TableCellFromString("Row22").Style(style.NewStyle().Fg(style.Yellow)),
+			widgets.NewTableCell(text.NewText(text.NewLine(
+				text.NewSpan("Row"),
+				text.StyledSpan("23", style.NewStyle().Fg(style.Blue)),
+			))).Style(style.NewStyle().Fg(style.Red)),
+		}).Style(style.NewStyle().Fg(style.LightGreen)),
+	}
+	state := widgets.NewTableState()
+	state.Select(0)
+	state.SelectColumn(1)
+	table := widgets.NewTable(rows, []layout.Constraint{
+		layout.Length(5),
+		layout.Length(5),
+		layout.Length(5),
+	}).
+		Block(widgets.NewBlock().Borders(widgets.LeftBorder | widgets.RightBorder)).
+		HighlightSymbol(">> ").
+		RowHighlightStyle(style.NewStyle().AddModifier(style.ModifierBold)).
+		ColumnHighlightStyle(style.NewStyle().AddModifier(style.ModifierItalic)).
+		CellHighlightStyle(style.NewStyle().AddModifier(style.ModifierDim)).
+		ColumnSpacing(1)
+
+	table.RenderStateful(buf.Area, buf, &state)
+
+	assertLines(t, buf, []string{
+		"│>> Row11 Row12 Row13   │",
+		"│   Row21 Row22 Row23   │",
+		"│                       │",
+		"│                       │",
+	})
+	assertCellStyle(t, buf, 4, 0, style.NewStyle().Fg(style.Green).AddModifier(style.ModifierBold))
+	assertCellStyle(t, buf, 10, 0, style.NewStyle().Fg(style.Green).AddModifier(style.ModifierBold|style.ModifierItalic))
+	assertCellStyle(t, buf, 10, 1, style.NewStyle().Fg(style.Yellow).AddModifier(style.ModifierItalic))
+	assertCellStyle(t, buf, 19, 1, style.NewStyle().Fg(style.Blue))
+	assertCellStyle(t, buf, 8, 1, style.NewStyle().Fg(style.LightGreen))
+}
+
 func TestTableState_ClearSelection_shouldResetOffset(t *testing.T) {
 	state := widgets.NewTableState()
 	state.Select(2)
@@ -676,6 +720,62 @@ func TestTable_RenderStateful_shouldClampSelectedIndex(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestTable_RenderStateful_shouldClampSelectedColumnAndCell(t *testing.T) {
+	state := widgets.NewTableState()
+	state.SelectColumn(99)
+	state.SelectCell(99, 99)
+
+	widgets.NewTable([]widgets.TableRow{
+		widgets.TableRowFromStrings([]string{"A", "B"}),
+		widgets.TableRowFromStrings([]string{"C", "D"}),
+	}, []layout.Constraint{layout.Length(1), layout.Length(1)}).
+		RenderStateful(layout.NewRect(0, 0, 4, 2), buffer.Empty(layout.NewRect(0, 0, 4, 2)), &state)
+
+	if selected, ok := state.SelectedColumn(); !ok || selected != 1 {
+		t.Fatalf("selected column = %d, %v; want 1, true", selected, ok)
+	}
+	if row, column, ok := state.SelectedCell(); !ok || row != 1 || column != 1 {
+		t.Fatalf("selected cell = %d,%d,%v; want 1,1,true", row, column, ok)
+	}
+}
+
+func TestTable_ClearColumnAndCellSelection_shouldRemoveHighlights(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 4, 1))
+	state := widgets.NewTableState()
+	state.SelectColumn(0)
+	state.SelectCell(0, 1)
+	state.ClearColumnSelection()
+	state.ClearCellSelection()
+	table := widgets.NewTable([]widgets.TableRow{
+		widgets.TableRowFromStrings([]string{"A", "B"}),
+	}, []layout.Constraint{layout.Length(1), layout.Length(1)}).
+		ColumnHighlightStyle(style.NewStyle().Fg(style.Red)).
+		CellHighlightStyle(style.NewStyle().Fg(style.Blue))
+
+	table.RenderStateful(buf.Area, buf, &state)
+
+	assertCellStyle(t, buf, 0, 0, style.NewStyle())
+	assertCellStyle(t, buf, 2, 0, style.NewStyle())
+}
+
+func TestTable_shouldPatchCellHighlightOverRowAndColumnHighlight(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 4, 1))
+	state := widgets.NewTableState()
+	state.Select(0)
+	state.SelectColumn(1)
+	state.SelectCell(0, 1)
+	table := widgets.NewTable([]widgets.TableRow{
+		widgets.TableRowFromStrings([]string{"A", "B"}),
+	}, []layout.Constraint{layout.Length(1), layout.Length(1)}).
+		RowHighlightStyle(style.NewStyle().Fg(style.Green).AddModifier(style.ModifierBold)).
+		ColumnHighlightStyle(style.NewStyle().Fg(style.Yellow).AddModifier(style.ModifierItalic)).
+		CellHighlightStyle(style.NewStyle().Fg(style.Red).AddModifier(style.ModifierDim))
+
+	table.RenderStateful(buf.Area, buf, &state)
+
+	assertCellStyle(t, buf, 2, 0, style.NewStyle().Fg(style.Red).AddModifier(style.ModifierBold|style.ModifierItalic|style.ModifierDim))
 }
 
 func tableFixture(widths []layout.Constraint) widgets.Table {

@@ -14,6 +14,7 @@ const (
 	Cyan
 	White
 	LightBlue
+	LightGreen
 )
 
 type Modifier uint16

@@ -83,15 +83,17 @@ type TableRow struct {
 }
 
 type Table struct {
-	rows              []TableRow
-	widths            []layout.Constraint
-	header            *TableRow
-	block             *Block
-	columnSpacing     int
-	style             style.Style
-	rowHighlightStyle style.Style
-	highlightSymbol   string
-	highlightSpacing  HighlightSpacing
+	rows                 []TableRow
+	widths               []layout.Constraint
+	header               *TableRow
+	block                *Block
+	columnSpacing        int
+	style                style.Style
+	rowHighlightStyle    style.Style
+	columnHighlightStyle style.Style
+	cellHighlightStyle   style.Style
+	highlightSymbol      string
+	highlightSpacing     HighlightSpacing
 }
 
 type GraphType int
@@ -263,8 +265,15 @@ func (r TableRow) Style(rowStyle style.Style) TableRow {
 }
 
 type TableState struct {
-	offset   int
-	selected *int
+	offset         int
+	selected       *int
+	selectedColumn *int
+	selectedCell   *tableCellSelection
+}
+
+type tableCellSelection struct {
+	row    int
+	column int
 }
 
 func NewTableState() TableState {
@@ -287,6 +296,36 @@ func (s TableState) Selected() (int, bool) {
 	return *s.selected, true
 }
 
+func (s *TableState) SelectColumn(index int) {
+	s.selectedColumn = &index
+}
+
+func (s *TableState) ClearColumnSelection() {
+	s.selectedColumn = nil
+}
+
+func (s TableState) SelectedColumn() (int, bool) {
+	if s.selectedColumn == nil {
+		return 0, false
+	}
+	return *s.selectedColumn, true
+}
+
+func (s *TableState) SelectCell(row, column int) {
+	s.selectedCell = &tableCellSelection{row: row, column: column}
+}
+
+func (s *TableState) ClearCellSelection() {
+	s.selectedCell = nil
+}
+
+func (s TableState) SelectedCell() (row int, column int, ok bool) {
+	if s.selectedCell == nil {
+		return 0, 0, false
+	}
+	return s.selectedCell.row, s.selectedCell.column, true
+}
+
 func (s TableState) Offset() int {
 	return s.offset
 }
@@ -300,12 +339,14 @@ func (s *TableState) SetOffset(offset int) {
 
 func NewTable(rows []TableRow, widths []layout.Constraint) Table {
 	return Table{
-		rows:              append([]TableRow(nil), rows...),
-		widths:            append([]layout.Constraint(nil), widths...),
-		columnSpacing:     1,
-		style:             style.NewStyle(),
-		rowHighlightStyle: style.NewStyle(),
-		highlightSpacing:  HighlightSpacingWhenSelected,
+		rows:                 append([]TableRow(nil), rows...),
+		widths:               append([]layout.Constraint(nil), widths...),
+		columnSpacing:        1,
+		style:                style.NewStyle(),
+		rowHighlightStyle:    style.NewStyle(),
+		columnHighlightStyle: style.NewStyle(),
+		cellHighlightStyle:   style.NewStyle(),
+		highlightSpacing:     HighlightSpacingWhenSelected,
 	}
 }
 
@@ -341,6 +382,16 @@ func (t Table) HighlightSpacing(spacing HighlightSpacing) Table {
 
 func (t Table) RowHighlightStyle(rowHighlightStyle style.Style) Table {
 	t.rowHighlightStyle = rowHighlightStyle
+	return t
+}
+
+func (t Table) ColumnHighlightStyle(columnHighlightStyle style.Style) Table {
+	t.columnHighlightStyle = columnHighlightStyle
+	return t
+}
+
+func (t Table) CellHighlightStyle(cellHighlightStyle style.Style) Table {
+	t.cellHighlightStyle = cellHighlightStyle
 	return t
 }
 
@@ -382,7 +433,7 @@ func (t Table) RenderStateful(area layout.Rect, buf *buffer.Buffer, state *Table
 	widths := t.resolveColumnWidths(rowArea.Width)
 	y := tableArea.Y
 	if t.header != nil {
-		y = t.renderRow(*t.header, widths, rowArea, y, buf)
+		y = t.renderRow(*t.header, widths, rowArea, y, -1, state, buf)
 		y += t.header.bottomMargin
 	}
 
@@ -398,9 +449,10 @@ func (t Table) RenderStateful(area layout.Rect, buf *buffer.Buffer, state *Table
 		drawHeight := minInt(rowHeight, tableArea.Y+tableArea.Height-y)
 		baseRowArea := layout.NewRect(tableArea.X, y, tableArea.Width, drawHeight)
 		isSelected := state.selected != nil && *state.selected == index
-		y = t.renderRow(row, widths, rowArea, y, buf)
+		y = t.renderRow(row, widths, rowArea, y, index, state, buf)
 		if isSelected {
 			buf.SetStyle(baseRowArea, t.rowHighlightStyle)
+			t.renderRow(row, widths, rowArea, baseRowArea.Y, index, state, buf)
 		}
 		if addSpacing && symbolWidth > 0 {
 			symbol := strings.Repeat(" ", symbolWidth)
@@ -425,6 +477,8 @@ func (t Table) RenderStateful(area layout.Rect, buf *buffer.Buffer, state *Table
 func (t Table) clampState(state *TableState) {
 	if len(t.rows) == 0 {
 		state.ClearSelection()
+		state.ClearColumnSelection()
+		state.ClearCellSelection()
 		return
 	}
 	if state.offset >= len(t.rows) {
@@ -442,6 +496,38 @@ func (t Table) clampState(state *TableState) {
 			selected = len(t.rows) - 1
 		}
 		state.selected = &selected
+	}
+	columnCount := len(t.widths)
+	if columnCount == 0 {
+		state.ClearColumnSelection()
+		state.ClearCellSelection()
+		return
+	}
+	if state.selectedColumn != nil {
+		selectedColumn := *state.selectedColumn
+		if selectedColumn < 0 {
+			selectedColumn = 0
+		}
+		if selectedColumn >= columnCount {
+			selectedColumn = columnCount - 1
+		}
+		state.selectedColumn = &selectedColumn
+	}
+	if state.selectedCell != nil {
+		selectedCell := *state.selectedCell
+		if selectedCell.row < 0 {
+			selectedCell.row = 0
+		}
+		if selectedCell.row >= len(t.rows) {
+			selectedCell.row = len(t.rows) - 1
+		}
+		if selectedCell.column < 0 {
+			selectedCell.column = 0
+		}
+		if selectedCell.column >= columnCount {
+			selectedCell.column = columnCount - 1
+		}
+		state.selectedCell = &selectedCell
 	}
 }
 
@@ -658,7 +744,7 @@ func shrinkOrder(length int, preferMiddle bool) []int {
 	return order
 }
 
-func (t Table) renderRow(row TableRow, widths []int, area layout.Rect, y int, buf *buffer.Buffer) int {
+func (t Table) renderRow(row TableRow, widths []int, area layout.Rect, y int, rowIndex int, state *TableState, buf *buffer.Buffer) int {
 	rowHeight := row.height
 	if rowHeight <= 0 {
 		rowHeight = 1
@@ -669,8 +755,19 @@ func (t Table) renderRow(row TableRow, widths []int, area layout.Rect, y int, bu
 			if column > 0 {
 				x += t.columnSpacing
 			}
+			if width > 0 {
+				cellArea := layout.NewRect(x, y+line, minInt(width, area.X+area.Width-x), 1)
+				if cellArea.Width > 0 {
+					cellStyle := row.style
+					if column < len(row.cells) {
+						cellStyle = cellStyle.Patch(row.cells[column].style)
+					}
+					cellStyle = cellStyle.Patch(t.cellHighlight(rowIndex, column, state))
+					buf.SetStyle(cellArea, cellStyle)
+				}
+			}
 			if line == 0 && width > 0 && column < len(row.cells) {
-				t.renderCell(row.cells[column], row.style, x, y+line, area.X+area.Width, width, buf)
+				t.renderCell(row.cells[column], row.style, t.cellHighlight(rowIndex, column, state), x, y+line, area.X+area.Width, width, buf)
 			}
 			x += width
 		}
@@ -678,11 +775,28 @@ func (t Table) renderRow(row TableRow, widths []int, area layout.Rect, y int, bu
 	return y + rowHeight
 }
 
-func (t Table) renderCell(cell TableCell, rowStyle style.Style, x, y, right, width int, buf *buffer.Buffer) {
+func (t Table) cellHighlight(rowIndex, column int, state *TableState) style.Style {
+	cellStyle := style.NewStyle()
+	if state == nil {
+		return cellStyle
+	}
+	if rowIndex >= 0 && state.selected != nil && *state.selected == rowIndex {
+		cellStyle = cellStyle.Patch(t.rowHighlightStyle)
+	}
+	if state.selectedColumn != nil && *state.selectedColumn == column {
+		cellStyle = cellStyle.Patch(t.columnHighlightStyle)
+	}
+	if rowIndex >= 0 && state.selectedCell != nil && state.selectedCell.row == rowIndex && state.selectedCell.column == column {
+		cellStyle = cellStyle.Patch(t.cellHighlightStyle)
+	}
+	return cellStyle
+}
+
+func (t Table) renderCell(cell TableCell, rowStyle, highlightStyle style.Style, x, y, right, width int, buf *buffer.Buffer) {
 	if x >= right || width <= 0 {
 		return
 	}
-	cellStyle := t.style.Patch(rowStyle).Patch(cell.style)
+	cellStyle := t.style.Patch(rowStyle).Patch(cell.style).Patch(highlightStyle)
 	line := text.LineFromString("")
 	if len(cell.content.Lines) > 0 {
 		line = cell.content.Lines[0]
@@ -1775,7 +1889,28 @@ func (b Block) Inner(area layout.Rect) layout.Rect {
 	if b.borders == NoBorders {
 		return area
 	}
-	return area.Inner(layout.NewMargin(1, 1))
+	left := 0
+	right := 0
+	top := 0
+	bottom := 0
+	if b.borders.Has(LeftBorder) {
+		left = 1
+	}
+	if b.borders.Has(RightBorder) {
+		right = 1
+	}
+	if b.borders.Has(TopBorder) {
+		top = 1
+	}
+	if b.borders.Has(BottomBorder) {
+		bottom = 1
+	}
+	inner := area
+	inner.X += left
+	inner.Y += top
+	inner.Width = maxInt(0, inner.Width-left-right)
+	inner.Height = maxInt(0, inner.Height-top-bottom)
+	return inner
 }
 
 func (b Block) Fg(color style.Color) Block {
@@ -1810,7 +1945,7 @@ func (b Block) Render(area layout.Rect, buf *buffer.Buffer) {
 		b.renderBorders(area, buf)
 	}
 	titleX := area.X
-	if b.borders != NoBorders {
+	if b.borders.Has(LeftBorder) {
 		titleX++
 	}
 	x := titleX
@@ -1828,27 +1963,37 @@ func (b Block) Render(area layout.Rect, buf *buffer.Buffer) {
 func (b Block) renderBorders(area layout.Rect, buf *buffer.Buffer) {
 	right := area.X + area.Width - 1
 	bottom := area.Y + area.Height - 1
-	for x := area.X; x <= right; x++ {
-		buf.SetCell(x, area.Y, buffer.Cell{Symbol: "─", Style: b.style})
-		if bottom != area.Y {
+	if b.borders.Has(TopBorder) {
+		for x := area.X; x <= right; x++ {
+			buf.SetCell(x, area.Y, buffer.Cell{Symbol: "─", Style: b.style})
+		}
+	}
+	if b.borders.Has(BottomBorder) && bottom != area.Y {
+		for x := area.X; x <= right; x++ {
 			buf.SetCell(x, bottom, buffer.Cell{Symbol: "─", Style: b.style})
 		}
 	}
-	for y := area.Y; y <= bottom; y++ {
-		buf.SetCell(area.X, y, buffer.Cell{Symbol: "│", Style: b.style})
-		if right != area.X {
+	if b.borders.Has(LeftBorder) {
+		for y := area.Y; y <= bottom; y++ {
+			buf.SetCell(area.X, y, buffer.Cell{Symbol: "│", Style: b.style})
+		}
+	}
+	if b.borders.Has(RightBorder) && right != area.X {
+		for y := area.Y; y <= bottom; y++ {
 			buf.SetCell(right, y, buffer.Cell{Symbol: "│", Style: b.style})
 		}
 	}
-	buf.SetCell(area.X, area.Y, buffer.Cell{Symbol: "┌", Style: b.style})
-	if right != area.X {
+	if b.borders.Has(TopBorder) && b.borders.Has(LeftBorder) {
+		buf.SetCell(area.X, area.Y, buffer.Cell{Symbol: "┌", Style: b.style})
+	}
+	if b.borders.Has(TopBorder) && b.borders.Has(RightBorder) && right != area.X {
 		buf.SetCell(right, area.Y, buffer.Cell{Symbol: "┐", Style: b.style})
 	}
-	if bottom != area.Y {
+	if b.borders.Has(BottomBorder) && b.borders.Has(LeftBorder) && bottom != area.Y {
 		buf.SetCell(area.X, bottom, buffer.Cell{Symbol: "└", Style: b.style})
-		if right != area.X {
-			buf.SetCell(right, bottom, buffer.Cell{Symbol: "┘", Style: b.style})
-		}
+	}
+	if b.borders.Has(BottomBorder) && b.borders.Has(RightBorder) && right != area.X && bottom != area.Y {
+		buf.SetCell(right, bottom, buffer.Cell{Symbol: "┘", Style: b.style})
 	}
 }
 
@@ -2223,9 +2368,17 @@ func (Clear) Render(area layout.Rect, buf *buffer.Buffer) {
 type Borders uint8
 
 const (
-	NoBorders  Borders = 0
-	AllBorders Borders = 1
+	NoBorders    Borders = 0
+	TopBorder    Borders = 1 << 0
+	RightBorder  Borders = 1 << 1
+	BottomBorder Borders = 1 << 2
+	LeftBorder   Borders = 1 << 3
+	AllBorders   Borders = TopBorder | RightBorder | BottomBorder | LeftBorder
 )
+
+func (b Borders) Has(border Borders) bool {
+	return b&border != 0
+}
 
 type renderLine struct {
 	cells     []buffer.Cell
