@@ -30,6 +30,12 @@ type Buffer struct {
 	Cells []Cell
 }
 
+type CellDiff struct {
+	X    int
+	Y    int
+	Cell Cell
+}
+
 func NewCell(symbol string) Cell {
 	return Cell{Symbol: symbol, Style: style.NewStyle()}
 }
@@ -87,14 +93,18 @@ func Empty(area layout.Rect) *Buffer {
 func WithLines(lines []string) *Buffer {
 	width := 0
 	for _, line := range lines {
-		if len([]rune(line)) > width {
-			width = len([]rune(line))
+		if lineWidth := uniseg.StringWidth(line); lineWidth > width {
+			width = lineWidth
 		}
 	}
 	buf := Empty(layout.NewRect(0, 0, width, len(lines)))
 	for y, line := range lines {
-		for x, r := range []rune(line) {
-			buf.SetSymbol(x, y, string(r))
+		x := 0
+		graphemes := uniseg.NewGraphemes(line)
+		for graphemes.Next() {
+			symbol := graphemes.Str()
+			buf.SetSymbol(x, y, symbol)
+			x += uniseg.StringWidth(symbol)
 		}
 	}
 	return buf
@@ -147,6 +157,41 @@ func (b *Buffer) SetBg(area layout.Rect, color style.Color) {
 
 func (b *Buffer) SetModifier(area layout.Rect, modifier style.Modifier) {
 	b.SetStyle(area, style.NewStyle().AddModifier(modifier))
+}
+
+func (b *Buffer) Diff(next *Buffer) []CellDiff {
+	if b.Area.X != next.Area.X || b.Area.Y != next.Area.Y || b.Area.Width != next.Area.Width {
+		panic("buffer areas must have the same x, y, and width")
+	}
+
+	height := b.Area.Height
+	if next.Area.Height < height {
+		height = next.Area.Height
+	}
+	diffs := make([]CellDiff, 0)
+	for y := 0; y < height; y++ {
+		for x := 0; x < b.Area.Width; x++ {
+			index := y*b.Area.Width + x
+			previous := b.Cells[index]
+			current := next.Cells[index]
+			width := current.Width()
+
+			if current.DiffOption == CellDiffSkip {
+				continue
+			}
+			if current.DiffOption == CellDiffAlwaysUpdate || current != previous {
+				diffs = append(diffs, CellDiff{
+					X:    next.Area.X + x,
+					Y:    next.Area.Y + y,
+					Cell: current,
+				})
+			}
+			if current.DiffOption == CellDiffForcedWidth || current.ForcedWidth > 0 || width > 1 {
+				x += width - 1
+			}
+		}
+	}
+	return diffs
 }
 
 func (b *Buffer) Lines() []string {

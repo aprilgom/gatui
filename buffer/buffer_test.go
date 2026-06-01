@@ -165,3 +165,162 @@ func TestSetStyleHelpers_shouldPatchExistingCells(t *testing.T) {
 		t.Fatalf("style = %#v, want %#v", cell.Style, want)
 	}
 }
+
+func TestBuffer_Diff_shouldReturnNoDiffForIdenticalBuffers(t *testing.T) {
+	buf := buffer.WithLines([]string{"hello"})
+
+	diff := buf.Diff(buf)
+
+	if len(diff) != 0 {
+		t.Fatalf("diff = %#v, want empty", diff)
+	}
+}
+
+func TestBuffer_Diff_shouldReturnSingleCellChange(t *testing.T) {
+	prev := buffer.WithLines([]string{"hello"})
+	next := buffer.WithLines([]string{"hallo"})
+
+	diff := prev.Diff(next)
+
+	want := []buffer.CellDiff{{X: 1, Y: 0, Cell: buffer.NewCell("a")}}
+	if !reflect.DeepEqual(diff, want) {
+		t.Fatalf("diff = %#v, want %#v", diff, want)
+	}
+}
+
+func TestBuffer_Diff_shouldReturnAllChangedCells(t *testing.T) {
+	prev := buffer.WithLines([]string{"aaa"})
+	next := buffer.WithLines([]string{"bbb"})
+
+	diff := prev.Diff(next)
+
+	want := []buffer.CellDiff{
+		{X: 0, Y: 0, Cell: buffer.NewCell("b")},
+		{X: 1, Y: 0, Cell: buffer.NewCell("b")},
+		{X: 2, Y: 0, Cell: buffer.NewCell("b")},
+	}
+	if !reflect.DeepEqual(diff, want) {
+		t.Fatalf("diff = %#v, want %#v", diff, want)
+	}
+}
+
+func TestBuffer_Diff_shouldSkipCellsMarkedSkip(t *testing.T) {
+	prev := buffer.WithLines([]string{"abc"})
+	next := buffer.WithLines([]string{"xyz"})
+	cell, ok := next.CellAt(1, 0)
+	if !ok {
+		t.Fatal("expected cell")
+	}
+	cell.SetDiffOption(buffer.CellDiffSkip)
+	next.SetCell(1, 0, cell)
+
+	diff := prev.Diff(next)
+
+	want := []buffer.CellDiff{
+		{X: 0, Y: 0, Cell: buffer.NewCell("x")},
+		{X: 2, Y: 0, Cell: buffer.NewCell("z")},
+	}
+	if !reflect.DeepEqual(diff, want) {
+		t.Fatalf("diff = %#v, want %#v", diff, want)
+	}
+}
+
+func TestBuffer_Diff_shouldAlwaysUpdateMarkedCells(t *testing.T) {
+	prev := buffer.WithLines([]string{"abc"})
+	next := buffer.WithLines([]string{"abc"})
+	cell, ok := next.CellAt(1, 0)
+	if !ok {
+		t.Fatal("expected cell")
+	}
+	cell.SetDiffOption(buffer.CellDiffAlwaysUpdate)
+	next.SetCell(1, 0, cell)
+
+	diff := prev.Diff(next)
+
+	want := []buffer.CellDiff{{X: 1, Y: 0, Cell: cell}}
+	if !reflect.DeepEqual(diff, want) {
+		t.Fatalf("diff = %#v, want %#v", diff, want)
+	}
+}
+
+func TestBuffer_Diff_shouldSkipTrailingForcedWidthCells(t *testing.T) {
+	prev := buffer.WithLines([]string{"abcd"})
+	next := buffer.WithLines([]string{"xbcd"})
+	cell, ok := next.CellAt(0, 0)
+	if !ok {
+		t.Fatal("expected cell")
+	}
+	cell.SetDiffOption(buffer.CellDiffForcedWidth)
+	cell.SetForcedWidth(2)
+	next.SetCell(0, 0, cell)
+
+	diff := prev.Diff(next)
+
+	want := []buffer.CellDiff{{X: 0, Y: 0, Cell: cell}}
+	if !reflect.DeepEqual(diff, want) {
+		t.Fatalf("diff = %#v, want %#v", diff, want)
+	}
+}
+
+func TestBuffer_Diff_shouldHandleMultiWidthCells(t *testing.T) {
+	prev := buffer.WithLines([]string{
+		"┌Title─┐  ",
+		"└──────┘  ",
+	})
+	next := buffer.WithLines([]string{
+		"┌称号──┐  ",
+		"└──────┘  ",
+	})
+
+	diff := prev.Diff(next)
+
+	want := []buffer.CellDiff{
+		{X: 1, Y: 0, Cell: buffer.NewCell("称")},
+		{X: 3, Y: 0, Cell: buffer.NewCell("号")},
+		{X: 5, Y: 0, Cell: buffer.NewCell("─")},
+	}
+	if !reflect.DeepEqual(diff, want) {
+		t.Fatalf("diff = %#v, want %#v", diff, want)
+	}
+}
+
+func TestBuffer_Diff_shouldHandleMultiWidthOffset(t *testing.T) {
+	prev := buffer.WithLines([]string{"┌称号──┐"})
+	next := buffer.WithLines([]string{"┌─称号─┐"})
+
+	diff := prev.Diff(next)
+
+	want := []buffer.CellDiff{
+		{X: 1, Y: 0, Cell: buffer.NewCell("─")},
+		{X: 2, Y: 0, Cell: buffer.NewCell("称")},
+		{X: 4, Y: 0, Cell: buffer.NewCell("号")},
+	}
+	if !reflect.DeepEqual(diff, want) {
+		t.Fatalf("diff = %#v, want %#v", diff, want)
+	}
+}
+
+func TestBuffer_Diff_shouldPanicForIncompatibleAreas(t *testing.T) {
+	tests := []struct {
+		name string
+		next layout.Rect
+	}{
+		{name: "x", next: layout.NewRect(1, 0, 3, 1)},
+		{name: "y", next: layout.NewRect(0, 1, 3, 1)},
+		{name: "width", next: layout.NewRect(0, 0, 4, 1)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			prev := buffer.Empty(layout.NewRect(0, 0, 3, 1))
+			next := buffer.Empty(tt.next)
+			defer func() {
+				if recover() == nil {
+					t.Fatal("expected panic")
+				}
+			}()
+
+			_ = prev.Diff(next)
+		})
+	}
+}
