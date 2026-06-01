@@ -2,6 +2,7 @@ package terminal
 
 import (
 	"errors"
+	"fmt"
 
 	"gatui/buffer"
 	"gatui/layout"
@@ -88,6 +89,23 @@ func FixedViewport(area layout.Rect) Viewport {
 
 func InlineViewport(height int) Viewport {
 	return Viewport{kind: viewportInline, height: height}
+}
+
+func (v Viewport) String() string {
+	switch v.kind {
+	case viewportFullscreen:
+		return "Fullscreen"
+	case viewportInline:
+		return fmt.Sprintf("Inline(%d)", v.height)
+	case viewportFixed:
+		return fmt.Sprintf("Fixed(%s)", formatViewportRect(v.area))
+	default:
+		return "Unknown"
+	}
+}
+
+func formatViewportRect(area layout.Rect) string {
+	return fmt.Sprintf("Rect { x: %d, y: %d, width: %d, height: %d }", area.X, area.Y, area.Width, area.Height)
 }
 
 func DefaultTerminalOptions() TerminalOptions {

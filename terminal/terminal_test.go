@@ -113,6 +113,25 @@ func TestTerminalBackendInterface_shouldNotRequireEventPolling(t *testing.T) {
 	var _ terminal.Backend = (*recordingBackend)(nil)
 }
 
+func TestViewport_String_fullscreen(t *testing.T) {
+	if got, want := terminal.FullscreenViewport().String(), "Fullscreen"; got != want {
+		t.Fatalf("FullscreenViewport().String() = %q, want %q", got, want)
+	}
+}
+
+func TestViewport_String_inline(t *testing.T) {
+	if got, want := terminal.InlineViewport(5).String(), "Inline(5)"; got != want {
+		t.Fatalf("InlineViewport(5).String() = %q, want %q", got, want)
+	}
+}
+
+func TestViewport_String_fixed(t *testing.T) {
+	area := layout.NewRect(0, 0, 5, 5)
+	if got, want := terminal.FixedViewport(area).String(), "Fixed(Rect { x: 0, y: 0, width: 5, height: 5 })"; got != want {
+		t.Fatalf("FixedViewport(%#v).String() = %q, want %q", area, got, want)
+	}
+}
+
 func TestTerminal_New_shouldCreateBuffersFromBackendSize(t *testing.T) {
 	term, err := terminal.New(newRecordingBackend(5, 3))
 	if err != nil {
