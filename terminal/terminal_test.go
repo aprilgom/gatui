@@ -641,6 +641,151 @@ func TestTerminal_Autoresize_inlineTracksBackendSize(t *testing.T) {
 	}
 }
 
+func TestTerminal_Autoresize_inlineCompletedFrameReportsTerminalSize(t *testing.T) {
+	backend := newRecordingBackend(10, 10)
+	backend.cursorPosition = layout.Position{X: 0, Y: 4}
+	term, err := terminal.NewWithOptions(backend, terminal.TerminalOptions{
+		Viewport: terminal.InlineViewport(4),
+	})
+	if err != nil {
+		t.Fatalf("NewWithOptions returned error: %v", err)
+	}
+
+	completed, err := term.Draw(func(frame *terminal.Frame) {
+		if got, want := frame.Area(), layout.NewRect(0, 4, 10, 4); got != want {
+			t.Fatalf("frame area = %#v, want %#v", got, want)
+		}
+		frame.RenderWidget(widgets.NewParagraph(text.FromString("inline")), frame.Area())
+	})
+	if err != nil {
+		t.Fatalf("Draw returned error: %v", err)
+	}
+
+	if got, want := completed.Area, layout.NewRect(0, 0, 10, 10); got != want {
+		t.Fatalf("completed area = %#v, want %#v", got, want)
+	}
+	if got, want := completed.Buffer.Area, layout.NewRect(0, 4, 10, 4); got != want {
+		t.Fatalf("completed buffer area = %#v, want %#v", got, want)
+	}
+}
+
+func TestTerminal_Autoresize_inlineAutoresizeRecomputesViewportOnGrow(t *testing.T) {
+	backend := testbackend.New(10, 10)
+	if err := backend.SetCursorPosition(layout.Position{X: 0, Y: 4}); err != nil {
+		t.Fatalf("SetCursorPosition returned error: %v", err)
+	}
+	term, err := terminal.NewWithOptions(backend, terminal.TerminalOptions{
+		Viewport: terminal.InlineViewport(4),
+	})
+	if err != nil {
+		t.Fatalf("NewWithOptions returned error: %v", err)
+	}
+	if _, err := term.Draw(func(frame *terminal.Frame) {
+		frame.SetCursorPosition(layout.Position{X: 0, Y: 5})
+	}); err != nil {
+		t.Fatalf("Draw returned error: %v", err)
+	}
+	backend.SetSize(12, 12)
+	if err := backend.SetCursorPosition(layout.Position{X: 0, Y: 6}); err != nil {
+		t.Fatalf("SetCursorPosition returned error: %v", err)
+	}
+
+	completed, err := term.Draw(func(frame *terminal.Frame) {
+		if got, want := frame.Area(), layout.NewRect(0, 5, 12, 4); got != want {
+			t.Fatalf("frame area = %#v, want %#v", got, want)
+		}
+		frame.RenderWidget(widgets.NewParagraph(text.FromString("grown")), frame.Area())
+	})
+	if err != nil {
+		t.Fatalf("Draw returned error: %v", err)
+	}
+
+	if got, want := completed.Area, layout.NewRect(0, 0, 12, 12); got != want {
+		t.Fatalf("completed area = %#v, want %#v", got, want)
+	}
+	if got, want := backend.Lines()[5], "grown       "; got != want {
+		t.Fatalf("line 5 = %q, want %q", got, want)
+	}
+}
+
+func TestTerminal_Autoresize_inlineAutoresizeRecomputesViewportOnShrink(t *testing.T) {
+	backend := testbackend.New(10, 10)
+	if err := backend.SetCursorPosition(layout.Position{X: 0, Y: 4}); err != nil {
+		t.Fatalf("SetCursorPosition returned error: %v", err)
+	}
+	term, err := terminal.NewWithOptions(backend, terminal.TerminalOptions{
+		Viewport: terminal.InlineViewport(4),
+	})
+	if err != nil {
+		t.Fatalf("NewWithOptions returned error: %v", err)
+	}
+	if _, err := term.Draw(func(frame *terminal.Frame) {
+		frame.SetCursorPosition(layout.Position{X: 0, Y: 5})
+	}); err != nil {
+		t.Fatalf("Draw returned error: %v", err)
+	}
+	backend.SetSize(10, 6)
+	if err := backend.SetCursorPosition(layout.Position{X: 0, Y: 4}); err != nil {
+		t.Fatalf("SetCursorPosition returned error: %v", err)
+	}
+
+	completed, err := term.Draw(func(frame *terminal.Frame) {
+		if got, want := frame.Area(), layout.NewRect(0, 2, 10, 4); got != want {
+			t.Fatalf("frame area = %#v, want %#v", got, want)
+		}
+		frame.RenderWidget(widgets.NewParagraph(text.FromString("small")), frame.Area())
+	})
+	if err != nil {
+		t.Fatalf("Draw returned error: %v", err)
+	}
+
+	if got, want := completed.Area, layout.NewRect(0, 0, 10, 6); got != want {
+		t.Fatalf("completed area = %#v, want %#v", got, want)
+	}
+	if got, want := backend.Lines()[2], "small     "; got != want {
+		t.Fatalf("line 2 = %q, want %q", got, want)
+	}
+}
+
+func TestTerminal_Autoresize_fullscreenUpdatesLastKnownArea(t *testing.T) {
+	backend := newRecordingBackend(3, 1)
+	term, err := terminal.New(backend)
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+	backend.SetSize(5, 2)
+
+	completed, err := term.Draw(nil)
+	if err != nil {
+		t.Fatalf("Draw returned error: %v", err)
+	}
+
+	if got, want := completed.Area, layout.NewRect(0, 0, 5, 2); got != want {
+		t.Fatalf("completed area = %#v, want %#v", got, want)
+	}
+}
+
+func TestTerminal_Autoresize_fixedKeepsLastKnownArea(t *testing.T) {
+	backend := newRecordingBackend(10, 5)
+	area := layout.NewRect(1, 1, 3, 2)
+	term, err := terminal.NewWithOptions(backend, terminal.TerminalOptions{
+		Viewport: terminal.FixedViewport(area),
+	})
+	if err != nil {
+		t.Fatalf("NewWithOptions returned error: %v", err)
+	}
+	backend.SetSize(20, 10)
+
+	completed, err := term.Draw(nil)
+	if err != nil {
+		t.Fatalf("Draw returned error: %v", err)
+	}
+
+	if got, want := completed.Area, area; got != want {
+		t.Fatalf("completed area = %#v, want %#v", got, want)
+	}
+}
+
 func TestTerminal_Autoresize_fixedViewportNoop(t *testing.T) {
 	backend := newRecordingBackend(10, 5)
 	area := layout.NewRect(1, 1, 3, 2)

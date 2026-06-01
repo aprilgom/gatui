@@ -57,6 +57,7 @@ type Terminal struct {
 	previous       *buffer.Buffer
 	current        *buffer.Buffer
 	area           layout.Rect
+	lastKnownArea  layout.Rect
 	viewport       Viewport
 	count          int
 	cursorPosition *layout.Position
@@ -100,6 +101,7 @@ func NewWithOptions(backend Backend, options TerminalOptions) (*Terminal, error)
 		return nil, errors.New("terminal backend is nil")
 	}
 	area := options.Viewport.area
+	lastKnownArea := area
 	cursorPosition := (*layout.Position)(nil)
 	switch options.Viewport.kind {
 	case viewportFullscreen:
@@ -108,11 +110,13 @@ func NewWithOptions(backend Backend, options TerminalOptions) (*Terminal, error)
 			return nil, err
 		}
 		area = layout.NewRect(0, 0, size.Width, size.Height)
+		lastKnownArea = area
 	case viewportInline:
 		size, err := backend.Size()
 		if err != nil {
 			return nil, err
 		}
+		lastKnownArea = layout.NewRect(0, 0, size.Width, size.Height)
 		var cursor layout.Position
 		area, cursor, err = computeInlineArea(backend, options.Viewport.height, size, 0)
 		if err != nil {
@@ -125,6 +129,7 @@ func NewWithOptions(backend Backend, options TerminalOptions) (*Terminal, error)
 		previous:       buffer.Empty(area),
 		current:        buffer.Empty(area),
 		area:           area,
+		lastKnownArea:  lastKnownArea,
 		viewport:       options.Viewport,
 		cursorPosition: cursorPosition,
 	}, nil
@@ -164,7 +169,7 @@ func (t *Terminal) TryDraw(render func(*Frame) error) (*CompletedFrame, error) {
 		return nil, err
 	}
 
-	completed := &CompletedFrame{Area: t.area, Buffer: t.previous, Count: t.count}
+	completed := &CompletedFrame{Area: t.lastKnownArea, Buffer: t.previous, Count: t.count}
 	t.count++
 	return completed, nil
 }
@@ -178,7 +183,7 @@ func (t *Terminal) Autoresize() error {
 		return err
 	}
 	area := layout.NewRect(0, 0, size.Width, size.Height)
-	if area == t.area {
+	if area == t.lastKnownArea {
 		return nil
 	}
 	return t.Resize(area)
@@ -404,6 +409,7 @@ func (t *Terminal) Resize(area layout.Rect) error {
 		nextArea = inlineArea
 		cursorToRestore = &cursor
 	}
+	t.lastKnownArea = area
 	if nextArea.Width < t.area.Width {
 		nextArea.Y = 0
 		if err := t.backend.ClearRegion(ClearAll); err != nil {
