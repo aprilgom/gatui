@@ -13,6 +13,14 @@ func NewRect(x, y, width, height int) Rect {
 	return Rect{X: x, Y: y, Width: width, Height: height}
 }
 
+func (r Rect) Area() int {
+	return r.Width * r.Height
+}
+
+func (r Rect) IsEmpty() bool {
+	return r.Width == 0 || r.Height == 0
+}
+
 func (r Rect) Left() int {
 	return r.X
 }
@@ -46,7 +54,19 @@ func (r Rect) Outer(margin Margin) Rect {
 }
 
 func (r Rect) Offset(offset Offset) Rect {
-	return NewRect(r.X+offset.X, r.Y+offset.Y, r.Width, r.Height)
+	return NewRect(maxInt(0, r.X+offset.X), maxInt(0, r.Y+offset.Y), r.Width, r.Height)
+}
+
+func (r Rect) Resize(size Size) Rect {
+	return NewRect(r.X, r.Y, size.Width, size.Height)
+}
+
+func (r Rect) Union(other Rect) Rect {
+	x1 := minInt(r.X, other.X)
+	y1 := minInt(r.Y, other.Y)
+	x2 := maxInt(r.Right(), other.Right())
+	y2 := maxInt(r.Bottom(), other.Bottom())
+	return NewRect(x1, y1, x2-x1, y2-y1)
 }
 
 func (r Rect) Intersection(other Rect) Rect {
@@ -57,6 +77,20 @@ func (r Rect) Intersection(other Rect) Rect {
 	return NewRect(x1, y1, maxInt(0, x2-x1), maxInt(0, y2-y1))
 }
 
+func (r Rect) Intersects(other Rect) bool {
+	return r.X < other.Right() &&
+		r.Right() > other.X &&
+		r.Y < other.Bottom() &&
+		r.Bottom() > other.Y
+}
+
+func (r Rect) Contains(position Position) bool {
+	return position.X >= r.X &&
+		position.X < r.Right() &&
+		position.Y >= r.Y &&
+		position.Y < r.Bottom()
+}
+
 func (r Rect) Clamp(other Rect) Rect {
 	width := minInt(r.Width, other.Width)
 	height := minInt(r.Height, other.Height)
@@ -65,14 +99,52 @@ func (r Rect) Clamp(other Rect) Rect {
 	return NewRect(x, y, width, height)
 }
 
+func (r Rect) AsPosition() Position {
+	return NewPosition(r.X, r.Y)
+}
+
+func (r Rect) AsSize() Size {
+	return NewSize(r.Width, r.Height)
+}
+
+func (r Rect) CenteredHorizontally(constraint Constraint) Rect {
+	width := centeredLength(r.Width, constraint)
+	return NewRect(r.X+(r.Width-width)/2, r.Y, width, r.Height)
+}
+
+func (r Rect) CenteredVertically(constraint Constraint) Rect {
+	height := centeredLength(r.Height, constraint)
+	return NewRect(r.X, r.Y+(r.Height-height)/2, r.Width, height)
+}
+
+func (r Rect) Centered(horizontal, vertical Constraint) Rect {
+	return r.CenteredHorizontally(horizontal).CenteredVertically(vertical)
+}
+
 type Position struct {
 	X int
 	Y int
 }
 
+func NewPosition(x, y int) Position {
+	return Position{X: maxInt(0, x), Y: maxInt(0, y)}
+}
+
+func (p Position) Offset(offset Offset) Position {
+	return NewPosition(p.X+offset.X, p.Y+offset.Y)
+}
+
 type Size struct {
 	Width  int
 	Height int
+}
+
+func NewSize(width, height int) Size {
+	return Size{Width: maxInt(0, width), Height: maxInt(0, height)}
+}
+
+func (s Size) Area() int {
+	return s.Width * s.Height
 }
 
 type Margin struct {
@@ -500,6 +572,14 @@ func constraintLengthValue(areaLength int, constraint Constraint) int {
 	default:
 		return 0
 	}
+}
+
+func centeredLength(areaLength int, constraint Constraint) int {
+	lengths := calculateLengths(areaLength, []Constraint{constraint}, false)
+	if len(lengths) == 0 {
+		return 0
+	}
+	return minInt(areaLength, lengths[0])
 }
 
 func distributeFillLengths(lengths []int, constraints []Constraint, remaining int, totalPositiveWeight int) {
