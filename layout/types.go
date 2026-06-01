@@ -17,6 +17,32 @@ func (r Rect) Area() int {
 	return r.Width * r.Height
 }
 
+func (r Rect) Rows() []Rect {
+	rows := make([]Rect, r.Height)
+	for i := range rows {
+		rows[i] = NewRect(r.X, r.Y+i, r.Width, 1)
+	}
+	return rows
+}
+
+func (r Rect) Columns() []Rect {
+	columns := make([]Rect, r.Width)
+	for i := range columns {
+		columns[i] = NewRect(r.X+i, r.Y, 1, r.Height)
+	}
+	return columns
+}
+
+func (r Rect) Positions() []Position {
+	positions := make([]Position, 0, r.Area())
+	for y := r.Y; y < r.Bottom(); y++ {
+		for x := r.X; x < r.Right(); x++ {
+			positions = append(positions, NewPosition(x, y))
+		}
+	}
+	return positions
+}
+
 func (r Rect) IsEmpty() bool {
 	return r.Width == 0 || r.Height == 0
 }

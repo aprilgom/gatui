@@ -1,6 +1,7 @@
 package layout_test
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -40,6 +41,141 @@ func TestPosition_NewAndOffset_shouldMatchRatatui(t *testing.T) {
 			got := tt.position.Offset(tt.offset)
 			if got != tt.want {
 				t.Fatalf("position mismatch\nwant: %#v\n got: %#v", tt.want, got)
+			}
+		})
+	}
+}
+
+func TestRect_Rows_shouldIterateTopToBottom(t *testing.T) {
+	tests := []struct {
+		name string
+		rect layout.Rect
+		want []layout.Rect
+	}{
+		{
+			name: "normal",
+			rect: layout.NewRect(0, 0, 2, 3),
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 2, 1),
+				layout.NewRect(0, 1, 2, 1),
+				layout.NewRect(0, 2, 2, 1),
+			},
+		},
+		{
+			name: "zero height",
+			rect: layout.NewRect(0, 0, 2, 0),
+			want: []layout.Rect{},
+		},
+		{
+			name: "zero width",
+			rect: layout.NewRect(0, 0, 0, 3),
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 0, 1),
+				layout.NewRect(0, 1, 0, 1),
+				layout.NewRect(0, 2, 0, 1),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.rect.Rows()
+			if !slices.Equal(got, tt.want) {
+				t.Fatalf("Rows() mismatch\nwant: %#v\n got: %#v", tt.want, got)
+			}
+		})
+	}
+}
+
+func TestRect_Columns_shouldIterateLeftToRight(t *testing.T) {
+	tests := []struct {
+		name string
+		rect layout.Rect
+		want []layout.Rect
+	}{
+		{
+			name: "normal",
+			rect: layout.NewRect(0, 0, 3, 2),
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 1, 2),
+				layout.NewRect(1, 0, 1, 2),
+				layout.NewRect(2, 0, 1, 2),
+			},
+		},
+		{
+			name: "zero width",
+			rect: layout.NewRect(0, 0, 0, 2),
+			want: []layout.Rect{},
+		},
+		{
+			name: "zero height",
+			rect: layout.NewRect(0, 0, 3, 0),
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 1, 0),
+				layout.NewRect(1, 0, 1, 0),
+				layout.NewRect(2, 0, 1, 0),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.rect.Columns()
+			if !slices.Equal(got, tt.want) {
+				t.Fatalf("Columns() mismatch\nwant: %#v\n got: %#v", tt.want, got)
+			}
+		})
+	}
+}
+
+func TestRect_Positions_shouldIterateRowMajor(t *testing.T) {
+	tests := []struct {
+		name string
+		rect layout.Rect
+		want []layout.Position
+	}{
+		{
+			name: "origin",
+			rect: layout.NewRect(0, 0, 2, 2),
+			want: []layout.Position{
+				layout.NewPosition(0, 0),
+				layout.NewPosition(1, 0),
+				layout.NewPosition(0, 1),
+				layout.NewPosition(1, 1),
+			},
+		},
+		{
+			name: "offset",
+			rect: layout.NewRect(2, 3, 2, 2),
+			want: []layout.Position{
+				layout.NewPosition(2, 3),
+				layout.NewPosition(3, 3),
+				layout.NewPosition(2, 4),
+				layout.NewPosition(3, 4),
+			},
+		},
+		{
+			name: "zero width",
+			rect: layout.NewRect(0, 0, 0, 2),
+			want: []layout.Position{},
+		},
+		{
+			name: "zero height",
+			rect: layout.NewRect(0, 0, 2, 0),
+			want: []layout.Position{},
+		},
+		{
+			name: "zero by zero",
+			rect: layout.NewRect(0, 0, 0, 0),
+			want: []layout.Position{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.rect.Positions()
+			if !slices.Equal(got, tt.want) {
+				t.Fatalf("Positions() mismatch\nwant: %#v\n got: %#v", tt.want, got)
 			}
 		})
 	}
