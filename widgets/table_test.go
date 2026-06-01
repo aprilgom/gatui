@@ -980,6 +980,198 @@ func TestTable_shouldPatchCellHighlightOverRowAndColumnHighlight(t *testing.T) {
 	assertCellStyle(t, buf, 2, 0, style.NewStyle().Fg(style.Red).AddModifier(style.ModifierBold|style.ModifierItalic|style.ModifierDim))
 }
 
+func TestTableCell_ColumnSpan_shouldRenderAcrossPhysicalColumns(t *testing.T) {
+	tests := []struct {
+		name     string
+		width    int
+		widths   []layout.Constraint
+		rows     []widgets.TableRow
+		expected []string
+	}{
+		{
+			name:  "zero span skips cell",
+			width: 15,
+			widths: []layout.Constraint{
+				layout.Length(5),
+				layout.Length(5),
+			},
+			rows: []widgets.TableRow{
+				widgets.NewTableRow([]widgets.TableCell{
+					widgets.TableCellFromString("Cell1").ColumnSpan(0),
+					widgets.TableCellFromString("Cell2"),
+				}),
+				widgets.TableRowFromStrings([]string{"Cell3", "Cell4"}),
+			},
+			expected: []string{
+				"Cell2          ",
+				"Cell3 Cell4    ",
+			},
+		},
+		{
+			name:  "two column span includes spacing",
+			width: 15,
+			widths: []layout.Constraint{
+				layout.Length(5),
+				layout.Length(5),
+			},
+			rows: []widgets.TableRow{
+				widgets.NewTableRow([]widgets.TableCell{
+					widgets.TableCellFromString("Cell1").ColumnSpan(2),
+					widgets.TableCellFromString("Cell2"),
+				}),
+				widgets.TableRowFromStrings([]string{"Cell3", "Cell4"}),
+			},
+			expected: []string{
+				"Cell1          ",
+				"Cell3 Cell4    ",
+			},
+		},
+		{
+			name:  "first cell spans first two of three columns",
+			width: 17,
+			widths: []layout.Constraint{
+				layout.Length(5),
+				layout.Length(5),
+				layout.Length(5),
+			},
+			rows: []widgets.TableRow{
+				widgets.NewTableRow([]widgets.TableCell{
+					widgets.TableCellFromString("Cell1").ColumnSpan(2),
+					widgets.TableCellFromString("Cell2"),
+				}),
+				widgets.TableRowFromStrings([]string{"Cell3", "Cell4", "Cell5"}),
+			},
+			expected: []string{
+				"Cell1       Cell2",
+				"Cell3 Cell4 Cell5",
+			},
+		},
+		{
+			name:  "middle cell spans remaining columns",
+			width: 17,
+			widths: []layout.Constraint{
+				layout.Length(5),
+				layout.Length(5),
+				layout.Length(5),
+			},
+			rows: []widgets.TableRow{
+				widgets.NewTableRow([]widgets.TableCell{
+					widgets.TableCellFromString("Cell1"),
+					widgets.TableCellFromString("Cell2").ColumnSpan(2),
+					widgets.TableCellFromString("Cell3"),
+				}),
+				widgets.TableRowFromStrings([]string{"Cell4", "Cell5", "Cell6"}),
+			},
+			expected: []string{
+				"Cell1 Cell2      ",
+				"Cell4 Cell5 Cell6",
+			},
+		},
+		{
+			name:  "long text truncates to spanned width",
+			width: 15,
+			widths: []layout.Constraint{
+				layout.Length(5),
+				layout.Length(5),
+				layout.Length(5),
+			},
+			rows: []widgets.TableRow{
+				widgets.NewTableRow([]widgets.TableCell{
+					widgets.TableCellFromString("11111111111111111111").ColumnSpan(2),
+					widgets.TableCellFromString("22222222222222222222"),
+				}),
+				widgets.NewTableRow([]widgets.TableCell{
+					widgets.TableCellFromString("33333333333333333333"),
+					widgets.TableCellFromString("44444444444444444444").ColumnSpan(2),
+					widgets.TableCellFromString("55555555555555555555"),
+				}),
+			},
+			expected: []string{
+				"111111111 22222",
+				"3333 4444444444",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := buffer.Empty(layout.NewRect(0, 0, tt.width, 2))
+
+			widgets.NewTable(tt.rows, tt.widths).Render(buf.Area, buf)
+
+			assertLines(t, buf, tt.expected)
+		})
+	}
+}
+
+func TestTableCell_ColumnSpan_shouldRespectHighlightSymbolSpacing(t *testing.T) {
+	tests := []struct {
+		name     string
+		spacing  widgets.HighlightSpacing
+		selected bool
+		expected []string
+	}{
+		{name: "always without selection", spacing: widgets.HighlightSpacingAlways, expected: []string{"   ABCDEFG 1234"}},
+		{name: "always with selection", spacing: widgets.HighlightSpacingAlways, selected: true, expected: []string{">>>ABCDEFG 1234"}},
+		{name: "when selected without selection", spacing: widgets.HighlightSpacingWhenSelected, expected: []string{"ABCDEFGHI 12345"}},
+		{name: "when selected with selection", spacing: widgets.HighlightSpacingWhenSelected, selected: true, expected: []string{">>>ABCDEFG 1234"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := buffer.Empty(layout.NewRect(0, 0, 15, 1))
+			state := widgets.NewTableState()
+			if tt.selected {
+				state.Select(0)
+			}
+			table := widgets.NewTable([]widgets.TableRow{
+				widgets.NewTableRow([]widgets.TableCell{
+					widgets.TableCellFromString("ABCDEFGHIJK").ColumnSpan(2),
+					widgets.TableCellFromString("12345678901"),
+					widgets.TableCellFromString("XYZXYZXYZXY"),
+				}),
+			}, []layout.Constraint{
+				layout.Length(5),
+				layout.Length(5),
+				layout.Length(5),
+			}).
+				HighlightSpacing(tt.spacing).
+				HighlightSymbol(">>>").
+				ColumnSpacing(1)
+
+			table.RenderStateful(buf.Area, buf, &state)
+
+			assertLines(t, buf, tt.expected)
+		})
+	}
+}
+
+func TestTableCell_ColumnSpan_shouldApplyColumnAndCellHighlightsToSpannedCell(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 11, 1))
+	state := widgets.NewTableState()
+	state.Select(0)
+	state.SelectColumn(1)
+	state.SelectCell(0, 1)
+	table := widgets.NewTable([]widgets.TableRow{
+		widgets.NewTableRow([]widgets.TableCell{
+			widgets.TableCellFromString("A").ColumnSpan(2),
+		}).Style(style.NewStyle().Fg(style.Cyan)),
+	}, []layout.Constraint{
+		layout.Length(5),
+		layout.Length(5),
+	}).
+		RowHighlightStyle(style.NewStyle().Fg(style.Green).AddModifier(style.ModifierBold)).
+		ColumnHighlightStyle(style.NewStyle().Fg(style.Yellow).AddModifier(style.ModifierItalic)).
+		CellHighlightStyle(style.NewStyle().Fg(style.Red).AddModifier(style.ModifierDim))
+
+	table.RenderStateful(buf.Area, buf, &state)
+
+	expected := style.NewStyle().Fg(style.Red).AddModifier(style.ModifierBold | style.ModifierItalic | style.ModifierDim)
+	for x := 0; x < 11; x++ {
+		assertCellStyle(t, buf, x, 0, expected)
+	}
+}
+
 func TestTable_shouldRenderFooter(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 15, 3))
 	rows := []widgets.TableRow{

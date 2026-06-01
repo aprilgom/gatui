@@ -71,8 +71,9 @@ type BarData struct {
 }
 
 type TableCell struct {
-	content text.Text
-	style   style.Style
+	content    text.Text
+	style      style.Style
+	columnSpan int
 }
 
 type TableRow struct {
@@ -227,7 +228,7 @@ func NewChart(datasets []Dataset) Chart {
 }
 
 func NewTableCell(content text.Text) TableCell {
-	return TableCell{content: content, style: style.NewStyle()}
+	return TableCell{content: content, style: style.NewStyle(), columnSpan: 1}
 }
 
 func TableCellFromString(content string) TableCell {
@@ -236,6 +237,11 @@ func TableCellFromString(content string) TableCell {
 
 func (c TableCell) Style(cellStyle style.Style) TableCell {
 	c.style = cellStyle
+	return c
+}
+
+func (c TableCell) ColumnSpan(span int) TableCell {
+	c.columnSpan = span
 	return c
 }
 
@@ -891,32 +897,55 @@ func (t Table) renderRow(row TableRow, widths []int, area layout.Rect, y int, ro
 		rowHeight = 1
 	}
 	for line := 0; line < rowHeight && y+line < area.Y+area.Height; line++ {
-		x := area.X
-		for column, width := range widths {
-			if column > 0 {
-				x += t.columnSpacing
+		physicalColumn := 0
+		for _, cell := range row.cells {
+			if physicalColumn >= len(widths) {
+				break
 			}
+			span := cell.columnSpan
+			if span <= 0 {
+				continue
+			}
+			span = minInt(span, len(widths)-physicalColumn)
+			x, width := t.cellSpanArea(widths, physicalColumn, span, area)
 			if width > 0 {
-				cellArea := layout.NewRect(x, y+line, minInt(width, area.X+area.Width-x), 1)
-				if cellArea.Width > 0 {
-					cellStyle := row.style
-					if column < len(row.cells) {
-						cellStyle = cellStyle.Patch(row.cells[column].style)
-					}
-					cellStyle = cellStyle.Patch(t.cellHighlight(rowIndex, column, state))
-					buf.SetStyle(cellArea, cellStyle)
-				}
+				cellArea := layout.NewRect(x, y+line, width, 1)
+				cellStyle := row.style.
+					Patch(cell.style).
+					Patch(t.cellHighlightForSpan(rowIndex, physicalColumn, span, state))
+				buf.SetStyle(cellArea, cellStyle)
 			}
-			if line == 0 && width > 0 && column < len(row.cells) {
-				t.renderCell(row.cells[column], row.style, t.cellHighlight(rowIndex, column, state), x, y+line, area.X+area.Width, width, buf)
+			if line == 0 && width > 0 {
+				t.renderCell(cell, row.style, t.cellHighlightForSpan(rowIndex, physicalColumn, span, state), x, y+line, area.X+area.Width, width, buf)
 			}
-			x += width
+			physicalColumn += span
 		}
 	}
 	return y + rowHeight
 }
 
-func (t Table) cellHighlight(rowIndex, column int, state *TableState) style.Style {
+func (t Table) cellSpanArea(widths []int, startColumn, span int, area layout.Rect) (int, int) {
+	x := area.X
+	for column := 0; column < startColumn; column++ {
+		if column > 0 {
+			x += t.columnSpacing
+		}
+		x += widths[column]
+	}
+	if startColumn > 0 {
+		x += t.columnSpacing
+	}
+	width := 0
+	for offset := 0; offset < span && startColumn+offset < len(widths); offset++ {
+		if offset > 0 {
+			width += t.columnSpacing
+		}
+		width += widths[startColumn+offset]
+	}
+	return x, minInt(width, area.X+area.Width-x)
+}
+
+func (t Table) cellHighlightForSpan(rowIndex, startColumn, span int, state *TableState) style.Style {
 	cellStyle := style.NewStyle()
 	if state == nil {
 		return cellStyle
@@ -924,10 +953,14 @@ func (t Table) cellHighlight(rowIndex, column int, state *TableState) style.Styl
 	if rowIndex >= 0 && state.selected != nil && *state.selected == rowIndex {
 		cellStyle = cellStyle.Patch(t.rowHighlightStyle)
 	}
-	if state.selectedColumn != nil && *state.selectedColumn == column {
+	endColumn := startColumn + span
+	if state.selectedColumn != nil && *state.selectedColumn >= startColumn && *state.selectedColumn < endColumn {
 		cellStyle = cellStyle.Patch(t.columnHighlightStyle)
 	}
-	if rowIndex >= 0 && state.selectedCell != nil && state.selectedCell.row == rowIndex && state.selectedCell.column == column {
+	if rowIndex >= 0 && state.selectedCell != nil &&
+		state.selectedCell.row == rowIndex &&
+		state.selectedCell.column >= startColumn &&
+		state.selectedCell.column < endColumn {
 		cellStyle = cellStyle.Patch(t.cellHighlightStyle)
 	}
 	return cellStyle
