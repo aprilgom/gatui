@@ -197,6 +197,179 @@ func TestCanvas_shouldApplyForegroundAndBackgroundForBlockMarker(t *testing.T) {
 	assertCellStyle(t, buf, 0, 0, style.NewStyle().Fg(style.Blue).Bg(style.Blue))
 }
 
+func TestCanvas_shouldExposeCanvasMarkerParityAPI(t *testing.T) {
+	_ = []widgets.CanvasMarker{
+		widgets.CanvasMarkerDot,
+		widgets.CanvasMarkerBlock,
+		widgets.CanvasMarkerBar,
+		widgets.CanvasMarkerBraille,
+		widgets.CanvasMarkerHalfBlock,
+		widgets.CanvasMarkerQuadrant,
+		widgets.CanvasMarkerSextant,
+		widgets.CanvasMarkerOctant,
+		widgets.CanvasMarkerCustom("x"),
+	}
+}
+
+func TestCanvas_shouldRenderCharMarkersWithOneCellResolution(t *testing.T) {
+	tests := []struct {
+		name     string
+		marker   widgets.CanvasMarker
+		expected string
+	}{
+		{name: "bar", marker: widgets.CanvasMarkerBar, expected: "▄"},
+		{name: "custom", marker: widgets.CanvasMarkerCustom("x"), expected: "x"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := buffer.Empty(layout.NewRect(0, 0, 1, 1))
+
+			widgets.NewCanvas().
+				Marker(tt.marker).
+				Paint(func(ctx *widgets.CanvasContext) {
+					ctx.Draw(widgets.NewPoints([]widgets.CanvasPoint{{X: 0, Y: 0}}, style.Blue))
+				}).
+				Render(buf.Area, buf)
+
+			assertLines(t, buf, []string{tt.expected})
+			assertCellStyle(t, buf, 0, 0, style.NewStyle().Fg(style.Blue))
+		})
+	}
+}
+
+func TestCanvas_shouldCombineBraillePointsInsideOneTerminalCell(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 1, 1))
+
+	widgets.NewCanvas().
+		Marker(widgets.CanvasMarkerBraille).
+		XBounds(0, 1).
+		YBounds(0, 3).
+		Paint(func(ctx *widgets.CanvasContext) {
+			ctx.Draw(widgets.NewPoints([]widgets.CanvasPoint{
+				{X: 0, Y: 3},
+				{X: 1, Y: 3},
+				{X: 0, Y: 2},
+				{X: 1, Y: 2},
+			}, style.Red))
+		}).
+		Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"⠛"})
+	assertCellStyle(t, buf, 0, 0, style.NewStyle().Fg(style.Red))
+}
+
+func TestCanvas_shouldRenderHalfBlockUpperLowerAndFullCells(t *testing.T) {
+	tests := []struct {
+		name     string
+		points   []widgets.CanvasPoint
+		expected string
+		style    style.Style
+	}{
+		{
+			name:     "upper",
+			points:   []widgets.CanvasPoint{{X: 0, Y: 1}},
+			expected: "▀",
+			style:    style.NewStyle().Fg(style.Red),
+		},
+		{
+			name:     "lower",
+			points:   []widgets.CanvasPoint{{X: 0, Y: 0}},
+			expected: "▄",
+			style:    style.NewStyle().Fg(style.Red),
+		},
+		{
+			name: "full",
+			points: []widgets.CanvasPoint{
+				{X: 0, Y: 1},
+				{X: 0, Y: 0},
+			},
+			expected: "█",
+			style:    style.NewStyle().Fg(style.Red).Bg(style.Red),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := buffer.Empty(layout.NewRect(0, 0, 1, 1))
+
+			widgets.NewCanvas().
+				Marker(widgets.CanvasMarkerHalfBlock).
+				XBounds(0, 1).
+				YBounds(0, 1).
+				Paint(func(ctx *widgets.CanvasContext) {
+					ctx.Draw(widgets.NewPoints(tt.points, style.Red))
+				}).
+				Render(buf.Area, buf)
+
+			assertLines(t, buf, []string{tt.expected})
+			assertCellStyle(t, buf, 0, 0, tt.style)
+		})
+	}
+}
+
+func TestCanvas_shouldRenderPatternMarkersFromPseudoPixels(t *testing.T) {
+	tests := []struct {
+		name     string
+		marker   widgets.CanvasMarker
+		yMax     float64
+		points   []widgets.CanvasPoint
+		expected string
+	}{
+		{
+			name:   "quadrant",
+			marker: widgets.CanvasMarkerQuadrant,
+			yMax:   1,
+			points: []widgets.CanvasPoint{
+				{X: 0, Y: 1},
+				{X: 1, Y: 0},
+			},
+			expected: "▚",
+		},
+		{
+			name:   "sextant",
+			marker: widgets.CanvasMarkerSextant,
+			yMax:   2,
+			points: []widgets.CanvasPoint{
+				{X: 0, Y: 2},
+				{X: 1, Y: 1},
+				{X: 0, Y: 0},
+			},
+			expected: "🬗",
+		},
+		{
+			name:   "octant",
+			marker: widgets.CanvasMarkerOctant,
+			yMax:   3,
+			points: []widgets.CanvasPoint{
+				{X: 0, Y: 3},
+				{X: 0, Y: 2},
+				{X: 1, Y: 1},
+				{X: 1, Y: 0},
+			},
+			expected: "▚",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := buffer.Empty(layout.NewRect(0, 0, 1, 1))
+
+			widgets.NewCanvas().
+				Marker(tt.marker).
+				XBounds(0, 1).
+				YBounds(0, tt.yMax).
+				Paint(func(ctx *widgets.CanvasContext) {
+					ctx.Draw(widgets.NewPoints(tt.points, style.Green))
+				}).
+				Render(buf.Area, buf)
+
+			assertLines(t, buf, []string{tt.expected})
+			assertCellStyle(t, buf, 0, 0, style.NewStyle().Fg(style.Green))
+		})
+	}
+}
+
 func TestCanvas_shouldDrawHorizontalVerticalDiagonalAndClippedLines(t *testing.T) {
 	tests := []struct {
 		name     string
