@@ -175,8 +175,7 @@ func (t *Terminal) Autoresize() error {
 	if area == t.area {
 		return nil
 	}
-	t.Resize(area)
-	return nil
+	return t.Resize(area)
 }
 
 func (t *Terminal) Flush() error {
@@ -290,22 +289,45 @@ func (t *Terminal) Frame() *Frame {
 	return &Frame{area: t.area, buffer: t.current}
 }
 
-func (t *Terminal) Resize(area layout.Rect) {
+func (t *Terminal) Resize(area layout.Rect) error {
+	nextArea := area
+	var cursorToRestore *layout.Position
 	if t.viewport.kind == viewportInline {
-		t.resizeInline(area)
-		return
+		inlineArea, cursor, err := t.resizeInlineArea(area)
+		if err != nil {
+			return err
+		}
+		nextArea = inlineArea
+		cursorToRestore = &cursor
 	}
-	t.area = area
+	if nextArea.Width < t.area.Width {
+		nextArea.Y = 0
+		if err := t.backend.ClearRegion(ClearAll); err != nil {
+			return err
+		}
+	}
+	t.setViewportArea(nextArea)
 	if t.viewport.kind == viewportFixed {
-		t.viewport.area = area
+		t.viewport.area = nextArea
 	}
-	t.previous.Resize(area)
-	t.previous.Reset()
-	t.current.Resize(area)
-	t.current.Reset()
+	if err := t.clearViewport(); err != nil {
+		return err
+	}
+	if cursorToRestore != nil {
+		if err := t.backend.SetCursorPosition(*cursorToRestore); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func (t *Terminal) resizeInline(terminalArea layout.Rect) {
+func (t *Terminal) setViewportArea(area layout.Rect) {
+	t.area = area
+	t.previous.Resize(area)
+	t.current.Resize(area)
+}
+
+func (t *Terminal) resizeInlineArea(terminalArea layout.Rect) (layout.Rect, layout.Position, error) {
 	offset := 0
 	if t.cursorPosition != nil {
 		offset = t.cursorPosition.Y - t.area.Y
@@ -315,18 +337,14 @@ func (t *Terminal) resizeInline(terminalArea layout.Rect) {
 	}
 
 	originalCursor, err := t.backend.GetCursorPosition()
-	if err == nil {
-		nextArea, _, computeErr := computeInlineArea(t.backend, t.viewport.height, layout.Size{Width: terminalArea.Width, Height: terminalArea.Height}, offset)
-		if computeErr == nil {
-			t.area = nextArea
-		}
-		_ = t.backend.SetCursorPosition(originalCursor)
+	if err != nil {
+		return layout.Rect{}, layout.Position{}, err
 	}
-
-	t.previous.Resize(t.area)
-	t.previous.Reset()
-	t.current.Resize(t.area)
-	t.current.Reset()
+	nextArea, _, err := computeInlineArea(t.backend, t.viewport.height, layout.Size{Width: terminalArea.Width, Height: terminalArea.Height}, offset)
+	if err != nil {
+		return layout.Rect{}, layout.Position{}, err
+	}
+	return nextArea, originalCursor, nil
 }
 
 func computeInlineArea(backend Backend, height int, size layout.Size, offsetInPreviousViewport int) (layout.Rect, layout.Position, error) {

@@ -93,7 +93,7 @@ func TestPublicAPISurface_shouldExposeInitialRatatuiPortTypes(t *testing.T) {
 	_ = term.ShowCursor()
 	_ = term.SetCursorPosition(layout.Position{X: 1, Y: 0})
 	_, _ = term.GetCursorPosition()
-	term.Resize(layout.NewRect(0, 0, 10, 2))
+	_ = term.Resize(layout.NewRect(0, 0, 10, 2))
 	_ = term.Clear()
 	_ = term.Backend()
 	_ = testbackend.WithLines([]string{"seed"})
