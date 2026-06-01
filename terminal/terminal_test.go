@@ -718,7 +718,7 @@ func TestTerminal_InsertBefore_nonInlineViewportNoop(t *testing.T) {
 }
 
 func TestTerminal_InsertBefore_inlinePushesViewportDownWhenSpaceAvailable(t *testing.T) {
-	backend := testbackend.WithLines([]string{
+	backend := testbackend.WithLinesNoScroll([]string{
 		"0000000000",
 		"1111111111",
 		"2222222222",
@@ -768,7 +768,7 @@ func TestTerminal_InsertBefore_inlinePushesViewportDownWhenSpaceAvailable(t *tes
 }
 
 func TestTerminal_InsertBefore_inlineScrollsWhenViewportIsAtBottom(t *testing.T) {
-	backend := testbackend.WithLines([]string{
+	backend := testbackend.WithLinesNoScroll([]string{
 		"0000000000",
 		"1111111111",
 		"2222222222",
@@ -819,7 +819,7 @@ func TestTerminal_InsertBefore_inlineScrollsWhenViewportIsAtBottom(t *testing.T)
 }
 
 func TestTerminal_InsertBefore_thenDrawRepaintsClearedViewport(t *testing.T) {
-	backend := testbackend.New(10, 10)
+	backend := testbackend.NewNoScroll(10, 10)
 	if err := backend.SetCursorPosition(layout.Position{X: 0, Y: 6}); err != nil {
 		t.Fatalf("SetCursorPosition returned error: %v", err)
 	}
@@ -854,6 +854,152 @@ func TestTerminal_InsertBefore_thenDrawRepaintsClearedViewport(t *testing.T) {
 	}
 	if got := backend.Lines(); !reflect.DeepEqual(got, wantLines) {
 		t.Fatalf("backend lines = %#v, want %#v", got, wantLines)
+	}
+}
+
+func TestTerminal_InsertBefore_scrollingRegionMovesViewportDownWithoutClearing(t *testing.T) {
+	backend := testbackend.WithLines([]string{
+		"0000000000",
+		"1111111111",
+		"2222222222",
+		"3333333333",
+		"4444444444",
+		"5555555555",
+		"6666666666",
+		"7777777777",
+		"8888888888",
+		"9999999999",
+	})
+	if err := backend.SetCursorPosition(layout.Position{X: 0, Y: 3}); err != nil {
+		t.Fatalf("SetCursorPosition returned error: %v", err)
+	}
+	term, err := terminal.NewWithOptions(backend, terminal.TerminalOptions{
+		Viewport: terminal.InlineViewport(4),
+	})
+	if err != nil {
+		t.Fatalf("NewWithOptions returned error: %v", err)
+	}
+
+	err = term.InsertBefore(1, func(buf *buffer.Buffer) {
+		setLine(buf, 0, "INSERTLINE")
+	})
+	if err != nil {
+		t.Fatalf("InsertBefore returned error: %v", err)
+	}
+
+	if got, want := term.Area(), layout.NewRect(0, 4, 10, 4); got != want {
+		t.Fatalf("terminal area = %#v, want %#v", got, want)
+	}
+	wantLines := []string{
+		"0000000000",
+		"1111111111",
+		"2222222222",
+		"INSERTLINE",
+		"3333333333",
+		"4444444444",
+		"5555555555",
+		"6666666666",
+		"8888888888",
+		"9999999999",
+	}
+	if got := backend.Lines(); !reflect.DeepEqual(got, wantLines) {
+		t.Fatalf("backend lines = %#v, want %#v", got, wantLines)
+	}
+	if got := backend.ClearRegions(); len(got) != 0 {
+		t.Fatalf("clear regions = %#v, want none", got)
+	}
+}
+
+func TestTerminal_InsertBefore_scrollingRegionAtBottomPreservesViewport(t *testing.T) {
+	backend := testbackend.WithLines([]string{
+		"0000000000",
+		"1111111111",
+		"2222222222",
+		"3333333333",
+		"4444444444",
+		"5555555555",
+		"6666666666",
+		"7777777777",
+		"8888888888",
+		"9999999999",
+	})
+	if err := backend.SetCursorPosition(layout.Position{X: 0, Y: 6}); err != nil {
+		t.Fatalf("SetCursorPosition returned error: %v", err)
+	}
+	term, err := terminal.NewWithOptions(backend, terminal.TerminalOptions{
+		Viewport: terminal.InlineViewport(4),
+	})
+	if err != nil {
+		t.Fatalf("NewWithOptions returned error: %v", err)
+	}
+	err = term.InsertBefore(2, func(buf *buffer.Buffer) {
+		setLine(buf, 0, "AAAAAAAAAA")
+		setLine(buf, 1, "BBBBBBBBBB")
+	})
+	if err != nil {
+		t.Fatalf("InsertBefore returned error: %v", err)
+	}
+
+	wantLines := []string{
+		"2222222222",
+		"3333333333",
+		"4444444444",
+		"5555555555",
+		"AAAAAAAAAA",
+		"BBBBBBBBBB",
+		"6666666666",
+		"7777777777",
+		"8888888888",
+		"9999999999",
+	}
+	if got := backend.Lines(); !reflect.DeepEqual(got, wantLines) {
+		t.Fatalf("backend lines = %#v, want %#v", got, wantLines)
+	}
+	if got, want := backend.ScrollbackLines(), []string{"0000000000", "1111111111"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("scrollback lines = %#v, want %#v", got, want)
+	}
+}
+
+func TestTerminal_InsertBefore_scrollingRegionFullscreenAppendsToScrollback(t *testing.T) {
+	backend := testbackend.New(10, 4)
+	if err := backend.SetCursorPosition(layout.Position{X: 0, Y: 0}); err != nil {
+		t.Fatalf("SetCursorPosition returned error: %v", err)
+	}
+	term, err := terminal.NewWithOptions(backend, terminal.TerminalOptions{
+		Viewport: terminal.InlineViewport(4),
+	})
+	if err != nil {
+		t.Fatalf("NewWithOptions returned error: %v", err)
+	}
+	_, err = term.Draw(func(frame *terminal.Frame) {
+		setLine(frame.Buffer(), 0, "VIEWLINE00")
+		setLine(frame.Buffer(), 1, "VIEWLINE01")
+		setLine(frame.Buffer(), 2, "VIEWLINE02")
+		setLine(frame.Buffer(), 3, "VIEWLINE03")
+	})
+	if err != nil {
+		t.Fatalf("Draw returned error: %v", err)
+	}
+
+	err = term.InsertBefore(2, func(buf *buffer.Buffer) {
+		setLine(buf, 0, "INSERTED00")
+		setLine(buf, 1, "INSERTED01")
+	})
+	if err != nil {
+		t.Fatalf("InsertBefore returned error: %v", err)
+	}
+
+	wantLines := []string{
+		"VIEWLINE00",
+		"VIEWLINE01",
+		"VIEWLINE02",
+		"VIEWLINE03",
+	}
+	if got := backend.Lines(); !reflect.DeepEqual(got, wantLines) {
+		t.Fatalf("backend lines = %#v, want %#v", got, wantLines)
+	}
+	if got, want := backend.ScrollbackLines(), []string{"INSERTED00", "INSERTED01"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("scrollback lines = %#v, want %#v", got, want)
 	}
 }
 

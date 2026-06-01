@@ -21,6 +21,11 @@ type Backend interface {
 	SetCursorPosition(layout.Position) error
 }
 
+type ScrollingRegionBackend interface {
+	ScrollRegionUp(startY, endY, count int) error
+	ScrollRegionDown(startY, endY, count int) error
+}
+
 type ClearType int
 
 const (
@@ -190,6 +195,13 @@ func (t *Terminal) InsertBefore(height int, render func(*buffer.Buffer)) error {
 	if height < 0 {
 		height = 0
 	}
+	if backend, ok := t.backend.(ScrollingRegionBackend); ok {
+		return t.insertBeforeScrollingRegions(backend, height, render)
+	}
+	return t.insertBeforeNoScrollingRegions(height, render)
+}
+
+func (t *Terminal) insertBeforeNoScrollingRegions(height int, render func(*buffer.Buffer)) error {
 	area := layout.NewRect(0, 0, t.area.Width, height)
 	insert := buffer.Empty(area)
 	if render != nil {
@@ -235,6 +247,71 @@ func (t *Terminal) InsertBefore(height int, render func(*buffer.Buffer)) error {
 	return t.Clear()
 }
 
+func (t *Terminal) insertBeforeScrollingRegions(backend ScrollingRegionBackend, height int, render func(*buffer.Buffer)) error {
+	area := layout.NewRect(0, 0, t.area.Width, height)
+	insert := buffer.Empty(area)
+	if render != nil {
+		render(insert)
+	}
+	cells := insert.Cells
+
+	size, err := t.backend.Size()
+	if err != nil {
+		return err
+	}
+	if t.area.Height == size.Height {
+		first := true
+		for len(cells) > 0 {
+			if first {
+				cells, err = t.drawLines(0, 1, cells)
+			} else {
+				cells, err = t.drawLinesOverCleared(0, 1, cells)
+			}
+			if err != nil {
+				return err
+			}
+			first = false
+			if err := backend.ScrollRegionUp(0, 1, 1); err != nil {
+				return err
+			}
+		}
+		topLine := append([]buffer.Cell(nil), t.previous.Cells[:t.area.Width]...)
+		_, err = t.drawLinesOverCleared(0, 1, topLine)
+		return err
+	}
+
+	remainingHeight := height
+	viewportTop := t.area.Y
+	viewportBottom := t.area.Bottom()
+	screenBottom := size.Height
+	if viewportBottom < screenBottom {
+		toDraw := minInt(remainingHeight, screenBottom-viewportBottom)
+		if err := backend.ScrollRegionDown(viewportTop, viewportBottom+toDraw, toDraw); err != nil {
+			return err
+		}
+		cells, err = t.drawLinesOverCleared(viewportTop, toDraw, cells)
+		if err != nil {
+			return err
+		}
+		t.setViewportArea(layout.NewRect(t.area.X, viewportTop+toDraw, t.area.Width, t.area.Height))
+		remainingHeight -= toDraw
+	}
+
+	viewportTop = t.area.Y
+	for remainingHeight > 0 {
+		toDraw := minInt(remainingHeight, viewportTop)
+		if err := backend.ScrollRegionUp(0, viewportTop, toDraw); err != nil {
+			return err
+		}
+		cells, err = t.drawLinesOverCleared(viewportTop-toDraw, toDraw, cells)
+		if err != nil {
+			return err
+		}
+		remainingHeight -= toDraw
+	}
+	return nil
+}
+
 func (t *Terminal) drawLines(yOffset, linesToDraw int, cells []buffer.Cell) ([]buffer.Cell, error) {
 	width := t.area.Width
 	count := width * linesToDraw
@@ -255,6 +332,32 @@ func (t *Terminal) drawLines(yOffset, linesToDraw int, cells []buffer.Cell) ([]b
 		})
 	}
 	if err := t.backend.Draw(diffs); err != nil {
+		return nil, err
+	}
+	if err := t.backend.Flush(); err != nil {
+		return nil, err
+	}
+	return remainder, nil
+}
+
+func (t *Terminal) drawLinesOverCleared(yOffset, linesToDraw int, cells []buffer.Cell) ([]buffer.Cell, error) {
+	width := t.area.Width
+	count := width * linesToDraw
+	if count > len(cells) {
+		count = len(cells)
+	}
+	toDraw := cells[:count]
+	remainder := cells[count:]
+	if linesToDraw <= 0 {
+		return remainder, nil
+	}
+	area := layout.NewRect(0, yOffset, width, linesToDraw)
+	old := buffer.Empty(area)
+	next := &buffer.Buffer{
+		Area:  area,
+		Cells: append([]buffer.Cell(nil), toDraw...),
+	}
+	if err := t.backend.Draw(old.Diff(next)); err != nil {
 		return nil, err
 	}
 	if err := t.backend.Flush(); err != nil {
