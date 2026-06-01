@@ -108,7 +108,11 @@ func (p Paragraph) Render(area layout.Rect, buf *buffer.Buffer) {
 		p.block.Render(area, buf)
 		textArea = p.block.Inner(area)
 	}
-	lines := p.renderLines(textArea.Width)
+	reflowWidth := textArea.Width
+	if p.wrap == nil && p.scrollX > 0 {
+		reflowWidth += p.scrollX
+	}
+	lines := p.renderLines(reflowWidth)
 	if p.scrollY < len(lines) {
 		lines = lines[p.scrollY:]
 	} else {
@@ -119,7 +123,7 @@ func (p Paragraph) Render(area layout.Rect, buf *buffer.Buffer) {
 		if p.scrollX > 0 && line.alignment == layout.Left {
 			line = line.skip(p.scrollX)
 		}
-		offset := paragraphLineOffset(line.width(), textArea.Width, line.alignment)
+		offset := paragraphLineOffset(line.width, textArea.Width, line.alignment)
 		x := textArea.X + offset
 		for _, cell := range line.cells {
 			if x >= textArea.X+textArea.Width {
@@ -146,11 +150,11 @@ func paragraphLineOffset(lineWidth, areaWidth int, alignment layout.Alignment) i
 	}
 }
 
-func (p Paragraph) renderLines(width int) []renderLine {
+func (p Paragraph) renderLines(width int) []wrappedLine {
 	if width <= 0 {
 		return nil
 	}
-	var lines []renderLine
+	var lines []wrappedLine
 	for _, line := range p.text.Lines {
 		alignment := p.alignment
 		if p.text.Alignment != nil {
@@ -161,12 +165,10 @@ func (p Paragraph) renderLines(width int) []renderLine {
 		}
 		cells := cellsFromLineWithStyle(line, p.text.Style)
 		if p.wrap == nil {
-			lines = append(lines, renderLine{cells: append([]buffer.Cell(nil), cells...), alignment: alignment})
+			lines = append(lines, newLineTruncator(width).truncate(cells, alignment))
 			continue
 		}
-		for _, wrapped := range wrapCells(cells, width, p.wrap.Trim) {
-			lines = append(lines, renderLine{cells: wrapped, alignment: alignment})
-		}
+		lines = append(lines, newWordWrapper(width, p.wrap.Trim).wrap(cells, alignment)...)
 	}
 	return lines
 }

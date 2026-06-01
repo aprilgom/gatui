@@ -53,11 +53,8 @@ func cellsFromLine(line text.Line) []buffer.Cell {
 
 func cellsFromLineWithStyle(line text.Line, textStyle style.Style) []buffer.Cell {
 	var cells []buffer.Cell
-	for _, span := range line.Spans {
-		cellStyle := textStyle.Patch(line.LineStyle).Patch(span.Style)
-		for _, r := range span.Content {
-			cells = append(cells, buffer.Cell{Symbol: string(r), Style: cellStyle})
-		}
+	for _, grapheme := range line.StyledGraphemes(textStyle) {
+		cells = append(cells, buffer.Cell{Symbol: grapheme.Symbol, Style: grapheme.Style})
 	}
 	return cells
 }
