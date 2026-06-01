@@ -83,6 +83,57 @@ func TestTestBackend_Scrollback_shouldReturnScrollbackBuffer(t *testing.T) {
 	}
 }
 
+func TestTestBackend_String_shouldRenderQuotedBufferRows(t *testing.T) {
+	backend := WithLines([]string{
+		"aaaa",
+		"aaaa",
+	})
+
+	got := backend.String()
+	want := "\"aaaa\"\n\"aaaa\"\n"
+	if got != want {
+		t.Fatalf("String() = %q, want %q", got, want)
+	}
+}
+
+func TestTestBackend_String_shouldIncludeTrailingNewlinePerRow(t *testing.T) {
+	backend := WithLines([]string{
+		"aa",
+		"bb",
+	})
+
+	got := backend.String()
+	want := "\"aa\"\n\"bb\"\n"
+	if got != want {
+		t.Fatalf("String() = %q, want %q", got, want)
+	}
+}
+
+func TestTestBackend_String_shouldShowWideCellOverwrites(t *testing.T) {
+	backend := New(3, 1)
+	backend.Buffer().SetSymbol(0, 0, "界")
+	backend.Buffer().SetSymbol(1, 0, "x")
+
+	got := backend.String()
+	want := "\"界x \"\n"
+	if got != want {
+		t.Fatalf("String() = %q, want %q", got, want)
+	}
+}
+
+func TestNoScrollBackend_String_shouldDelegateToWrappedBackend(t *testing.T) {
+	backend := WithLinesNoScroll([]string{
+		"aa",
+		"bb",
+	})
+
+	got := backend.String()
+	want := "\"aa\"\n\"bb\"\n"
+	if got != want {
+		t.Fatalf("String() = %q, want %q", got, want)
+	}
+}
+
 func TestTestBackend_AssertBufferLines_shouldPassForMatchingLines(t *testing.T) {
 	backend := WithLines([]string{
 		"abc",

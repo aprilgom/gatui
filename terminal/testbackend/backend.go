@@ -2,6 +2,7 @@ package testbackend
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"gatui/buffer"
@@ -107,6 +108,10 @@ func (b *NoScrollBackend) Lines() []string {
 
 func (b *NoScrollBackend) Buffer() *buffer.Buffer {
 	return b.backend.Buffer()
+}
+
+func (b *NoScrollBackend) String() string {
+	return b.backend.String()
 }
 
 func (b *NoScrollBackend) Scrollback() *buffer.Buffer {
@@ -387,11 +392,31 @@ func (b *Backend) Lines() []string {
 	return b.cells.Lines()
 }
 
+func (b *Backend) String() string {
+	return bufferView(b.Buffer())
+}
+
 func (b *Backend) Buffer() *buffer.Buffer {
 	if b.cells == nil {
 		b.cells = buffer.Empty(layout.NewRect(0, 0, b.size.Width, b.size.Height))
 	}
 	return b.cells
+}
+
+func bufferView(buf *buffer.Buffer) string {
+	if buf == nil || buf.Area.Height == 0 {
+		return ""
+	}
+	var builder strings.Builder
+	for y := buf.Area.Y; y < buf.Area.Y+buf.Area.Height; y++ {
+		builder.WriteByte('"')
+		for x := buf.Area.X; x < buf.Area.X+buf.Area.Width; x++ {
+			cell, _ := buf.CellAt(x, y)
+			builder.WriteString(cell.DisplaySymbol())
+		}
+		builder.WriteString("\"\n")
+	}
+	return builder.String()
 }
 
 func (b *Backend) Scrollback() *buffer.Buffer {

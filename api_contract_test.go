@@ -95,6 +95,7 @@ func TestPublicAPISurface_shouldExposeInitialRatatuiPortTypes(t *testing.T) {
 	})
 	backend.SetSize(10, 2)
 	_, _ = backend.WindowSize()
+	_ = backend.String()
 	_, _ = term.Size()
 	_ = term.Autoresize()
 	_ = term.Area()
@@ -129,4 +130,5 @@ func TestPublicAPISurface_shouldExposeInitialRatatuiPortTypes(t *testing.T) {
 	_ = backend.CursorPosition()
 	_ = backend.AppendLines(1)
 	_ = backend.AppendLinesCalls()
+	_ = testbackend.NewNoScroll(2, 1).String()
 }
