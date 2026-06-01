@@ -12,7 +12,8 @@ import (
 var _ terminal.Backend = (*Backend)(nil)
 
 type Backend struct {
-	screen tcelllib.Screen
+	screen         tcelllib.Screen
+	cursorPosition layout.Position
 }
 
 func New() (*Backend, error) {
@@ -62,8 +63,41 @@ func (b *Backend) Flush() error {
 }
 
 func (b *Backend) Clear() error {
-	b.screen.Clear()
+	return b.ClearRegion(terminal.ClearAll)
+}
+
+func (b *Backend) ClearRegion(clearType terminal.ClearType) error {
+	switch clearType {
+	case terminal.ClearAll:
+		b.screen.Clear()
+	case terminal.ClearAfterCursor:
+		size, err := b.Size()
+		if err != nil {
+			return err
+		}
+		for y := b.cursorPosition.Y; y < size.Height; y++ {
+			startX := 0
+			if y == b.cursorPosition.Y {
+				startX = b.cursorPosition.X
+			}
+			for x := startX; x < size.Width; x++ {
+				b.screen.SetContent(x, y, ' ', nil, tcelllib.StyleDefault)
+			}
+		}
+	case terminal.ClearCurrentLine:
+		size, err := b.Size()
+		if err != nil {
+			return err
+		}
+		for x := 0; x < size.Width; x++ {
+			b.screen.SetContent(x, b.cursorPosition.Y, ' ', nil, tcelllib.StyleDefault)
+		}
+	}
 	return nil
+}
+
+func (b *Backend) GetCursorPosition() (layout.Position, error) {
+	return b.cursorPosition, nil
 }
 
 func (b *Backend) HideCursor() error {
@@ -77,6 +111,7 @@ func (b *Backend) ShowCursor() error {
 }
 
 func (b *Backend) SetCursorPosition(pos layout.Position) error {
+	b.cursorPosition = pos
 	b.screen.ShowCursor(pos.X, pos.Y)
 	return nil
 }

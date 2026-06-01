@@ -17,9 +17,11 @@ type recordingBackend struct {
 	draws           [][]buffer.CellDiff
 	flushCount      int
 	clearCount      int
+	clearRegions    []terminal.ClearType
 	hideCursorCount int
 	showCursorCount int
 	cursorPositions []layout.Position
+	cursorPosition  layout.Position
 	operations      []string
 }
 
@@ -51,6 +53,12 @@ func (b *recordingBackend) Flush() error {
 
 func (b *recordingBackend) Clear() error {
 	b.clearCount++
+	return b.ClearRegion(terminal.ClearAll)
+}
+
+func (b *recordingBackend) ClearRegion(clearType terminal.ClearType) error {
+	b.clearRegions = append(b.clearRegions, clearType)
+	b.operations = append(b.operations, "clear-region")
 	return nil
 }
 
@@ -68,8 +76,13 @@ func (b *recordingBackend) ShowCursor() error {
 
 func (b *recordingBackend) SetCursorPosition(pos layout.Position) error {
 	b.cursorPositions = append(b.cursorPositions, pos)
+	b.cursorPosition = pos
 	b.operations = append(b.operations, "set-cursor")
 	return nil
+}
+
+func (b *recordingBackend) GetCursorPosition() (layout.Position, error) {
+	return b.cursorPosition, nil
 }
 
 func TestTerminalBackendInterface_shouldNotRequireEventPolling(t *testing.T) {
@@ -616,11 +629,124 @@ func TestTerminal_Clear_shouldClearBackendAndForceFullRedraw(t *testing.T) {
 	}
 	renderText(t, term, "abc")
 
-	if got, want := backend.clearCount, 1; got != want {
-		t.Fatalf("clear count = %d, want %d", got, want)
+	if got, want := backend.clearRegions, []terminal.ClearType{terminal.ClearAll}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("clear regions = %#v, want %#v", got, want)
 	}
 	if got, want := diffSymbols(backend.draws[1]), []string{"a", "b", "c"}; !reflect.DeepEqual(got, want) {
 		t.Fatalf("second draw diff symbols = %#v, want %#v", got, want)
+	}
+}
+
+func TestTerminal_Clear_fullscreenClearsBackendAndResetsBackBuffer(t *testing.T) {
+	backend := newRecordingBackend(3, 2)
+	term, err := terminal.New(backend)
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+	renderText(t, term, "abc\ndef")
+	backend.draws = nil
+
+	if err := term.Clear(); err != nil {
+		t.Fatalf("Clear returned error: %v", err)
+	}
+	renderText(t, term, "abc\ndef")
+
+	if got, want := backend.clearRegions, []terminal.ClearType{terminal.ClearAll}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("clear regions = %#v, want %#v", got, want)
+	}
+	if got, want := len(backend.draws[0]), 6; got != want {
+		t.Fatalf("redraw diff count after Clear = %d, want %d", got, want)
+	}
+}
+
+func TestTerminal_Clear_fixedFullWidthAtBottomClearsAfterViewportOrigin(t *testing.T) {
+	backend := newRecordingBackend(10, 3)
+	backend.cursorPosition = layout.Position{X: 2, Y: 0}
+	term, err := terminal.NewWithOptions(backend, terminal.TerminalOptions{
+		Viewport: terminal.FixedViewport(layout.NewRect(0, 1, 10, 2)),
+	})
+	if err != nil {
+		t.Fatalf("NewWithOptions returned error: %v", err)
+	}
+
+	if err := term.Clear(); err != nil {
+		t.Fatalf("Clear returned error: %v", err)
+	}
+
+	if got, want := backend.clearRegions, []terminal.ClearType{terminal.ClearAfterCursor}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("clear regions = %#v, want %#v", got, want)
+	}
+	if got, want := backend.cursorPositions, []layout.Position{{X: 0, Y: 1}, {X: 2, Y: 0}}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("cursor positions = %#v, want %#v", got, want)
+	}
+}
+
+func TestTerminal_Clear_fixedFullWidthNotAtBottomClearsViewportRowsOnly(t *testing.T) {
+	backend := newRecordingBackend(10, 4)
+	backend.cursorPosition = layout.Position{X: 1, Y: 0}
+	term, err := terminal.NewWithOptions(backend, terminal.TerminalOptions{
+		Viewport: terminal.FixedViewport(layout.NewRect(0, 1, 10, 2)),
+	})
+	if err != nil {
+		t.Fatalf("NewWithOptions returned error: %v", err)
+	}
+
+	if err := term.Clear(); err != nil {
+		t.Fatalf("Clear returned error: %v", err)
+	}
+
+	if got, want := backend.clearRegions, []terminal.ClearType{terminal.ClearCurrentLine, terminal.ClearCurrentLine}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("clear regions = %#v, want %#v", got, want)
+	}
+	if got, want := backend.cursorPositions, []layout.Position{{X: 0, Y: 1}, {X: 0, Y: 2}, {X: 1, Y: 0}}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("cursor positions = %#v, want %#v", got, want)
+	}
+}
+
+func TestTerminal_Clear_fixedNonFullWidthClearsViewportCellsOnly(t *testing.T) {
+	backend := newRecordingBackend(10, 4)
+	backend.cursorPosition = layout.Position{X: 3, Y: 0}
+	term, err := terminal.NewWithOptions(backend, terminal.TerminalOptions{
+		Viewport: terminal.FixedViewport(layout.NewRect(1, 1, 3, 2)),
+	})
+	if err != nil {
+		t.Fatalf("NewWithOptions returned error: %v", err)
+	}
+
+	if err := term.Clear(); err != nil {
+		t.Fatalf("Clear returned error: %v", err)
+	}
+
+	wantDraw := []buffer.CellDiff{
+		{X: 1, Y: 1, Cell: buffer.NewCell(" ")},
+		{X: 2, Y: 1, Cell: buffer.NewCell(" ")},
+		{X: 3, Y: 1, Cell: buffer.NewCell(" ")},
+		{X: 1, Y: 2, Cell: buffer.NewCell(" ")},
+		{X: 2, Y: 2, Cell: buffer.NewCell(" ")},
+		{X: 3, Y: 2, Cell: buffer.NewCell(" ")},
+	}
+	if got := backend.draws; !reflect.DeepEqual(got, [][]buffer.CellDiff{wantDraw}) {
+		t.Fatalf("draws = %#v, want %#v", got, [][]buffer.CellDiff{wantDraw})
+	}
+	if got, want := backend.cursorPositions, []layout.Position{{X: 3, Y: 0}}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("cursor positions = %#v, want %#v", got, want)
+	}
+}
+
+func TestTerminal_Clear_preservesBackendCursorPosition(t *testing.T) {
+	backend := newRecordingBackend(3, 1)
+	backend.cursorPosition = layout.Position{X: 2, Y: 0}
+	term, err := terminal.New(backend)
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+
+	if err := term.Clear(); err != nil {
+		t.Fatalf("Clear returned error: %v", err)
+	}
+
+	if got, want := backend.cursorPosition, (layout.Position{X: 2, Y: 0}); got != want {
+		t.Fatalf("backend cursor position = %#v, want %#v", got, want)
 	}
 }
 

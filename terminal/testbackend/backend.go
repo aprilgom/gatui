@@ -3,6 +3,7 @@ package testbackend
 import (
 	"gatui/buffer"
 	"gatui/layout"
+	"gatui/terminal"
 )
 
 type Backend struct {
@@ -10,13 +11,17 @@ type Backend struct {
 	draws           [][]buffer.CellDiff
 	flushCount      int
 	clearCount      int
+	clearRegions    []terminal.ClearType
 	hideCursorCount int
 	showCursorCount int
 	cursorPositions []layout.Position
+	cursorPosition  layout.Position
+	cells           *buffer.Buffer
 }
 
 func New(width, height int) *Backend {
-	return &Backend{size: layout.Size{Width: width, Height: height}}
+	area := layout.NewRect(0, 0, width, height)
+	return &Backend{size: layout.Size{Width: width, Height: height}, cells: buffer.Empty(area)}
 }
 
 func (b *Backend) Size() (layout.Size, error) {
@@ -25,12 +30,23 @@ func (b *Backend) Size() (layout.Size, error) {
 
 func (b *Backend) SetSize(width, height int) {
 	b.size = layout.Size{Width: width, Height: height}
+	if b.cells == nil {
+		b.cells = buffer.Empty(layout.NewRect(0, 0, width, height))
+		return
+	}
+	b.cells.Resize(layout.NewRect(0, 0, width, height))
 }
 
 func (b *Backend) Draw(diffs []buffer.CellDiff) error {
 	copied := make([]buffer.CellDiff, len(diffs))
 	copy(copied, diffs)
 	b.draws = append(b.draws, copied)
+	if b.cells == nil {
+		b.cells = buffer.Empty(layout.NewRect(0, 0, b.size.Width, b.size.Height))
+	}
+	for _, diff := range diffs {
+		b.cells.SetCell(diff.X, diff.Y, diff.Cell)
+	}
 	return nil
 }
 
@@ -41,6 +57,32 @@ func (b *Backend) Flush() error {
 
 func (b *Backend) Clear() error {
 	b.clearCount++
+	return b.ClearRegion(terminal.ClearAll)
+}
+
+func (b *Backend) ClearRegion(clearType terminal.ClearType) error {
+	b.clearRegions = append(b.clearRegions, clearType)
+	if b.cells == nil {
+		b.cells = buffer.Empty(layout.NewRect(0, 0, b.size.Width, b.size.Height))
+	}
+	switch clearType {
+	case terminal.ClearAll:
+		b.cells.Reset()
+	case terminal.ClearAfterCursor:
+		for y := b.cursorPosition.Y; y < b.size.Height; y++ {
+			startX := 0
+			if y == b.cursorPosition.Y {
+				startX = b.cursorPosition.X
+			}
+			for x := startX; x < b.size.Width; x++ {
+				b.cells.SetCell(x, y, buffer.NewCell(" "))
+			}
+		}
+	case terminal.ClearCurrentLine:
+		for x := 0; x < b.size.Width; x++ {
+			b.cells.SetCell(x, b.cursorPosition.Y, buffer.NewCell(" "))
+		}
+	}
 	return nil
 }
 
@@ -56,7 +98,12 @@ func (b *Backend) ShowCursor() error {
 
 func (b *Backend) SetCursorPosition(pos layout.Position) error {
 	b.cursorPositions = append(b.cursorPositions, pos)
+	b.cursorPosition = pos
 	return nil
+}
+
+func (b *Backend) GetCursorPosition() (layout.Position, error) {
+	return b.cursorPosition, nil
 }
 
 func (b *Backend) Draws() [][]buffer.CellDiff {
@@ -74,6 +121,17 @@ func (b *Backend) FlushCount() int {
 
 func (b *Backend) ClearCount() int {
 	return b.clearCount
+}
+
+func (b *Backend) ClearRegions() []terminal.ClearType {
+	return append([]terminal.ClearType(nil), b.clearRegions...)
+}
+
+func (b *Backend) Lines() []string {
+	if b.cells == nil {
+		return nil
+	}
+	return b.cells.Lines()
 }
 
 func (b *Backend) HideCursorCount() int {

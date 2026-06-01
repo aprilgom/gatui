@@ -261,6 +261,57 @@ func TestBackend_ClearAndFlush_shouldCallScreenClearAndShow(t *testing.T) {
 	}
 }
 
+func TestBackend_ClearRegion_afterCursorBlanksFromCursorToScreenEnd(t *testing.T) {
+	screen := newSpyScreen(4, 3)
+	backend, err := NewWithScreen(screen)
+	if err != nil {
+		t.Fatalf("NewWithScreen() error = %v", err)
+	}
+	defer backend.Close()
+	screen.SetSize(4, 3)
+	if err := backend.SetCursorPosition(layout.Position{X: 2, Y: 1}); err != nil {
+		t.Fatalf("SetCursorPosition() error = %v", err)
+	}
+	screen.contentCalls = nil
+
+	if err := backend.ClearRegion(terminal.ClearAfterCursor); err != nil {
+		t.Fatalf("ClearRegion(ClearAfterCursor) error = %v", err)
+	}
+
+	wantPositions := []layout.Position{{X: 2, Y: 1}, {X: 3, Y: 1}, {X: 0, Y: 2}, {X: 1, Y: 2}, {X: 2, Y: 2}, {X: 3, Y: 2}}
+	if got := contentCallPositions(screen.contentCalls); !positionsEqual(got, wantPositions) {
+		t.Fatalf("SetContent positions = %+v, want %+v", got, wantPositions)
+	}
+	for _, call := range screen.contentCalls {
+		if call.primary != ' ' {
+			t.Fatalf("SetContent primary = %q, want space", call.primary)
+		}
+	}
+}
+
+func TestBackend_ClearRegion_currentLineBlanksCursorRow(t *testing.T) {
+	screen := newSpyScreen(4, 3)
+	backend, err := NewWithScreen(screen)
+	if err != nil {
+		t.Fatalf("NewWithScreen() error = %v", err)
+	}
+	defer backend.Close()
+	screen.SetSize(4, 3)
+	if err := backend.SetCursorPosition(layout.Position{X: 2, Y: 1}); err != nil {
+		t.Fatalf("SetCursorPosition() error = %v", err)
+	}
+	screen.contentCalls = nil
+
+	if err := backend.ClearRegion(terminal.ClearCurrentLine); err != nil {
+		t.Fatalf("ClearRegion(ClearCurrentLine) error = %v", err)
+	}
+
+	wantPositions := []layout.Position{{X: 0, Y: 1}, {X: 1, Y: 1}, {X: 2, Y: 1}, {X: 3, Y: 1}}
+	if got := contentCallPositions(screen.contentCalls); !positionsEqual(got, wantPositions) {
+		t.Fatalf("SetContent positions = %+v, want %+v", got, wantPositions)
+	}
+}
+
 func TestBackend_CursorMethods_shouldHideShowAndPositionCursor(t *testing.T) {
 	screen := newSpyScreen(10, 5)
 	backend, err := NewWithScreen(screen)
@@ -291,6 +342,26 @@ func TestBackend_CursorMethods_shouldHideShowAndPositionCursor(t *testing.T) {
 			t.Fatalf("ShowCursor calls = %+v, want %+v", screen.showCursorCalls, wantCalls)
 		}
 	}
+}
+
+func contentCallPositions(calls []contentCall) []layout.Position {
+	positions := make([]layout.Position, 0, len(calls))
+	for _, call := range calls {
+		positions = append(positions, layout.Position{X: call.x, Y: call.y})
+	}
+	return positions
+}
+
+func positionsEqual(a, b []layout.Position) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func TestBackend_Close_shouldFinalizeScreen(t *testing.T) {

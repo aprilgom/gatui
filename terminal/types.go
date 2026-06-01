@@ -13,10 +13,20 @@ type Backend interface {
 	Draw([]buffer.CellDiff) error
 	Flush() error
 	Clear() error
+	ClearRegion(ClearType) error
+	GetCursorPosition() (layout.Position, error)
 	HideCursor() error
 	ShowCursor() error
 	SetCursorPosition(layout.Position) error
 }
+
+type ClearType int
+
+const (
+	ClearAll ClearType = iota
+	ClearAfterCursor
+	ClearCurrentLine
+)
 
 type viewportKind int
 
@@ -177,11 +187,67 @@ func (t *Terminal) Resize(area layout.Rect) {
 }
 
 func (t *Terminal) Clear() error {
-	if err := t.backend.Clear(); err != nil {
+	originalCursor, err := t.backend.GetCursorPosition()
+	if err != nil {
 		return err
+	}
+	if err := t.clearViewport(); err != nil {
+		return err
+	}
+	return t.backend.SetCursorPosition(originalCursor)
+}
+
+func (t *Terminal) clearViewport() error {
+	switch t.viewport.kind {
+	case viewportFullscreen:
+		if err := t.backend.ClearRegion(ClearAll); err != nil {
+			return err
+		}
+	case viewportFixed:
+		if err := t.clearFixedViewport(t.area); err != nil {
+			return err
+		}
 	}
 	t.previous.Reset()
 	return nil
+}
+
+func (t *Terminal) clearFixedViewport(area layout.Rect) error {
+	if area.Width == 0 || area.Height == 0 {
+		return nil
+	}
+	size, err := t.backend.Size()
+	if err != nil {
+		return err
+	}
+	isFullWidth := area.X == 0 && area.Width == size.Width
+	endsAtBottom := area.Bottom() == size.Height
+	if isFullWidth && endsAtBottom {
+		if err := t.backend.SetCursorPosition(layout.Position{X: area.X, Y: area.Y}); err != nil {
+			return err
+		}
+		return t.backend.ClearRegion(ClearAfterCursor)
+	}
+	if isFullWidth {
+		for y := area.Y; y < area.Bottom(); y++ {
+			if err := t.backend.SetCursorPosition(layout.Position{X: 0, Y: y}); err != nil {
+				return err
+			}
+			if err := t.backend.ClearRegion(ClearCurrentLine); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	clearCell := buffer.NewCell(" ")
+	diffs := make([]buffer.CellDiff, 0, area.Width*area.Height)
+	for y := area.Y; y < area.Bottom(); y++ {
+		for x := area.X; x < area.Right(); x++ {
+			diffs = append(diffs, buffer.CellDiff{X: x, Y: y, Cell: clearCell})
+		}
+	}
+	return t.backend.Draw(diffs)
 }
 
 func (t *Terminal) Backend() Backend {
