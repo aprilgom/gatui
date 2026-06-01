@@ -82,6 +82,7 @@ func TestSpan_Width_shouldUseDisplayWidth(t *testing.T) {
 		{name: "ascii", span: text.NewSpan("My text"), want: 7},
 		{name: "unicode", span: text.NewSpan("コンピ"), want: 6},
 		{name: "empty", span: text.NewSpan(""), want: 0},
+		{name: "halfwidth voiced mark", span: text.NewSpan("ﾞ"), want: buffer.CellWidth("ﾞ")},
 	}
 
 	for _, tt := range tests {

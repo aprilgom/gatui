@@ -48,7 +48,7 @@ func renderSpan(span Span, area layout.Rect, buf *buffer.Buffer, skipWidth int) 
 		if symbol == "\n" {
 			continue
 		}
-		width := graphemes.Width()
+		width := buffer.CellWidth(symbol)
 		if width == 0 {
 			if !renderedAny {
 				setSpanCellSymbol(buf, x, area.Y, symbol, span.Style, false)

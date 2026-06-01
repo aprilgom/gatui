@@ -94,6 +94,32 @@ func TestCell_Reset_shouldReturnEmptyDefaultCell(t *testing.T) {
 	}
 }
 
+func TestCellWidth_shouldMatchRatatuiDisplayWidth(t *testing.T) {
+	tests := []struct {
+		value string
+		want  int
+	}{
+		{value: "あ", want: 2},
+		{value: "", want: 0},
+		{value: "ﾞ", want: 1},
+		{value: "ﾟ", want: 1},
+		{value: "ｶﾞ", want: 2},
+		{value: "ﾊﾟ", want: 2},
+		{value: "aﾞ", want: 2},
+		{value: "あﾞ", want: 3},
+		{value: "ｶ゙", want: 1},
+		{value: "ガ", want: 2},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.value, func(t *testing.T) {
+			if got := buffer.CellWidth(tt.value); got != tt.want {
+				t.Fatalf("CellWidth(%q) = %d, want %d", tt.value, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestCell_Width_shouldUseDisplayWidth(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -104,6 +130,7 @@ func TestCell_Width_shouldUseDisplayWidth(t *testing.T) {
 		{name: "cjk", symbol: "コ", want: 2},
 		{name: "flag", symbol: "🇺🇸", want: 2},
 		{name: "empty", symbol: "", want: 1},
+		{name: "halfwidth voiced mark", symbol: "ﾞ", want: 1},
 	}
 
 	for _, tt := range tests {
@@ -114,6 +141,14 @@ func TestCell_Width_shouldUseDisplayWidth(t *testing.T) {
 				t.Fatalf("width = %d, want %d", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestCell_Width_shouldMatchCellWidthOfDisplaySymbol(t *testing.T) {
+	cell := buffer.NewCell("あﾞ")
+
+	if got, want := cell.Width(), buffer.CellWidth(cell.DisplaySymbol()); got != want {
+		t.Fatalf("width = %d, want CellWidth(DisplaySymbol()) = %d", got, want)
 	}
 }
 
@@ -432,6 +467,26 @@ func TestBuffer_SetStringN_shouldAppendZeroWidthMarkToPreviousCell(t *testing.T)
 		t.Fatalf("symbol = %q, want %q", got, want)
 	}
 	if got, want := buf.Lines(), []string{"a\u200Bb "}; !slices.Equal(got, want) {
+		t.Fatalf("lines = %#v, want %#v", got, want)
+	}
+}
+
+func TestBuffer_SetStringN_shouldTreatHalfwidthVoicedMarksAsWidthOne(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 3, 1))
+
+	endX, endY := buf.SetStringN(0, 0, "aﾞb", 3, style.NewStyle())
+
+	if endX != 3 || endY != 0 {
+		t.Fatalf("end = (%d,%d), want (3,0)", endX, endY)
+	}
+	cell, ok := buf.CellAt(1, 0)
+	if !ok {
+		t.Fatal("missing cell at 1,0")
+	}
+	if got, want := cell.Symbol, "ﾞ"; got != want {
+		t.Fatalf("symbol = %q, want %q", got, want)
+	}
+	if got, want := buf.Lines(), []string{"aﾞb"}; !slices.Equal(got, want) {
 		t.Fatalf("lines = %#v, want %#v", got, want)
 	}
 }

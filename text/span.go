@@ -31,7 +31,7 @@ func (s Span) ResetStyle() Span {
 }
 
 func (s Span) Width() int {
-	return uniseg.StringWidth(s.Content)
+	return buffer.CellWidth(s.Content)
 }
 
 func (s Span) StyledGraphemes(baseStyle style.Style) []StyledGrapheme {

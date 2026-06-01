@@ -3,6 +3,7 @@ package widgets
 import (
 	"testing"
 
+	"gatui/buffer"
 	"gatui/text"
 )
 
@@ -26,6 +27,14 @@ func TestCellDisplayWidth_shouldMeasureMixedTextByDisplayColumns(t *testing.T) {
 	cells := cellsFromLine(text.LineFromString("aコンピ"))
 
 	if got, want := cellsDisplayWidth(cells), 7; got != want {
+		t.Fatalf("cellsDisplayWidth = %d, want %d", got, want)
+	}
+}
+
+func TestCellDisplayWidth_shouldUseBufferCellWidth(t *testing.T) {
+	cells := cellsFromLine(text.LineFromString("ﾞ"))
+
+	if got, want := cellsDisplayWidth(cells), buffer.CellWidth("ﾞ"); got != want {
 		t.Fatalf("cellsDisplayWidth = %d, want %d", got, want)
 	}
 }

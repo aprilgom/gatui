@@ -2,8 +2,6 @@ package buffer
 
 import (
 	"gatui/style"
-
-	"github.com/rivo/uniseg"
 )
 
 type Cell struct {
@@ -37,7 +35,7 @@ func (c Cell) Width() int {
 	if c.ForcedWidth > 0 {
 		return c.ForcedWidth
 	}
-	return uniseg.StringWidth(c.DisplaySymbol())
+	return CellWidth(c.DisplaySymbol())
 }
 
 func (c *Cell) SetSymbol(symbol string) {

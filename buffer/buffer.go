@@ -29,7 +29,7 @@ func Filled(area layout.Rect, cell Cell) *Buffer {
 func WithLines(lines []string) *Buffer {
 	width := 0
 	for _, line := range lines {
-		if lineWidth := uniseg.StringWidth(line); lineWidth > width {
+		if lineWidth := CellWidth(line); lineWidth > width {
 			width = lineWidth
 		}
 	}
@@ -38,9 +38,10 @@ func WithLines(lines []string) *Buffer {
 		x := 0
 		graphemes := uniseg.NewGraphemes(line)
 		for graphemes.Next() {
-			symbol := graphemes.Str()
-			buf.SetSymbol(x, y, symbol)
-			x += uniseg.StringWidth(symbol)
+			for _, symbol := range cellWidthSymbols(graphemes.Str()) {
+				buf.SetSymbol(x, y, symbol)
+				x += CellWidth(symbol)
+			}
 		}
 	}
 	return buf
@@ -84,39 +85,74 @@ func (b *Buffer) SetStringN(x, y int, value string, maxWidth int, cellStyle styl
 
 	remainingWidth := minInt(b.Area.X+b.Area.Width-x, maxWidth)
 	graphemes := uniseg.NewGraphemes(value)
+writeLoop:
 	for graphemes.Next() {
-		symbol := graphemes.Str()
-		if containsControl(symbol) {
-			continue
-		}
-
-		width := uniseg.StringWidth(symbol)
-		if width == 0 {
-			if x > b.Area.X {
-				index := (y-b.Area.Y)*b.Area.Width + (x - 1 - b.Area.X)
-				b.Cells[index].AppendSymbol(symbol)
+		for _, symbol := range cellWidthSymbols(graphemes.Str()) {
+			if containsControl(symbol) {
+				continue
 			}
-			continue
-		}
-		if width > remainingWidth {
-			break
-		}
 
-		index := (y-b.Area.Y)*b.Area.Width + (x - b.Area.X)
-		b.Cells[index].SetSymbol(symbol)
-		b.Cells[index].SetStyle(cellStyle)
-		x++
-		remainingWidth--
+			width := CellWidth(symbol)
+			if width == 0 {
+				if x > b.Area.X {
+					index := (y-b.Area.Y)*b.Area.Width + (x - 1 - b.Area.X)
+					b.Cells[index].AppendSymbol(symbol)
+				}
+				continue
+			}
+			if width > remainingWidth {
+				break writeLoop
+			}
 
-		for trailing := 1; trailing < width; trailing++ {
 			index := (y-b.Area.Y)*b.Area.Width + (x - b.Area.X)
-			b.Cells[index].Reset()
+			b.Cells[index].SetSymbol(symbol)
+			b.Cells[index].SetStyle(cellStyle)
 			x++
 			remainingWidth--
+
+			for trailing := 1; trailing < width; trailing++ {
+				index := (y-b.Area.Y)*b.Area.Width + (x - b.Area.X)
+				b.Cells[index].Reset()
+				x++
+				remainingWidth--
+			}
 		}
 	}
 
 	return x, y
+}
+
+func cellWidthSymbols(symbol string) []string {
+	for _, r := range symbol {
+		if isHalfwidthVoicingMark(r) {
+			return splitHalfwidthVoicingMarks(symbol)
+		}
+	}
+	return []string{symbol}
+}
+
+func splitHalfwidthVoicingMarks(symbol string) []string {
+	symbols := make([]string, 0, len(symbol))
+	var b strings.Builder
+	for _, r := range symbol {
+		if isHalfwidthVoicingMark(r) {
+			if b.Len() > 0 {
+				symbols = append(symbols, b.String())
+				b.Reset()
+			}
+			symbols = append(symbols, string(r))
+			continue
+		}
+		b.WriteRune(r)
+	}
+	if b.Len() > 0 {
+		symbols = append(symbols, b.String())
+	}
+	return symbols
+}
+
+func isHalfwidthVoicingMark(r rune) bool {
+	return r == '\uff9e' || r == '\uff9f'
 }
 
 func (b *Buffer) SetStyle(area layout.Rect, cellStyle style.Style) {
