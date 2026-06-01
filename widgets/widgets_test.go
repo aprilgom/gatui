@@ -122,3 +122,13 @@ func assertCellStyle(t *testing.T, buf *buffer.Buffer, x, y int, expected style.
 		t.Fatalf("style at (%d,%d) = %#v, want %#v", x, y, cell.Style, expected)
 	}
 }
+
+func assertNotPanics(t *testing.T, fn func()) {
+	t.Helper()
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			t.Fatalf("unexpected panic: %v", recovered)
+		}
+	}()
+	fn()
+}
