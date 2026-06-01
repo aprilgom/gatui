@@ -194,6 +194,167 @@ func TestLayout_Split_shouldMatchRatatuiMaxAndFillConstraints(t *testing.T) {
 	}
 }
 
+func TestLayout_Split_shouldAlignSingleFixedSegmentByFlex(t *testing.T) {
+	tests := []struct {
+		name string
+		flex layout.Flex
+		want layout.Rect
+	}{
+		{name: "legacy stretches segment", flex: layout.FlexLegacy, want: layout.NewRect(0, 0, 100, 1)},
+		{name: "start", flex: layout.FlexStart, want: layout.NewRect(0, 0, 50, 1)},
+		{name: "end", flex: layout.FlexEnd, want: layout.NewRect(50, 0, 50, 1)},
+		{name: "center", flex: layout.FlexCenter, want: layout.NewRect(25, 0, 50, 1)},
+		{name: "space between stretches segment", flex: layout.FlexSpaceBetween, want: layout.NewRect(0, 0, 100, 1)},
+		{name: "space around centers segment", flex: layout.FlexSpaceAround, want: layout.NewRect(25, 0, 50, 1)},
+		{name: "space evenly centers segment", flex: layout.FlexSpaceEvenly, want: layout.NewRect(25, 0, 50, 1)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := layout.NewLayout(layout.Horizontal).
+				Flex(tt.flex).
+				Constraints(layout.Length(50)).
+				Split(layout.NewRect(0, 0, 100, 1))
+
+			want := []layout.Rect{tt.want}
+			if !reflect.DeepEqual(got, want) {
+				t.Fatalf("rects mismatch\nwant: %#v\n got: %#v", want, got)
+			}
+		})
+	}
+}
+
+func TestLayout_Split_shouldAlignTwoFixedSegmentsByFlex(t *testing.T) {
+	tests := []struct {
+		name string
+		flex layout.Flex
+		want []layout.Rect
+	}{
+		{
+			name: "legacy stretches last segment",
+			flex: layout.FlexLegacy,
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 25, 1),
+				layout.NewRect(25, 0, 75, 1),
+			},
+		},
+		{
+			name: "start",
+			flex: layout.FlexStart,
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 25, 1),
+				layout.NewRect(25, 0, 25, 1),
+			},
+		},
+		{
+			name: "center",
+			flex: layout.FlexCenter,
+			want: []layout.Rect{
+				layout.NewRect(25, 0, 25, 1),
+				layout.NewRect(50, 0, 25, 1),
+			},
+		},
+		{
+			name: "end",
+			flex: layout.FlexEnd,
+			want: []layout.Rect{
+				layout.NewRect(50, 0, 25, 1),
+				layout.NewRect(75, 0, 25, 1),
+			},
+		},
+		{
+			name: "space between",
+			flex: layout.FlexSpaceBetween,
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 25, 1),
+				layout.NewRect(75, 0, 25, 1),
+			},
+		},
+		{
+			name: "space around",
+			flex: layout.FlexSpaceAround,
+			want: []layout.Rect{
+				layout.NewRect(13, 0, 25, 1),
+				layout.NewRect(63, 0, 25, 1),
+			},
+		},
+		{
+			name: "space evenly",
+			flex: layout.FlexSpaceEvenly,
+			want: []layout.Rect{
+				layout.NewRect(17, 0, 25, 1),
+				layout.NewRect(58, 0, 25, 1),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := layout.NewLayout(layout.Horizontal).
+				Flex(tt.flex).
+				Constraints(layout.Length(25), layout.Length(25)).
+				Split(layout.NewRect(0, 0, 100, 1))
+
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("rects mismatch\nwant: %#v\n got: %#v", tt.want, got)
+			}
+		})
+	}
+}
+
+func TestLayout_Split_shouldLetMinAndFillAbsorbSurplusBeforeFlexAlignment(t *testing.T) {
+	tests := []struct {
+		name        string
+		constraints []layout.Constraint
+	}{
+		{name: "min", constraints: []layout.Constraint{layout.Min(25), layout.Min(25)}},
+		{name: "fill", constraints: []layout.Constraint{layout.Fill(1), layout.Fill(1)}},
+	}
+	flexes := []layout.Flex{
+		layout.FlexLegacy,
+		layout.FlexStart,
+		layout.FlexEnd,
+		layout.FlexCenter,
+		layout.FlexSpaceBetween,
+		layout.FlexSpaceAround,
+		layout.FlexSpaceEvenly,
+	}
+	want := []layout.Rect{
+		layout.NewRect(0, 0, 50, 1),
+		layout.NewRect(50, 0, 50, 1),
+	}
+
+	for _, tt := range tests {
+		for _, flex := range flexes {
+			t.Run(tt.name, func(t *testing.T) {
+				got := layout.NewLayout(layout.Horizontal).
+					Flex(flex).
+					Constraints(tt.constraints...).
+					Split(layout.NewRect(0, 0, 100, 1))
+
+				if !reflect.DeepEqual(got, want) {
+					t.Fatalf("rects mismatch for flex %d\nwant: %#v\n got: %#v", flex, want, got)
+				}
+			})
+		}
+	}
+}
+
+func TestLayout_Split_shouldApplyFlexAlignmentToMaxConstraints(t *testing.T) {
+	got := layout.NewLayout(layout.Horizontal).
+		Flex(layout.FlexCenter).
+		Constraints(layout.Max(25), layout.Max(25)).
+		Split(layout.NewRect(0, 0, 100, 1))
+
+	want := []layout.Rect{
+		layout.NewRect(25, 0, 25, 1),
+		layout.NewRect(50, 0, 25, 1),
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("rects mismatch\nwant: %#v\n got: %#v", want, got)
+	}
+}
+
 func TestLayout_Split_shouldHandleVerticalPercentageMin(t *testing.T) {
 	area := layout.NewRect(2, 4, 8, 10)
 

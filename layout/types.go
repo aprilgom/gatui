@@ -108,6 +108,18 @@ const (
 	Right
 )
 
+type Flex int
+
+const (
+	FlexLegacy Flex = iota
+	FlexStart
+	FlexEnd
+	FlexCenter
+	FlexSpaceBetween
+	FlexSpaceAround
+	FlexSpaceEvenly
+)
+
 type Constraint struct {
 	kind        constraintKind
 	value       int
@@ -180,6 +192,7 @@ func (c Constraint) Denominator() int {
 type Layout struct {
 	direction   Direction
 	constraints []Constraint
+	flex        Flex
 }
 
 func NewLayout(direction Direction) Layout {
@@ -188,6 +201,11 @@ func NewLayout(direction Direction) Layout {
 
 func (l Layout) Constraints(constraints ...Constraint) Layout {
 	l.constraints = append([]Constraint(nil), constraints...)
+	return l
+}
+
+func (l Layout) Flex(flex Flex) Layout {
+	l.flex = flex
 	return l
 }
 
@@ -200,39 +218,39 @@ func (l Layout) Split(area Rect) []Rect {
 	if l.direction == Vertical {
 		axisLength = area.Height
 	}
-	lengths := calculateLengths(axisLength, l.constraints)
+	lengths := calculateLengths(axisLength, l.constraints, l.flex == FlexLegacy)
+	if l.flex == FlexSpaceBetween && len(lengths) == 1 {
+		lengths[0] = axisLength
+	}
+	offsets := flexOffsets(axisLength, lengths, l.flex)
 
 	rects := make([]Rect, 0, len(l.constraints))
-	cursorX := area.X
-	cursorY := area.Y
 
-	for _, length := range lengths {
+	for i, length := range lengths {
 		width := area.Width
 		height := area.Height
+		x := area.X
+		y := area.Y
 		if l.direction == Horizontal {
 			width = length
+			x += offsets[i]
 		} else {
 			height = length
+			y += offsets[i]
 		}
 
-		rect := Rect{X: cursorX, Y: cursorY, Width: width, Height: height}
+		rect := Rect{X: x, Y: y, Width: width, Height: height}
 		rects = append(rects, rect)
-
-		if l.direction == Horizontal {
-			cursorX += length
-		} else {
-			cursorY += length
-		}
 	}
 
 	return rects
 }
 
-func calculateLengths(areaLength int, constraints []Constraint) []int {
+func calculateLengths(areaLength int, constraints []Constraint, stretchFixedSurplus bool) []int {
 	areaLength = maxInt(0, areaLength)
 	lengths := make([]int, len(constraints))
-	total := 0
-	hasMin := false
+	totalFixed := 0
+	minIndexes := make([]int, 0)
 	totalPositiveFillWeight := 0
 	fillCount := 0
 
@@ -247,34 +265,30 @@ func calculateLengths(areaLength int, constraints []Constraint) []int {
 
 		length := constraintLengthValue(areaLength, constraint)
 		lengths[i] = length
-		total += length
+		totalFixed += length
 		if constraint.kind == constraintMin {
-			hasMin = true
+			minIndexes = append(minIndexes, i)
 		}
 	}
 
 	if fillCount > 0 {
-		if total > areaLength {
-			shrinkLengths(lengths, constraints, total-areaLength, false)
+		if totalFixed > areaLength {
+			shrinkLengths(lengths, constraints, totalFixed-areaLength, false)
 			shrinkLengths(lengths, constraints, sumInts(lengths)-areaLength, true)
 			return lengths
 		}
 
-		distributeFillLengths(lengths, constraints, areaLength-total, totalPositiveFillWeight)
+		distributeFillLengths(lengths, constraints, areaLength-totalFixed, totalPositiveFillWeight)
 		return lengths
 	}
 
+	total := sumInts(lengths)
 	switch {
 	case total < areaLength:
 		surplus := areaLength - total
-		if hasMin {
-			for i, constraint := range constraints {
-				if constraint.kind == constraintMin {
-					lengths[i] += surplus
-					break
-				}
-			}
-		} else if len(lengths) > 0 {
+		if len(minIndexes) > 0 {
+			distributeSurplus(lengths, minIndexes, surplus)
+		} else if stretchFixedSurplus && len(lengths) > 0 {
 			lengths[len(lengths)-1] += surplus
 		}
 	case total > areaLength:
@@ -283,6 +297,75 @@ func calculateLengths(areaLength int, constraints []Constraint) []int {
 	}
 
 	return lengths
+}
+
+func flexOffsets(areaLength int, lengths []int, flex Flex) []int {
+	offsets := make([]int, len(lengths))
+	if len(lengths) == 0 {
+		return offsets
+	}
+
+	total := sumInts(lengths)
+	surplus := maxInt(0, areaLength-total)
+	switch flex {
+	case FlexEnd:
+		setPackedOffsets(offsets, lengths, surplus)
+	case FlexCenter:
+		setPackedOffsets(offsets, lengths, surplus/2)
+	case FlexSpaceBetween:
+		if len(lengths) == 1 {
+			offsets[0] = 0
+			return offsets
+		}
+		for i := range lengths {
+			offsets[i] = sumInts(lengths[:i]) + roundedDiv(i*surplus, len(lengths)-1)
+		}
+	case FlexSpaceAround:
+		denominator := len(lengths) * 2
+		for i := range lengths {
+			offsets[i] = sumInts(lengths[:i]) + roundedDiv((2*i+1)*surplus, denominator)
+		}
+	case FlexSpaceEvenly:
+		denominator := len(lengths) + 1
+		for i := range lengths {
+			offsets[i] = sumInts(lengths[:i]) + roundedDiv((i+1)*surplus, denominator)
+		}
+	default:
+		setPackedOffsets(offsets, lengths, 0)
+	}
+
+	return offsets
+}
+
+func setPackedOffsets(offsets []int, lengths []int, leading int) {
+	cursor := leading
+	for i, length := range lengths {
+		offsets[i] = cursor
+		cursor += length
+	}
+}
+
+func distributeSurplus(lengths []int, indexes []int, surplus int) {
+	if surplus <= 0 || len(indexes) == 0 {
+		return
+	}
+
+	base := surplus / len(indexes)
+	remainder := surplus % len(indexes)
+	for _, index := range indexes {
+		lengths[index] += base
+		if remainder > 0 {
+			lengths[index]++
+			remainder--
+		}
+	}
+}
+
+func roundedDiv(numerator, denominator int) int {
+	if denominator <= 0 {
+		return 0
+	}
+	return (numerator + denominator/2) / denominator
 }
 
 func constraintLengthValue(areaLength int, constraint Constraint) int {
