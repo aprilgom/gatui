@@ -10,19 +10,76 @@ import (
 )
 
 type Cell struct {
-	Symbol string
-	Style  style.Style
+	Symbol      string
+	Style       style.Style
+	DiffOption  CellDiffOption
+	ForcedWidth int
 }
+
+type CellDiffOption int
+
+const (
+	CellDiffNone CellDiffOption = iota
+	CellDiffSkip
+	CellDiffAlwaysUpdate
+	CellDiffForcedWidth
+)
 
 type Buffer struct {
 	Area  layout.Rect
 	Cells []Cell
 }
 
+func NewCell(symbol string) Cell {
+	return Cell{Symbol: symbol, Style: style.NewStyle()}
+}
+
+func (c Cell) DisplaySymbol() string {
+	if c.Symbol == "" {
+		return " "
+	}
+	return c.Symbol
+}
+
+func (c Cell) Width() int {
+	if c.ForcedWidth > 0 {
+		return c.ForcedWidth
+	}
+	return uniseg.StringWidth(c.DisplaySymbol())
+}
+
+func (c *Cell) SetSymbol(symbol string) {
+	c.Symbol = symbol
+}
+
+func (c *Cell) SetChar(char rune) {
+	c.SetSymbol(string(char))
+}
+
+func (c *Cell) AppendSymbol(symbol string) {
+	c.Symbol += symbol
+}
+
+func (c *Cell) SetStyle(cellStyle style.Style) {
+	c.Style = c.Style.Patch(cellStyle)
+}
+
+func (c *Cell) Reset() {
+	*c = NewCell(" ")
+}
+
+func (c *Cell) SetDiffOption(option CellDiffOption) {
+	c.DiffOption = option
+}
+
+func (c *Cell) SetForcedWidth(width int) {
+	c.ForcedWidth = width
+}
+
 func Empty(area layout.Rect) *Buffer {
 	cells := make([]Cell, area.Width*area.Height)
 	for i := range cells {
-		cells[i] = Cell{Symbol: " ", Style: style.NewStyle()}
+		cells[i] = NewCell(" ")
 	}
 	return &Buffer{Area: area, Cells: cells}
 }
@@ -101,12 +158,9 @@ func (b *Buffer) Lines() []string {
 	for y := 0; y < b.Area.Height; y++ {
 		var builder strings.Builder
 		for x := 0; x < b.Area.Width; x++ {
-			symbol := b.Cells[y*b.Area.Width+x].Symbol
-			if symbol == "" {
-				symbol = " "
-			}
+			symbol := b.Cells[y*b.Area.Width+x].DisplaySymbol()
 			builder.WriteString(symbol)
-			if width := uniseg.StringWidth(symbol); width > 1 {
+			if width := b.Cells[y*b.Area.Width+x].Width(); width > 1 {
 				for skipped := 0; skipped < width-1 && x+1 < b.Area.Width; skipped++ {
 					next := b.Cells[y*b.Area.Width+x+1].Symbol
 					if next != "" && next != " " {

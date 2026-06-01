@@ -20,6 +20,126 @@ func TestWithLines_shouldCreateBlankPaddedBuffer(t *testing.T) {
 	}
 }
 
+func TestNewCell_shouldCreateCellWithSymbolAndDefaultStyle(t *testing.T) {
+	cell := buffer.NewCell("x")
+
+	if got, want := cell.Symbol, "x"; got != want {
+		t.Fatalf("symbol = %q, want %q", got, want)
+	}
+	if got, want := cell.Style, style.NewStyle(); got != want {
+		t.Fatalf("style = %#v, want %#v", got, want)
+	}
+	if got, want := cell.DiffOption, buffer.CellDiffNone; got != want {
+		t.Fatalf("diff option = %#v, want %#v", got, want)
+	}
+	if got, want := cell.ForcedWidth, 0; got != want {
+		t.Fatalf("forced width = %d, want %d", got, want)
+	}
+}
+
+func TestCell_DisplaySymbol_shouldTreatEmptyAsSpace(t *testing.T) {
+	cell := buffer.Cell{}
+
+	if got, want := cell.DisplaySymbol(), " "; got != want {
+		t.Fatalf("display symbol = %q, want %q", got, want)
+	}
+}
+
+func TestCell_SetSymbolAndSetChar_shouldUpdateSymbol(t *testing.T) {
+	cell := buffer.NewCell("a")
+
+	cell.SetSymbol("bc")
+	if got, want := cell.Symbol, "bc"; got != want {
+		t.Fatalf("symbol after SetSymbol = %q, want %q", got, want)
+	}
+
+	cell.SetChar('コ')
+	if got, want := cell.Symbol, "コ"; got != want {
+		t.Fatalf("symbol after SetChar = %q, want %q", got, want)
+	}
+}
+
+func TestCell_AppendSymbol_shouldAppendZeroWidthMarks(t *testing.T) {
+	cell := buffer.NewCell("a")
+
+	cell.AppendSymbol("\u200B")
+
+	if got, want := cell.Symbol, "a\u200B"; got != want {
+		t.Fatalf("symbol = %q, want %q", got, want)
+	}
+}
+
+func TestCell_SetStyle_shouldPatchExistingStyle(t *testing.T) {
+	cell := buffer.NewCell("x")
+	cell.SetStyle(style.NewStyle().Fg(style.Red))
+	cell.SetStyle(style.NewStyle().Bg(style.Blue).AddModifier(style.ModifierBold))
+
+	want := style.NewStyle().Fg(style.Red).Bg(style.Blue).AddModifier(style.ModifierBold)
+	if cell.Style != want {
+		t.Fatalf("style = %#v, want %#v", cell.Style, want)
+	}
+}
+
+func TestCell_Reset_shouldReturnEmptyDefaultCell(t *testing.T) {
+	cell := buffer.NewCell("x")
+	cell.SetStyle(style.NewStyle().Fg(style.Red))
+	cell.SetDiffOption(buffer.CellDiffAlwaysUpdate)
+	cell.SetForcedWidth(3)
+
+	cell.Reset()
+
+	want := buffer.NewCell(" ")
+	if cell != want {
+		t.Fatalf("cell = %#v, want %#v", cell, want)
+	}
+}
+
+func TestCell_Width_shouldUseDisplayWidth(t *testing.T) {
+	tests := []struct {
+		name   string
+		symbol string
+		want   int
+	}{
+		{name: "ascii", symbol: "a", want: 1},
+		{name: "cjk", symbol: "コ", want: 2},
+		{name: "flag", symbol: "🇺🇸", want: 2},
+		{name: "empty", symbol: "", want: 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cell := buffer.NewCell(tt.symbol)
+
+			if got := cell.Width(); got != tt.want {
+				t.Fatalf("width = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCell_Width_shouldPreferForcedWidth(t *testing.T) {
+	cell := buffer.NewCell("a")
+	cell.SetForcedWidth(4)
+
+	if got, want := cell.Width(), 4; got != want {
+		t.Fatalf("width = %d, want %d", got, want)
+	}
+
+	cell.SetForcedWidth(0)
+	if got, want := cell.Width(), 1; got != want {
+		t.Fatalf("width after clearing forced width = %d, want %d", got, want)
+	}
+}
+
+func TestCell_SetDiffOption_shouldStoreOption(t *testing.T) {
+	cell := buffer.NewCell("x")
+
+	cell.SetDiffOption(buffer.CellDiffSkip)
+	if got, want := cell.DiffOption, buffer.CellDiffSkip; got != want {
+		t.Fatalf("diff option = %#v, want %#v", got, want)
+	}
+}
+
 func TestBuffer_Lines_shouldSkipHiddenFlagEmojiCell(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 3, 1))
 	buf.SetSymbol(0, 0, "🇺🇸")
