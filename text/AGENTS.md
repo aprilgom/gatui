@@ -2,17 +2,19 @@
 
 `text` owns styled text primitives: `Span`, `Line`, and `Text`.
 
-Key files: `types.go`, `../style/types.go`, `../widgets/types.go`.
+Key files: `grapheme.go`, `span.go`, `line.go`, `text.go`, `render.go`, `masked.go`, `../style/style.go`, `../widgets/paragraph.go`.
 
 ## Setup
 
 Install Go 1.23+ and `golangci-lint`, then work from the repository root.
 
-Allowed dependency:
+Allowed dependencies:
 
+- `buffer`
+- `layout`
 - `style`
 
-Avoid dependencies on `buffer`, `layout`, or `widgets`.
+Avoid dependencies on `widgets` or terminal backends.
 
 Verification:
 

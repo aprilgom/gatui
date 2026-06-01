@@ -6,7 +6,7 @@
 flowchart TD
     layout[layout<br/>Rect, Margin, Offset, Constraint]
     style[style<br/>Color, Modifier, Style]
-    text[text<br/>Span, Line, Text]
+    text[text<br/>StyledGrapheme, Span, Line, Text]
     widgets[widgets<br/>Widget, Paragraph, Block, Clear]
     buffer[buffer<br/>Buffer, Cell]
     backend[backend/tcell<br/>terminal drawing and flush]
@@ -14,7 +14,9 @@ flowchart TD
     style --> text
     style --> buffer
     layout --> buffer
+    layout --> text
     layout --> widgets
+    buffer --> text
     text --> widgets
     widgets --> buffer
     buffer --> backend
@@ -24,7 +26,7 @@ flowchart TD
 
 - `layout` owns geometry and area splitting. It must not depend on widgets or terminal backends.
 - `style` owns style value types and chainable style helpers. It must stay backend-neutral.
-- `text` owns styled textual content. It may depend on `style`, but not on `buffer` or `widgets`.
+- `text` owns styled textual content and rendering text primitives into buffers. It may depend on `buffer`, `layout`, and `style`, but not on `widgets` or terminal backends.
 - `buffer` owns the off-screen cell grid. It may depend on `layout` and `style`.
 - `widgets` owns renderable components. Widgets write into `buffer.Buffer` inside a `layout.Rect`.
 - `backend/tcell` translates `buffer.Cell` and `style.Style` into `tcell` drawing calls.

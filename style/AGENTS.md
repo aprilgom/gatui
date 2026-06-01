@@ -2,7 +2,7 @@
 
 `style` owns backend-neutral color, modifier, style, `Styled`, and `Stylize` concepts.
 
-Key files: `types.go`, `../text/types.go`, `../buffer/types.go`.
+Key files: `color.go`, `modifier.go`, `style.go`, `stylize.go`, `../text/span.go`, `../buffer/cell.go`.
 
 ## Setup
 

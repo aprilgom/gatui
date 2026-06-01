@@ -2,7 +2,7 @@
 
 `buffer` owns the off-screen cell grid used by widgets.
 
-Key files: `types.go`, `../layout/types.go`, `../style/types.go`.
+Key files: `cell.go`, `buffer.go`, `diff.go`, `helpers.go`, `../layout/rect.go`, `../style/style.go`.
 
 ## Setup
 

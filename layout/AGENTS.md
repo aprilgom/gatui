@@ -2,7 +2,7 @@
 
 `layout` owns geometry and area splitting.
 
-Key files: `types.go`, `rect_test.go`, `../api_contract_test.go`.
+Key files: `rect.go`, `primitives.go`, `constraint.go`, `layout.go`, `helpers.go`, `rect_test.go`, `layout_test.go`, `../api_contract_test.go`.
 
 Keep this package dependency-free unless there is a strong reason. It should remain usable by `buffer` and `widgets` without import cycles.
 

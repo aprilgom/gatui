@@ -2,7 +2,7 @@
 
 `widgets` owns renderable UI components.
 
-Key files: `types.go`, `../buffer/types.go`, `../layout/types.go`.
+Key files: `interfaces.go`, `paragraph.go`, `tabs.go`, `gauge.go`, `line_gauge.go`, `clear.go`, `render_line.go`, `wrap_helpers.go`, plus widget-specific files such as `block.go`, `table.go`, and `list.go`.
 
 ## Setup
 

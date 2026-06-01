@@ -35,8 +35,8 @@ Then run:
 
 Implemented slices:
 
-- Initial package structure.
+- Package structure with type definitions split into focused files per package.
 - Public API contract smoke test.
-- Go port coverage represented by `layout/rect_test.go` for `Rect.Inner`, `Rect.Outer`, `Rect.Offset`, `Rect.Intersection`, and `Rect.Clamp`.
+- Go port coverage represented by package tests across `layout`, `buffer`, `style`, `text`, `terminal`, and `widgets`.
 
 See [AGENTS.md](AGENTS.md) for Codex workflow guidance and [ARCHITECTURE.md](ARCHITECTURE.md) for the package map.
