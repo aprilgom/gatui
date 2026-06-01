@@ -5,6 +5,8 @@ import (
 	"gatui/layout"
 	"gatui/style"
 	"gatui/text"
+
+	"github.com/mattn/go-runewidth"
 )
 
 func writeString(buf *buffer.Buffer, x, y int, value string, width int, cellStyle style.Style) {
@@ -30,7 +32,7 @@ func writeStringWithin(buf *buffer.Buffer, x, y, right int, value string, cellSt
 }
 
 func lineWidth(line text.Line) int {
-	return len(cellsFromLine(line))
+	return cellsDisplayWidth(cellsFromLine(line))
 }
 
 func minInt(a, b int) int {
@@ -55,6 +57,22 @@ func cellsFromLine(line text.Line) []buffer.Cell {
 		}
 	}
 	return cells
+}
+
+func cellDisplayWidth(cell buffer.Cell) int {
+	width := runewidth.StringWidth(cell.Symbol)
+	if width == 0 && cell.Symbol != "" {
+		return 1
+	}
+	return width
+}
+
+func cellsDisplayWidth(cells []buffer.Cell) int {
+	width := 0
+	for _, cell := range cells {
+		width += cellDisplayWidth(cell)
+	}
+	return width
 }
 
 func alignedOffset(lineWidth, areaWidth int, alignment layout.Alignment) int {

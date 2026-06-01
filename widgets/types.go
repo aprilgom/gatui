@@ -508,7 +508,7 @@ func (p Paragraph) Render(area layout.Rect, buf *buffer.Buffer) {
 				break
 			}
 			buf.SetCell(x, textArea.Y+y, cell)
-			x++
+			x += cellDisplayWidth(cell)
 		}
 	}
 }
@@ -565,14 +565,18 @@ type renderLine struct {
 }
 
 func (l renderLine) width() int {
-	return len(l.cells)
+	return cellsDisplayWidth(l.cells)
 }
 
 func (l renderLine) skip(count int) renderLine {
-	if count >= len(l.cells) {
-		return renderLine{alignment: l.alignment}
+	for len(l.cells) > 0 && count > 0 {
+		width := cellDisplayWidth(l.cells[0])
+		if width > count {
+			break
+		}
+		count -= width
+		l.cells = l.cells[1:]
 	}
-	l.cells = l.cells[count:]
 	return l
 }
 
@@ -582,19 +586,19 @@ func wrapCells(cells []buffer.Cell, width int, trim bool) [][]buffer.Cell {
 		if trim {
 			cells = trimLeftCells(cells)
 		}
-		if len(cells) <= width {
+		if cellsDisplayWidth(cells) <= width {
 			lines = append(lines, trimRightCells(append([]buffer.Cell(nil), cells...), trim))
 			break
 		}
-		breakAt := width
-		for i := width; i >= 0; i-- {
+		breakAt := cellsThatFit(cells, width)
+		for i := breakAt; i >= 0; i-- {
 			if i < len(cells) && isSpaceCell(cells[i]) {
 				breakAt = i
 				break
 			}
 		}
 		if breakAt == 0 {
-			breakAt = width
+			breakAt = cellsThatFit(cells, width)
 		}
 		line := append([]buffer.Cell(nil), cells[:breakAt]...)
 		lines = append(lines, trimRightCells(line, trim))
@@ -604,6 +608,18 @@ func wrapCells(cells []buffer.Cell, width int, trim bool) [][]buffer.Cell {
 		lines = append(lines, nil)
 	}
 	return lines
+}
+
+func cellsThatFit(cells []buffer.Cell, width int) int {
+	used := 0
+	for i, cell := range cells {
+		cellWidth := cellDisplayWidth(cell)
+		if used+cellWidth > width {
+			return i
+		}
+		used += cellWidth
+	}
+	return len(cells)
 }
 
 func trimLeftCells(cells []buffer.Cell) []buffer.Cell {

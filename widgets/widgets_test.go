@@ -125,6 +125,92 @@ func TestParagraph_shouldRenderInsideBlockWithWrapAlignmentAndScroll(t *testing.
 	})
 }
 
+func TestParagraph_shouldRenderDoubleWidthGraphemes(t *testing.T) {
+	content := text.FromString("コンピュータ上で文字を扱う場合、典型的には文字による通信を行う場合にその両端点では、")
+	paragraph := widgets.NewParagraph(content).
+		Block(widgets.BorderedBlock()).
+		Wrap(widgets.Wrap{Trim: true})
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 10))
+
+	paragraph.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"┌────────┐",
+		"│コンピュ│",
+		"│ータ上で│",
+		"│文字を扱│",
+		"│う場合、│",
+		"│典型的に│",
+		"│は文字に│",
+		"│よる通信│",
+		"│を行う場│",
+		"└────────┘",
+	})
+	assertCellSymbol(t, buf, 1, 1, "コ")
+	assertCellSymbol(t, buf, 2, 1, " ")
+	assertCellSymbol(t, buf, 7, 1, "ュ")
+	assertCellSymbol(t, buf, 8, 1, " ")
+}
+
+func TestParagraph_shouldRenderMixedWidthGraphemes(t *testing.T) {
+	content := text.FromString("aコンピュータ上で文字を扱う場合、")
+	paragraph := widgets.NewParagraph(content).
+		Block(widgets.BorderedBlock()).
+		Wrap(widgets.Wrap{Trim: true})
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 7))
+
+	paragraph.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"┌────────┐",
+		"│aコンピ │",
+		"│ュータ上│",
+		"│で文字を│",
+		"│扱う場合│",
+		"│、      │",
+		"└────────┘",
+	})
+	assertCellSymbol(t, buf, 1, 1, "a")
+	assertCellSymbol(t, buf, 2, 1, "コ")
+	assertCellSymbol(t, buf, 3, 1, " ")
+	assertCellSymbol(t, buf, 8, 1, " ")
+}
+
+func TestParagraph_shouldScrollHorizontallyByDisplayWidth(t *testing.T) {
+	content := text.FromString("段落现在可以水平滚动了！\nParagraph can scroll horizontally!\nLittle line")
+	paragraph := widgets.NewParagraph(content).Block(widgets.BorderedBlock())
+
+	leftBuf := buffer.Empty(layout.NewRect(0, 0, 20, 10))
+	paragraph.Alignment(layout.Left).Scroll(0, 7).Render(leftBuf.Area, leftBuf)
+	assertLines(t, leftBuf, []string{
+		"┌──────────────────┐",
+		"│在可以水平滚动了！│",
+		"│ph can scroll hori│",
+		"│line              │",
+		"│                  │",
+		"│                  │",
+		"│                  │",
+		"│                  │",
+		"│                  │",
+		"└──────────────────┘",
+	})
+
+	rightBuf := buffer.Empty(layout.NewRect(0, 0, 20, 10))
+	paragraph.Alignment(layout.Right).Scroll(0, 7).Render(rightBuf.Area, rightBuf)
+	assertLines(t, rightBuf, []string{
+		"┌──────────────────┐",
+		"│段落现在可以水平滚│",
+		"│Paragraph can scro│",
+		"│       Little line│",
+		"│                  │",
+		"│                  │",
+		"│                  │",
+		"│                  │",
+		"│                  │",
+		"└──────────────────┘",
+	})
+}
+
 func TestParagraph_shouldWorkWithBlockPadding(t *testing.T) {
 	const sampleString = "The library is based on the principle of immediate rendering with intermediate buffers. This means that at each new frame you should build all widgets that are supposed to be part of the UI."
 	block := widgets.BorderedBlock().Padding(widgets.NewPadding(2, 2, 1, 1))
@@ -219,6 +305,17 @@ func assertCellStyle(t *testing.T, buf *buffer.Buffer, x, y int, expected style.
 	}
 	if cell.Style != expected {
 		t.Fatalf("style at (%d,%d) = %#v, want %#v", x, y, cell.Style, expected)
+	}
+}
+
+func assertCellSymbol(t *testing.T, buf *buffer.Buffer, x, y int, expected string) {
+	t.Helper()
+	cell, ok := buf.CellAt(x, y)
+	if !ok {
+		t.Fatalf("expected cell at (%d,%d)", x, y)
+	}
+	if cell.Symbol != expected {
+		t.Fatalf("symbol at (%d,%d) = %q, want %q", x, y, cell.Symbol, expected)
 	}
 }
 
