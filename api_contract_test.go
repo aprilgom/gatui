@@ -9,6 +9,7 @@ import (
 	"gatui/terminal"
 	"gatui/terminal/testbackend"
 	"gatui/text"
+	"gatui/textbuffer"
 	"gatui/widgets"
 )
 
@@ -47,6 +48,8 @@ func TestPublicAPISurface_shouldExposeInitialRatatuiPortTypes(t *testing.T) {
 	_ = style.Styled[text.Span]{Value: span, Style: style.NewStyle()}
 	_ = text.FromString("hello\nworld").Cyan().Bold()
 	_ = text.LineFromString("right").Right()
+	_, _ = textbuffer.SetSpan(buf, 0, 0, span, 5)
+	_, _ = textbuffer.SetLine(buf, 0, 0, line, 5)
 	_ = buffer.WithLines([]string{"hello"})
 	_, _ = buf.CellAt(0, 0)
 	buf.SetFg(area, style.Cyan)
