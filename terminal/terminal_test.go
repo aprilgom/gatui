@@ -25,6 +25,9 @@ type recordingBackend struct {
 	cursorPosition  layout.Position
 	appendLines     []int
 	operations      []string
+	sizeErr         error
+	drawErr         error
+	flushErr        error
 	clearRegionErr  error
 }
 
@@ -33,6 +36,9 @@ func newRecordingBackend(width, height int) *recordingBackend {
 }
 
 func (b *recordingBackend) Size() (layout.Size, error) {
+	if b.sizeErr != nil {
+		return layout.Size{}, b.sizeErr
+	}
 	return b.size, nil
 }
 
@@ -45,12 +51,18 @@ func (b *recordingBackend) Draw(diffs []buffer.CellDiff) error {
 	copy(copied, diffs)
 	b.draws = append(b.draws, copied)
 	b.operations = append(b.operations, "draw")
+	if b.drawErr != nil {
+		return b.drawErr
+	}
 	return nil
 }
 
 func (b *recordingBackend) Flush() error {
 	b.flushCount++
 	b.operations = append(b.operations, "backend-flush")
+	if b.flushErr != nil {
+		return b.flushErr
+	}
 	return nil
 }
 
@@ -289,6 +301,163 @@ func TestTerminal_Draw_shouldRenderWidgetAndFlushDiff(t *testing.T) {
 	}
 	if got, want := backend.flushCount, 1; got != want {
 		t.Fatalf("flush count = %d, want %d", got, want)
+	}
+}
+
+func TestTerminal_Frame_usesCurrentViewportAndFrameCount(t *testing.T) {
+	backend := newRecordingBackend(5, 3)
+	term, err := terminal.New(backend)
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+
+	frame := term.Frame()
+
+	if got, want := frame.Area(), layout.NewRect(0, 0, 5, 3); got != want {
+		t.Fatalf("frame area = %#v, want %#v", got, want)
+	}
+	if got, want := frame.Buffer().Area, layout.NewRect(0, 0, 5, 3); got != want {
+		t.Fatalf("buffer area = %#v, want %#v", got, want)
+	}
+	if got, want := frame.Count(), 0; got != want {
+		t.Fatalf("frame count = %d, want %d", got, want)
+	}
+
+	if _, err := term.Draw(nil); err != nil {
+		t.Fatalf("Draw returned error: %v", err)
+	}
+
+	if got, want := term.Frame().Count(), 1; got != want {
+		t.Fatalf("next frame count = %d, want %d", got, want)
+	}
+}
+
+func TestFrame_Count_returnsCurrentFrameCount(t *testing.T) {
+	term, err := terminal.New(newRecordingBackend(3, 1))
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+
+	var counts []int
+	for i := 0; i < 3; i++ {
+		completed, err := term.Draw(func(frame *terminal.Frame) {
+			counts = append(counts, frame.Count())
+		})
+		if err != nil {
+			t.Fatalf("Draw returned error: %v", err)
+		}
+		if got, want := completed.Count, i; got != want {
+			t.Fatalf("completed count = %d, want %d", got, want)
+		}
+	}
+
+	if want := []int{0, 1, 2}; !reflect.DeepEqual(counts, want) {
+		t.Fatalf("frame counts = %#v, want %#v", counts, want)
+	}
+}
+
+func TestTerminal_Draw_returnsCompletedFrameForCurrentRenderPass(t *testing.T) {
+	term, err := terminal.New(newRecordingBackend(3, 1))
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+
+	first, err := term.Draw(nil)
+	if err != nil {
+		t.Fatalf("first Draw returned error: %v", err)
+	}
+	second, err := term.Draw(nil)
+	if err != nil {
+		t.Fatalf("second Draw returned error: %v", err)
+	}
+
+	if got, want := first.Count, 0; got != want {
+		t.Fatalf("first completed count = %d, want %d", got, want)
+	}
+	if got, want := second.Count, 1; got != want {
+		t.Fatalf("second completed count = %d, want %d", got, want)
+	}
+	if got, want := term.Frame().Count(), 2; got != want {
+		t.Fatalf("next manual frame count = %d, want %d", got, want)
+	}
+}
+
+func TestTerminal_TryDraw_errorDoesNotIncrementFrameCount(t *testing.T) {
+	term, err := terminal.New(newRecordingBackend(3, 1))
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+	drawErr := errors.New("render failed")
+
+	completed, err := term.TryDraw(func(frame *terminal.Frame) error {
+		if got, want := frame.Count(), 0; got != want {
+			t.Fatalf("frame count = %d, want %d", got, want)
+		}
+		return drawErr
+	})
+
+	if !errors.Is(err, drawErr) {
+		t.Fatalf("TryDraw error = %v, want %v", err, drawErr)
+	}
+	if completed != nil {
+		t.Fatalf("completed = %#v, want nil", completed)
+	}
+	if got, want := term.Frame().Count(), 0; got != want {
+		t.Fatalf("next frame count = %d, want %d", got, want)
+	}
+}
+
+func TestTerminal_TryDraw_backendErrorDoesNotIncrementFrameCount(t *testing.T) {
+	backend := newRecordingBackend(3, 1)
+	term, err := terminal.New(backend)
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+	backend.drawErr = errors.New("draw failed")
+
+	completed, err := term.TryDraw(func(frame *terminal.Frame) error {
+		frame.Buffer().SetSymbol(0, 0, "x")
+		return nil
+	})
+
+	if !errors.Is(err, backend.drawErr) {
+		t.Fatalf("TryDraw error = %v, want %v", err, backend.drawErr)
+	}
+	if completed != nil {
+		t.Fatalf("completed = %#v, want nil", completed)
+	}
+	if got, want := term.Frame().Count(), 0; got != want {
+		t.Fatalf("next frame count = %d, want %d", got, want)
+	}
+}
+
+func TestTerminal_Frame_doesNotAutoresizeOrFlush(t *testing.T) {
+	backend := newRecordingBackend(3, 1)
+	term, err := terminal.New(backend)
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+	backend.SetSize(5, 2)
+	backend.draws = nil
+	backend.flushCount = 0
+	backend.operations = nil
+
+	frame := term.Frame()
+
+	if got, want := frame.Area(), layout.NewRect(0, 0, 3, 1); got != want {
+		t.Fatalf("frame area = %#v, want unchanged %#v", got, want)
+	}
+	if got, want := term.Area(), layout.NewRect(0, 0, 3, 1); got != want {
+		t.Fatalf("terminal area = %#v, want unchanged %#v", got, want)
+	}
+	if got := len(backend.draws); got != 0 {
+		t.Fatalf("draw count = %d, want 0", got)
+	}
+	if got := backend.flushCount; got != 0 {
+		t.Fatalf("flush count = %d, want 0", got)
+	}
+	if got := len(backend.operations); got != 0 {
+		t.Fatalf("backend operations = %#v, want none", backend.operations)
 	}
 }
 

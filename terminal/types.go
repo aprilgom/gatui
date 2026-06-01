@@ -60,6 +60,7 @@ type Terminal struct {
 type Frame struct {
 	area           layout.Rect
 	buffer         *buffer.Buffer
+	count          int
 	cursorPosition *layout.Position
 }
 
@@ -139,7 +140,7 @@ func (t *Terminal) TryDraw(render func(*Frame) error) (*CompletedFrame, error) {
 	}
 	snapshot := append([]buffer.Cell(nil), t.current.Cells...)
 	t.current.Reset()
-	frame := &Frame{area: t.area, buffer: t.current}
+	frame := &Frame{area: t.area, buffer: t.current, count: t.count}
 	if render != nil {
 		if err := render(frame); err != nil {
 			copy(t.current.Cells, snapshot)
@@ -286,7 +287,7 @@ func (t *Terminal) Area() layout.Rect {
 }
 
 func (t *Terminal) Frame() *Frame {
-	return &Frame{area: t.area, buffer: t.current}
+	return &Frame{area: t.area, buffer: t.current, count: t.count}
 }
 
 func (t *Terminal) Resize(area layout.Rect) error {
@@ -521,6 +522,10 @@ func (f *Frame) Area() layout.Rect {
 
 func (f *Frame) Buffer() *buffer.Buffer {
 	return f.buffer
+}
+
+func (f *Frame) Count() int {
+	return f.count
 }
 
 func (f *Frame) RenderWidget(widget widgets.Widget, area layout.Rect) {
