@@ -411,6 +411,115 @@ func TestChart_shouldPlotLineBetweenTwoPoints(t *testing.T) {
 	})
 }
 
+func TestChart_shouldRenderBarGraphType(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 11, 11))
+	chart := widgets.NewChart([]widgets.Dataset{
+		widgets.NewDataset().
+			GraphType(widgets.GraphTypeBar).
+			DataPoints([]widgets.ChartPoint{
+				{X: 0, Y: 0},
+				{X: 2, Y: 1},
+				{X: 4, Y: 4},
+				{X: 6, Y: 8},
+				{X: 8, Y: 9},
+				{X: 10, Y: 10},
+			}),
+	}).
+		XAxis(widgets.NewAxis().Bounds(0, 10)).
+		YAxis(widgets.NewAxis().Bounds(0, 10))
+
+	chart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"          •",
+		"        • •",
+		"      • • •",
+		"      • • •",
+		"      • • •",
+		"      • • •",
+		"    • • • •",
+		"    • • • •",
+		"    • • • •",
+		"  • • • • •",
+		"• • • • • •",
+	})
+}
+
+func TestChart_shouldRenderAreaGraphType(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 11, 11))
+	chart := widgets.NewChart([]widgets.Dataset{
+		widgets.NewDataset().
+			GraphType(widgets.GraphTypeArea).
+			FillToY(0).
+			DataPoints([]widgets.ChartPoint{
+				{X: 0, Y: 0},
+				{X: 5, Y: 5},
+				{X: 10, Y: 5},
+			}),
+	}).
+		XAxis(widgets.NewAxis().Bounds(0, 10)).
+		YAxis(widgets.NewAxis().Bounds(0, 10))
+
+	chart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"           ",
+		"           ",
+		"           ",
+		"           ",
+		"           ",
+		"     ••••••",
+		"    •••••••",
+		"   ••••••••",
+		"  •••••••••",
+		" ••••••••••",
+		"•••••••••••",
+	})
+}
+
+func TestChart_shouldAllowEmptyBarAndAreaDatasets(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 20, 5))
+	chart := widgets.NewChart([]widgets.Dataset{
+		widgets.NewDataset().
+			GraphType(widgets.GraphTypeBar).
+			DataPoints([]widgets.ChartPoint{}),
+		widgets.NewDataset().
+			GraphType(widgets.GraphTypeArea).
+			DataPoints([]widgets.ChartPoint{}),
+	}).
+		XAxis(widgets.NewAxis().Bounds(0, 1).LabelStrings([]string{"0", "1"})).
+		YAxis(widgets.NewAxis().Bounds(0, 1).LabelStrings([]string{"0", "1"}))
+
+	assertNotPanics(t, func() {
+		chart.Render(buf.Area, buf)
+	})
+}
+
+func TestChart_shouldClampAreaFillToYToBounds(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 5, 5))
+	chart := widgets.NewChart([]widgets.Dataset{
+		widgets.NewDataset().
+			GraphType(widgets.GraphTypeArea).
+			FillToY(-10).
+			DataPoints([]widgets.ChartPoint{
+				{X: 0, Y: 4},
+				{X: 4, Y: 4},
+			}),
+	}).
+		XAxis(widgets.NewAxis().Bounds(0, 4)).
+		YAxis(widgets.NewAxis().Bounds(0, 4))
+
+	chart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"•••••",
+		"•••••",
+		"•••••",
+		"•••••",
+		"•••••",
+	})
+}
+
 func TestChart_datasetsWithoutNameShouldNotContributeToLegendHeight(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 50, 25))
 	chart := widgets.NewChart([]widgets.Dataset{

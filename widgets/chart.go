@@ -14,6 +14,8 @@ type GraphType int
 const (
 	GraphTypeScatter GraphType = iota
 	GraphTypeLine
+	GraphTypeBar
+	GraphTypeArea
 )
 
 type LegendPosition int
@@ -48,6 +50,7 @@ type Dataset struct {
 	data      []ChartPoint
 	graphType GraphType
 	style     style.Style
+	fillToY   float64
 }
 
 type Chart struct {
@@ -130,6 +133,11 @@ func (d Dataset) DataPoints(data []ChartPoint) Dataset {
 
 func (d Dataset) GraphType(graphType GraphType) Dataset {
 	d.graphType = graphType
+	return d
+}
+
+func (d Dataset) FillToY(y float64) Dataset {
+	d.fillToY = y
 	return d
 }
 
@@ -393,6 +401,10 @@ func (c Chart) renderDatasets(buf *buffer.Buffer, l chartAxisLayout) {
 	}
 	for _, dataset := range c.datasets {
 		switch dataset.graphType {
+		case GraphTypeArea:
+			c.renderAreaDataset(buf, graphArea, dataset, xMin, xMax, yMin, yMax)
+		case GraphTypeBar:
+			c.renderBarDataset(buf, graphArea, dataset, xMin, xMax, yMin, yMax)
 		case GraphTypeLine:
 			c.renderLineDataset(buf, graphArea, dataset, xMin, xMax, yMin, yMax)
 		case GraphTypeScatter:
@@ -516,6 +528,45 @@ func (c Chart) graphArea(l chartAxisLayout) layout.Rect {
 	return layout.NewRect(l.graphLeft, l.area.Y, l.graphRight-l.graphLeft, bottom-l.area.Y+1)
 }
 
+func (c Chart) renderBarDataset(buf *buffer.Buffer, area layout.Rect, dataset Dataset, xMin, xMax, yMin, yMax float64) {
+	for _, point := range dataset.data {
+		start, ok := c.mapPoint(area, ChartPoint{X: point.X, Y: 0}, xMin, xMax, yMin, yMax)
+		if !ok {
+			continue
+		}
+		end, ok := c.mapPoint(area, point, xMin, xMax, yMin, yMax)
+		if !ok {
+			continue
+		}
+		c.plotLine(buf, dataset.style, start, end)
+	}
+}
+
+func (c Chart) renderAreaDataset(buf *buffer.Buffer, area layout.Rect, dataset Dataset, xMin, xMax, yMin, yMax float64) {
+	fillToY := math.Min(math.Max(dataset.fillToY, yMin), yMax)
+	for i := 1; i < len(dataset.data); i++ {
+		start, ok := c.mapPoint(area, dataset.data[i-1], xMin, xMax, yMin, yMax)
+		if !ok {
+			continue
+		}
+		end, ok := c.mapPoint(area, dataset.data[i], xMin, xMax, yMin, yMax)
+		if !ok {
+			continue
+		}
+		fillPoint, ok := c.mapPoint(area, ChartPoint{X: dataset.data[i-1].X, Y: fillToY}, xMin, xMax, yMin, yMax)
+		if !ok {
+			continue
+		}
+		forEachChartLinePoint(start, end, func(point layout.Position) {
+			fillStart := minInt(point.Y, fillPoint.Y)
+			fillEnd := maxInt(point.Y, fillPoint.Y)
+			for y := fillStart; y <= fillEnd; y++ {
+				c.plotMappedPoint(buf, dataset.style, layout.Position{X: point.X, Y: y})
+			}
+		})
+	}
+}
+
 func (c Chart) renderLineDataset(buf *buffer.Buffer, area layout.Rect, dataset Dataset, xMin, xMax, yMin, yMax float64) {
 	var previous *layout.Position
 	for _, point := range dataset.data {
@@ -556,6 +607,12 @@ func (c Chart) mapPoint(area layout.Rect, point ChartPoint, xMin, xMax, yMin, yM
 }
 
 func (c Chart) plotLine(buf *buffer.Buffer, lineStyle style.Style, start, end layout.Position) {
+	forEachChartLinePoint(start, end, func(point layout.Position) {
+		c.plotMappedPoint(buf, lineStyle, point)
+	})
+}
+
+func forEachChartLinePoint(start, end layout.Position, fn func(layout.Position)) {
 	dx := end.X - start.X
 	if dx < 0 {
 		dx = -dx
@@ -566,14 +623,14 @@ func (c Chart) plotLine(buf *buffer.Buffer, lineStyle style.Style, start, end la
 	}
 	steps := maxInt(dx, dy)
 	if steps == 0 {
-		c.plotMappedPoint(buf, lineStyle, start)
+		fn(start)
 		return
 	}
 	for i := 0; i <= steps; i++ {
 		t := float64(i) / float64(steps)
 		x := int(math.Round(float64(start.X) + float64(end.X-start.X)*t))
 		y := int(math.Round(float64(start.Y) + float64(end.Y-start.Y)*t))
-		c.plotMappedPoint(buf, lineStyle, layout.Position{X: x, Y: y})
+		fn(layout.Position{X: x, Y: y})
 	}
 }
 
