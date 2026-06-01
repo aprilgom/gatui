@@ -43,8 +43,6 @@ var worldLowResolution = lowResolutionMapPoints([]string{
 	"                                                                                ",
 })
 
-var worldHighResolution []CanvasPoint
-
 func lowResolutionMapPoints(rows []string) []CanvasPoint {
 	points := make([]CanvasPoint, 0, 1024)
 	for y, row := range rows {
