@@ -1,8 +1,10 @@
 package text_test
 
 import (
+	"reflect"
 	"testing"
 
+	"gatui/buffer"
 	"gatui/layout"
 	"gatui/style"
 	"gatui/text"
@@ -416,5 +418,128 @@ func TestTextStylize_shouldUpdateTextStyle(t *testing.T) {
 	}
 	if got.Lines[0].Spans[0].Style != style.NewStyle() {
 		t.Fatalf("span style = %#v, want default", got.Lines[0].Spans[0].Style)
+	}
+}
+
+func TestSpan_Render_shouldDrawStyledContent(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 15, 1))
+	spanStyle := style.NewStyle().Fg(style.Green).Bg(style.Yellow)
+
+	text.StyledSpan("test content", spanStyle).Render(buf.Area, buf)
+
+	assertTextLines(t, buf, []string{"test content   "})
+	for x := 0; x < len("test content"); x++ {
+		assertTextCellStyle(t, buf, x, 0, spanStyle)
+	}
+}
+
+func TestSpan_Render_shouldPatchExistingStyle(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 2, 1))
+	buf.SetStyle(buf.Area, style.NewStyle().AddModifier(style.ModifierItalic))
+	spanStyle := style.NewStyle().Fg(style.Green)
+
+	text.StyledSpan("hi", spanStyle).Render(buf.Area, buf)
+
+	want := style.NewStyle().Fg(style.Green).AddModifier(style.ModifierItalic)
+	assertTextCellStyle(t, buf, 0, 0, want)
+	assertTextCellStyle(t, buf, 1, 0, want)
+}
+
+func TestSpan_Render_shouldTruncateToAreaWidth(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 5, 1))
+
+	text.NewSpan("test content").Render(buf.Area, buf)
+
+	assertTextLines(t, buf, []string{"test "})
+}
+
+func TestSpan_Render_shouldRenderWideSymbolAndClearHiddenCell(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 15, 1))
+
+	text.NewSpan("test 😃 content").Render(buf.Area, buf)
+
+	assertTextLines(t, buf, []string{"test 😃 content"})
+	cell, ok := buf.CellAt(6, 0)
+	if !ok {
+		t.Fatal("cell at (6,0) missing")
+	}
+	if cell.Symbol != " " || cell.Style != style.NewStyle() {
+		t.Fatalf("wide hidden cell = %#v, want blank default cell", cell)
+	}
+}
+
+func TestLine_Render_shouldRespectAlignmentAndTruncation(t *testing.T) {
+	tests := []struct {
+		name string
+		line text.Line
+		want string
+	}{
+		{name: "center", line: text.LineFromString("foo").Center(), want: " foo "},
+		{name: "right", line: text.LineFromString("foo").Right(), want: "  foo"},
+		{name: "right truncation", line: text.LineFromString("123456789").Right(), want: "56789"},
+		{name: "center truncation", line: text.LineFromString("123456789").Center(), want: "34567"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := buffer.Empty(layout.NewRect(0, 0, 5, 1))
+
+			tt.line.Render(buf.Area, buf)
+
+			assertTextLines(t, buf, []string{tt.want})
+		})
+	}
+}
+
+func TestLine_RenderWithAlignment_shouldUseFallbackWhenLineAlignmentAbsent(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 5, 1))
+	fallback := layout.Right
+
+	text.LineFromString("foo").RenderWithAlignment(buf.Area, buf, &fallback)
+
+	assertTextLines(t, buf, []string{"  foo"})
+}
+
+func TestText_Render_shouldRenderRowsWithTextStyleAndAlignment(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 7, 2))
+	textStyle := style.NewStyle().Bg(style.Green)
+
+	text.StyledText("foo\nbar", textStyle).Center().Render(buf.Area, buf)
+
+	assertTextLines(t, buf, []string{"  foo  ", "  bar  "})
+	for y := 0; y < buf.Area.Height; y++ {
+		for x := 0; x < buf.Area.Width; x++ {
+			assertTextCellStyle(t, buf, x, y, textStyle)
+		}
+	}
+}
+
+func TestText_Render_shouldPreferLineAlignmentOverTextAlignment(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 5, 2))
+	content := text.NewText(
+		text.LineFromString("foo"),
+		text.LineFromString("bar").Center(),
+	).Right()
+
+	content.Render(buf.Area, buf)
+
+	assertTextLines(t, buf, []string{"  foo", " bar "})
+}
+
+func assertTextLines(t *testing.T, buf *buffer.Buffer, expected []string) {
+	t.Helper()
+	if actual := buf.Lines(); !reflect.DeepEqual(actual, expected) {
+		t.Fatalf("lines = %#v, want %#v", actual, expected)
+	}
+}
+
+func assertTextCellStyle(t *testing.T, buf *buffer.Buffer, x, y int, expected style.Style) {
+	t.Helper()
+	cell, ok := buf.CellAt(x, y)
+	if !ok {
+		t.Fatalf("cell at (%d,%d) missing", x, y)
+	}
+	if cell.Style != expected {
+		t.Fatalf("style at (%d,%d) = %#v, want %#v", x, y, cell.Style, expected)
 	}
 }

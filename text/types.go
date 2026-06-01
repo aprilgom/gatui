@@ -3,6 +3,7 @@ package text
 import (
 	"strings"
 
+	"gatui/buffer"
 	"gatui/layout"
 	"gatui/style"
 
@@ -29,6 +30,10 @@ func (s Span) PatchStyle(spanStyle style.Style) Span {
 
 func (s Span) Width() int {
 	return runewidth.StringWidth(s.Content)
+}
+
+func (s Span) Render(area layout.Rect, buf *buffer.Buffer) {
+	renderSpan(s, area, buf, 0)
 }
 
 func (s Span) LeftLine() Line {
@@ -114,6 +119,49 @@ func (l Line) Width() int {
 		width += span.Width()
 	}
 	return width
+}
+
+func (l Line) Render(area layout.Rect, buf *buffer.Buffer) {
+	l.RenderWithAlignment(area, buf, nil)
+}
+
+func (l Line) RenderWithAlignment(area layout.Rect, buf *buffer.Buffer, fallback *layout.Alignment) {
+	if buf == nil {
+		return
+	}
+	area = area.Intersection(buf.Area)
+	if area.Width == 0 || area.Height == 0 {
+		return
+	}
+	area.Height = 1
+	lineWidth := l.Width()
+	if lineWidth == 0 {
+		return
+	}
+
+	buf.SetStyle(area, l.LineStyle)
+
+	alignment := l.Alignment
+	if alignment == nil {
+		alignment = fallback
+	}
+
+	if lineWidth <= area.Width {
+		x := area.X + alignedRenderOffset(lineWidth, area.Width, alignment)
+		renderLineSpans(l.Spans, layout.NewRect(x, area.Y, area.Right()-x, 1), buf, 0)
+		return
+	}
+
+	skipWidth := 0
+	if alignment != nil {
+		switch *alignment {
+		case layout.Center:
+			skipWidth = (lineWidth - area.Width) / 2
+		case layout.Right:
+			skipWidth = lineWidth - area.Width
+		}
+	}
+	renderLineSpans(l.Spans, area, buf, skipWidth)
 }
 
 func (l Line) Style(lineStyle style.Style) Line {
@@ -230,6 +278,25 @@ func (t Text) Height() int {
 	return len(t.Lines)
 }
 
+func (t Text) Render(area layout.Rect, buf *buffer.Buffer) {
+	if buf == nil {
+		return
+	}
+	area = area.Intersection(buf.Area)
+	if area.Width == 0 || area.Height == 0 {
+		return
+	}
+
+	buf.SetStyle(area, t.Style)
+	for y, line := range t.Lines {
+		if y >= area.Height {
+			break
+		}
+		lineArea := layout.NewRect(area.X, area.Y+y, area.Width, 1)
+		line.RenderWithAlignment(lineArea, buf, t.Alignment)
+	}
+}
+
 func (t Text) Fg(color style.Color) Text {
 	return t.PatchStyle(style.NewStyle().Fg(color))
 }
@@ -260,4 +327,83 @@ func (t Text) Center() Text {
 
 func (t Text) Right() Text {
 	return t.Align(layout.Right)
+}
+
+func renderLineSpans(spans []Span, area layout.Rect, buf *buffer.Buffer, skipWidth int) {
+	x := area.X
+	for _, span := range spans {
+		spanWidth := span.Width()
+		if skipWidth >= spanWidth {
+			skipWidth -= spanWidth
+			continue
+		}
+		if skipWidth > 0 {
+			x = renderSpan(span, layout.NewRect(x, area.Y, area.Right()-x, 1), buf, skipWidth)
+			skipWidth = 0
+		} else {
+			x = renderSpan(span, layout.NewRect(x, area.Y, area.Right()-x, 1), buf, 0)
+		}
+		if x >= area.Right() {
+			return
+		}
+	}
+}
+
+func renderSpan(span Span, area layout.Rect, buf *buffer.Buffer, skipWidth int) int {
+	if buf == nil {
+		return area.X
+	}
+	area = area.Intersection(buf.Area)
+	if area.Width == 0 || area.Height == 0 {
+		return area.X
+	}
+
+	x := area.X
+	right := area.Right()
+	for _, r := range span.Content {
+		symbol := string(r)
+		width := runewidth.StringWidth(symbol)
+		if width == 0 && symbol != "" {
+			width = 1
+		}
+		if width == 0 {
+			continue
+		}
+		if skipWidth >= width {
+			skipWidth -= width
+			continue
+		}
+		if skipWidth > 0 {
+			skipWidth = 0
+			continue
+		}
+		if x+width > right {
+			break
+		}
+
+		cellStyle := style.NewStyle()
+		if cell, ok := buf.CellAt(x, area.Y); ok {
+			cellStyle = cell.Style
+		}
+		buf.SetCell(x, area.Y, buffer.Cell{Symbol: symbol, Style: cellStyle.Patch(span.Style)})
+		for hidden := 1; hidden < width; hidden++ {
+			buf.SetCell(x+hidden, area.Y, buffer.Cell{Symbol: " ", Style: style.NewStyle()})
+		}
+		x += width
+	}
+	return x
+}
+
+func alignedRenderOffset(lineWidth, areaWidth int, alignment *layout.Alignment) int {
+	if alignment == nil || lineWidth >= areaWidth {
+		return 0
+	}
+	switch *alignment {
+	case layout.Center:
+		return (areaWidth - lineWidth) / 2
+	case layout.Right:
+		return areaWidth - lineWidth
+	default:
+		return 0
+	}
 }
