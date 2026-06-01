@@ -22,7 +22,9 @@ func TestPublicAPISurface_shouldExposeInitialRatatuiPortTypes(t *testing.T) {
 	var widget widgets.Widget = paragraph
 	widget.Render(area, buf)
 
-	block := widgets.NewBlock().Title(text.NewLine(text.NewSpan("title")))
+	block := widgets.BorderedBlock().
+		Title(text.NewLine(text.StyledSpan("title", style.NewStyle().Fg(style.LightBlue)))).
+		Cyan()
 	block.Render(area, buf)
 
 	widgets.Clear{}.Render(area, buf)
@@ -34,4 +36,17 @@ func TestPublicAPISurface_shouldExposeInitialRatatuiPortTypes(t *testing.T) {
 	_ = layout.Center
 	_ = style.NewStyle().Fg(style.Red).Bg(style.Black).AddModifier(style.ModifierItalic)
 	_ = style.Styled[text.Span]{Value: span, Style: style.NewStyle()}
+	_ = text.FromString("hello\nworld").Cyan().Bold()
+	_ = text.LineFromString("right").Right()
+	_ = buffer.WithLines([]string{"hello"})
+	_, _ = buf.CellAt(0, 0)
+	buf.SetFg(area, style.Cyan)
+	buf.SetBg(area, style.Black)
+	buf.SetModifier(area, style.ModifierBold)
+	_ = widgets.NewParagraph(text.FromString("body")).
+		Block(block).
+		Alignment(layout.Right).
+		Scroll(0, 1).
+		Cyan()
+	_ = widgets.AllBorders
 }

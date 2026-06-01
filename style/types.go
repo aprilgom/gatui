@@ -4,6 +4,7 @@ type Color int
 
 const (
 	Default Color = iota
+	Reset
 	Black
 	Red
 	Green
@@ -12,6 +13,7 @@ const (
 	Magenta
 	Cyan
 	White
+	LightBlue
 )
 
 type Modifier uint16
@@ -46,6 +48,17 @@ func (s Style) Bg(color Color) Style {
 
 func (s Style) AddModifier(modifier Modifier) Style {
 	s.Modifiers |= modifier
+	return s
+}
+
+func (s Style) Patch(other Style) Style {
+	if other.Foreground != Default {
+		s.Foreground = other.Foreground
+	}
+	if other.Background != Default {
+		s.Background = other.Background
+	}
+	s.Modifiers |= other.Modifiers
 	return s
 }
 
