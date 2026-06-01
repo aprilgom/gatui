@@ -178,36 +178,110 @@ func (l Layout) Split(area Rect) []Rect {
 		return []Rect{area}
 	}
 
+	axisLength := area.Width
+	if l.direction == Vertical {
+		axisLength = area.Height
+	}
+	lengths := calculateLengths(axisLength, l.constraints)
+
 	rects := make([]Rect, 0, len(l.constraints))
 	cursorX := area.X
 	cursorY := area.Y
-	remainingWidth := area.Width
-	remainingHeight := area.Height
 
-	for _, constraint := range l.constraints {
-		width := remainingWidth
-		height := remainingHeight
-		if constraint.kind == constraintLength {
-			if l.direction == Horizontal {
-				width = minInt(constraint.value, remainingWidth)
-			} else {
-				height = minInt(constraint.value, remainingHeight)
-			}
+	for _, length := range lengths {
+		width := area.Width
+		height := area.Height
+		if l.direction == Horizontal {
+			width = length
+		} else {
+			height = length
 		}
 
 		rect := Rect{X: cursorX, Y: cursorY, Width: width, Height: height}
 		rects = append(rects, rect)
 
 		if l.direction == Horizontal {
-			cursorX += width
-			remainingWidth -= width
+			cursorX += length
 		} else {
-			cursorY += height
-			remainingHeight -= height
+			cursorY += length
 		}
 	}
 
 	return rects
+}
+
+func calculateLengths(areaLength int, constraints []Constraint) []int {
+	areaLength = maxInt(0, areaLength)
+	lengths := make([]int, len(constraints))
+	total := 0
+	hasMin := false
+
+	for i, constraint := range constraints {
+		length := constraintLengthValue(areaLength, constraint)
+		lengths[i] = length
+		total += length
+		if constraint.kind == constraintMin {
+			hasMin = true
+		}
+	}
+
+	switch {
+	case total < areaLength:
+		surplus := areaLength - total
+		if hasMin {
+			for i, constraint := range constraints {
+				if constraint.kind == constraintMin {
+					lengths[i] += surplus
+					break
+				}
+			}
+		} else if len(lengths) > 0 {
+			lengths[len(lengths)-1] += surplus
+		}
+	case total > areaLength:
+		shrinkLengths(lengths, constraints, total-areaLength, false)
+		shrinkLengths(lengths, constraints, sumInts(lengths)-areaLength, true)
+	}
+
+	return lengths
+}
+
+func constraintLengthValue(areaLength int, constraint Constraint) int {
+	switch constraint.kind {
+	case constraintLength:
+		return clampInt(constraint.value, 0, areaLength)
+	case constraintMin:
+		return clampInt(constraint.value, 0, areaLength)
+	case constraintPercentage:
+		percent := clampInt(constraint.value, 0, 100)
+		return areaLength * percent / 100
+	case constraintRatio:
+		if constraint.denominator <= 0 {
+			return areaLength
+		}
+		return clampInt(areaLength*constraint.value/constraint.denominator, 0, areaLength)
+	default:
+		return 0
+	}
+}
+
+func shrinkLengths(lengths []int, constraints []Constraint, shortage int, includeMin bool) {
+	for i := len(lengths) - 1; i >= 0 && shortage > 0; i-- {
+		if constraints[i].kind == constraintMin && !includeMin {
+			continue
+		}
+		reduction := minInt(lengths[i], shortage)
+		lengths[i] -= reduction
+		shortage -= reduction
+	}
+}
+
+func sumInts(values []int) int {
+	total := 0
+	for _, value := range values {
+		total += value
+	}
+	return total
 }
 
 func minInt(a, b int) int {
