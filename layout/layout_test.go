@@ -489,6 +489,228 @@ func TestLayout_Split_shouldMatchRatatuiFlexSpacing(t *testing.T) {
 	}
 }
 
+func TestLayout_SplitWithSpacers_shouldMatchRatatuiSpacerRects(t *testing.T) {
+	tests := []struct {
+		name    string
+		flex    layout.Flex
+		spacing int
+		want    []layout.Rect
+	}{
+		{
+			name: "legacy no spacing",
+			flex: layout.FlexLegacy,
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 0, 1),
+				layout.NewRect(10, 0, 0, 1),
+				layout.NewRect(100, 0, 0, 1),
+			},
+		},
+		{
+			name: "space between no spacing",
+			flex: layout.FlexSpaceBetween,
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 0, 1),
+				layout.NewRect(10, 0, 80, 1),
+				layout.NewRect(100, 0, 0, 1),
+			},
+		},
+		{
+			name: "space evenly no spacing",
+			flex: layout.FlexSpaceEvenly,
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 27, 1),
+				layout.NewRect(37, 0, 26, 1),
+				layout.NewRect(73, 0, 27, 1),
+			},
+		},
+		{
+			name: "space around no spacing",
+			flex: layout.FlexSpaceAround,
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 20, 1),
+				layout.NewRect(30, 0, 40, 1),
+				layout.NewRect(80, 0, 20, 1),
+			},
+		},
+		{
+			name: "start no spacing",
+			flex: layout.FlexStart,
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 0, 1),
+				layout.NewRect(10, 0, 0, 1),
+				layout.NewRect(20, 0, 80, 1),
+			},
+		},
+		{
+			name: "center no spacing",
+			flex: layout.FlexCenter,
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 40, 1),
+				layout.NewRect(50, 0, 0, 1),
+				layout.NewRect(60, 0, 40, 1),
+			},
+		},
+		{
+			name: "end no spacing",
+			flex: layout.FlexEnd,
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 80, 1),
+				layout.NewRect(90, 0, 0, 1),
+				layout.NewRect(100, 0, 0, 1),
+			},
+		},
+		{
+			name:    "legacy positive spacing",
+			flex:    layout.FlexLegacy,
+			spacing: 5,
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 0, 1),
+				layout.NewRect(10, 0, 5, 1),
+				layout.NewRect(100, 0, 0, 1),
+			},
+		},
+		{
+			name:    "start positive spacing",
+			flex:    layout.FlexStart,
+			spacing: 5,
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 0, 1),
+				layout.NewRect(10, 0, 5, 1),
+				layout.NewRect(25, 0, 75, 1),
+			},
+		},
+		{
+			name:    "center positive spacing",
+			flex:    layout.FlexCenter,
+			spacing: 5,
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 38, 1),
+				layout.NewRect(48, 0, 5, 1),
+				layout.NewRect(63, 0, 37, 1),
+			},
+		},
+		{
+			name:    "end positive spacing",
+			flex:    layout.FlexEnd,
+			spacing: 5,
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 75, 1),
+				layout.NewRect(85, 0, 5, 1),
+				layout.NewRect(100, 0, 0, 1),
+			},
+		},
+		{
+			name:    "start negative spacing clamps overlap",
+			flex:    layout.FlexStart,
+			spacing: -1,
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 0, 1),
+				layout.NewRect(10, 0, 0, 1),
+				layout.NewRect(19, 0, 81, 1),
+			},
+		},
+		{
+			name:    "center negative spacing clamps overlap",
+			flex:    layout.FlexCenter,
+			spacing: -1,
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 41, 1),
+				layout.NewRect(51, 0, 0, 1),
+				layout.NewRect(60, 0, 40, 1),
+			},
+		},
+		{
+			name:    "end negative spacing clamps overlap",
+			flex:    layout.FlexEnd,
+			spacing: -1,
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 81, 1),
+				layout.NewRect(91, 0, 0, 1),
+				layout.NewRect(100, 0, 0, 1),
+			},
+		},
+		{
+			name:    "legacy too much spacing",
+			flex:    layout.FlexLegacy,
+			spacing: 200,
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 0, 1),
+				layout.NewRect(0, 0, 100, 1),
+				layout.NewRect(100, 0, 0, 1),
+			},
+		},
+		{
+			name:    "space evenly too much spacing",
+			flex:    layout.FlexSpaceEvenly,
+			spacing: 200,
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 33, 1),
+				layout.NewRect(33, 0, 34, 1),
+				layout.NewRect(67, 0, 33, 1),
+			},
+		},
+		{
+			name:    "space around too much spacing",
+			flex:    layout.FlexSpaceAround,
+			spacing: 200,
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 25, 1),
+				layout.NewRect(25, 0, 50, 1),
+				layout.NewRect(75, 0, 25, 1),
+			},
+		},
+	}
+
+	largeSpacingFlexes := []layout.Flex{
+		layout.FlexStart,
+		layout.FlexCenter,
+		layout.FlexEnd,
+		layout.FlexSpaceBetween,
+	}
+	for _, flex := range largeSpacingFlexes {
+		tests = append(tests, struct {
+			name    string
+			flex    layout.Flex
+			spacing int
+			want    []layout.Rect
+		}{
+			name:    "packed too much spacing",
+			flex:    flex,
+			spacing: 200,
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 0, 1),
+				layout.NewRect(0, 0, 100, 1),
+				layout.NewRect(100, 0, 0, 1),
+			},
+		})
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			segments, spacers := layout.NewLayout(layout.Horizontal).
+				Flex(tt.flex).
+				Spacing(tt.spacing).
+				Constraints(layout.Length(10), layout.Length(10)).
+				SplitWithSpacers(layout.NewRect(0, 0, 100, 1))
+
+			wantSegments := layout.NewLayout(layout.Horizontal).
+				Flex(tt.flex).
+				Spacing(tt.spacing).
+				Constraints(layout.Length(10), layout.Length(10)).
+				Split(layout.NewRect(0, 0, 100, 1))
+			if !reflect.DeepEqual(segments, wantSegments) {
+				t.Fatalf("segments mismatch\nwant: %#v\n got: %#v", wantSegments, segments)
+			}
+			if len(spacers) != 3 {
+				t.Fatalf("spacer count mismatch: want 3 got %d", len(spacers))
+			}
+			if !reflect.DeepEqual(spacers, tt.want) {
+				t.Fatalf("spacers mismatch\nwant: %#v\n got: %#v", tt.want, spacers)
+			}
+		})
+	}
+}
+
 func TestLayout_Split_shouldHandleVerticalPercentageMin(t *testing.T) {
 	area := layout.NewRect(2, 4, 8, 10)
 

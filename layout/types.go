@@ -216,15 +216,27 @@ func (l Layout) Spacing(spacing int) Layout {
 }
 
 func (l Layout) Split(area Rect) []Rect {
+	rects, _ := l.SplitWithSpacers(area)
+	return rects
+}
+
+func (l Layout) SplitWithSpacers(area Rect) ([]Rect, []Rect) {
 	if len(l.constraints) == 0 {
-		return []Rect{area}
+		return []Rect{area}, []Rect{emptySpacer(area, l.direction, 0), emptySpacer(area, l.direction, axisLength(area, l.direction))}
 	}
 
+	rects, offsets, lengths := l.splitSegments(area)
+	spacers := l.spacerRects(area, offsets, lengths)
+
+	return rects, spacers
+}
+
+func (l Layout) splitSegments(area Rect) ([]Rect, []int, []int) {
 	axisLength := area.Width
 	if l.direction == Vertical {
 		axisLength = area.Height
 	}
-	lengths := calculateLengths(axisLength, l.constraints, false)
+	lengths := calculateLengths(maxInt(0, axisLength-spacingAllowance(l.spacing, len(l.constraints))), l.constraints, false)
 	if l.flex == FlexSpaceBetween && len(lengths) == 1 {
 		lengths[0] = axisLength
 	}
@@ -255,7 +267,51 @@ func (l Layout) Split(area Rect) []Rect {
 		rects = append(rects, rect)
 	}
 
-	return rects
+	return rects, offsets, lengths
+}
+
+func (l Layout) spacerRects(area Rect, offsets []int, lengths []int) []Rect {
+	spacers := make([]Rect, 0, len(lengths)+1)
+	areaLength := axisLength(area, l.direction)
+	previousEnd := 0
+
+	for i, offset := range offsets {
+		start := clampInt(offset, 0, areaLength)
+		spacers = append(spacers, spacerRect(area, l.direction, previousEnd, maxInt(0, start-previousEnd)))
+
+		end := clampInt(offset+lengths[i], 0, areaLength)
+		if end > previousEnd {
+			previousEnd = end
+		}
+	}
+
+	spacers = append(spacers, spacerRect(area, l.direction, previousEnd, maxInt(0, areaLength-previousEnd)))
+	return spacers
+}
+
+func axisLength(area Rect, direction Direction) int {
+	if direction == Vertical {
+		return area.Height
+	}
+	return area.Width
+}
+
+func spacingAllowance(spacing int, constraintCount int) int {
+	if spacing <= 0 || constraintCount <= 1 {
+		return 0
+	}
+	return spacing * (constraintCount - 1)
+}
+
+func spacerRect(area Rect, direction Direction, start int, length int) Rect {
+	if direction == Vertical {
+		return Rect{X: area.X, Y: area.Y + start, Width: area.Width, Height: length}
+	}
+	return Rect{X: area.X + start, Y: area.Y, Width: length, Height: area.Height}
+}
+
+func emptySpacer(area Rect, direction Direction, start int) Rect {
+	return spacerRect(area, direction, start, 0)
 }
 
 func calculateLengths(areaLength int, constraints []Constraint, stretchFixedSurplus bool) []int {
@@ -323,7 +379,7 @@ func flexOffsets(areaLength int, lengths []int, flex Flex, spacing int) []int {
 	case FlexEnd:
 		setPackedOffsets(offsets, lengths, surplus, spacing)
 	case FlexCenter:
-		setPackedOffsets(offsets, lengths, surplus/2, spacing)
+		setPackedOffsets(offsets, lengths, roundedDiv(surplus, 2), spacing)
 	case FlexSpaceBetween:
 		if len(lengths) == 1 {
 			offsets[0] = 0
