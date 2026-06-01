@@ -733,6 +733,129 @@ func TestTerminal_DirectCursorMethods_shouldCallBackend(t *testing.T) {
 	}
 }
 
+func TestTerminal_Backend_returnsSharedBackendReference(t *testing.T) {
+	backend := testbackend.New(3, 2)
+	term, err := terminal.New(backend)
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+
+	if got, want := term.Backend(), terminal.Backend(backend); got != want {
+		t.Fatalf("backend reference = %#v, want %#v", got, want)
+	}
+}
+
+func TestTerminal_Size_queriesUnderlyingBackendSize(t *testing.T) {
+	backend := newRecordingBackend(3, 2)
+	term, err := terminal.New(backend)
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+	backend.SetSize(4, 3)
+
+	got, err := term.Size()
+	if err != nil {
+		t.Fatalf("Size returned error: %v", err)
+	}
+
+	if want := (layout.Size{Width: 4, Height: 3}); got != want {
+		t.Fatalf("size = %#v, want %#v", got, want)
+	}
+	if got, want := term.Area(), layout.NewRect(0, 0, 3, 2); got != want {
+		t.Fatalf("terminal area = %#v, want unchanged %#v", got, want)
+	}
+}
+
+func TestTerminal_GetCursorPosition_queriesBackend(t *testing.T) {
+	backend := newRecordingBackend(10, 5)
+	term, err := terminal.New(backend)
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+	backend.cursorPosition = layout.Position{X: 7, Y: 2}
+
+	got, err := term.GetCursorPosition()
+	if err != nil {
+		t.Fatalf("GetCursorPosition returned error: %v", err)
+	}
+
+	if want := (layout.Position{X: 7, Y: 2}); got != want {
+		t.Fatalf("cursor position = %#v, want %#v", got, want)
+	}
+}
+
+func TestTerminal_HideCursor_updatesTerminalState(t *testing.T) {
+	backend := testbackend.New(10, 5)
+	term, err := terminal.New(backend)
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+
+	if err := term.HideCursor(); err != nil {
+		t.Fatalf("HideCursor returned error: %v", err)
+	}
+
+	if backend.CursorVisible() {
+		t.Fatalf("cursor visible = true, want false")
+	}
+}
+
+func TestTerminal_ShowCursor_updatesTerminalState(t *testing.T) {
+	backend := testbackend.New(10, 5)
+	term, err := terminal.New(backend)
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+
+	if err := term.HideCursor(); err != nil {
+		t.Fatalf("HideCursor returned error: %v", err)
+	}
+	if err := term.ShowCursor(); err != nil {
+		t.Fatalf("ShowCursor returned error: %v", err)
+	}
+
+	if !backend.CursorVisible() {
+		t.Fatalf("cursor visible = false, want true")
+	}
+}
+
+func TestTerminal_SetCursorPosition_updatesBackendAndTracking(t *testing.T) {
+	backend := testbackend.New(10, 5)
+	term, err := terminal.New(backend)
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+
+	if err := term.SetCursorPosition(layout.Position{X: 3, Y: 4}); err != nil {
+		t.Fatalf("SetCursorPosition returned error: %v", err)
+	}
+
+	if got, want := backend.CursorPosition(), (layout.Position{X: 3, Y: 4}); got != want {
+		t.Fatalf("cursor position = %#v, want %#v", got, want)
+	}
+}
+
+func TestTerminal_Resize_inlineUsesDirectCursorTracking(t *testing.T) {
+	backend := newRecordingBackend(10, 10)
+	backend.cursorPosition = layout.Position{X: 0, Y: 4}
+	term, err := terminal.NewWithOptions(backend, terminal.TerminalOptions{
+		Viewport: terminal.InlineViewport(4),
+	})
+	if err != nil {
+		t.Fatalf("NewWithOptions returned error: %v", err)
+	}
+	if err := term.SetCursorPosition(layout.Position{X: 0, Y: 5}); err != nil {
+		t.Fatalf("SetCursorPosition returned error: %v", err)
+	}
+	backend.cursorPosition = layout.Position{X: 0, Y: 6}
+
+	term.Resize(layout.NewRect(0, 0, 10, 12))
+
+	if got, want := term.Area(), layout.NewRect(0, 5, 10, 4); got != want {
+		t.Fatalf("terminal area = %#v, want %#v", got, want)
+	}
+}
+
 func TestTerminal_Draw_shouldUseTryDrawSuccessOrder(t *testing.T) {
 	backend := newRecordingBackend(3, 1)
 	term, err := terminal.New(backend)

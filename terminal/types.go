@@ -459,6 +459,10 @@ func (t *Terminal) Backend() Backend {
 	return t.backend
 }
 
+func (t *Terminal) Size() (layout.Size, error) {
+	return t.backend.Size()
+}
+
 func (t *Terminal) HideCursor() error {
 	if err := t.backend.HideCursor(); err != nil {
 		return err
@@ -469,6 +473,10 @@ func (t *Terminal) HideCursor() error {
 
 func (t *Terminal) ShowCursor() error {
 	return t.backend.ShowCursor()
+}
+
+func (t *Terminal) GetCursorPosition() (layout.Position, error) {
+	return t.backend.GetCursorPosition()
 }
 
 func (t *Terminal) SetCursorPosition(pos layout.Position) error {

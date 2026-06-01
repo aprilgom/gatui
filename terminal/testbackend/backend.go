@@ -16,20 +16,22 @@ type Backend struct {
 	showCursorCount int
 	cursorPositions []layout.Position
 	cursorPosition  layout.Position
+	cursorVisible   bool
 	appendLines     []int
 	cells           *buffer.Buffer
 }
 
 func New(width, height int) *Backend {
 	area := layout.NewRect(0, 0, width, height)
-	return &Backend{size: layout.Size{Width: width, Height: height}, cells: buffer.Empty(area)}
+	return &Backend{size: layout.Size{Width: width, Height: height}, cursorVisible: true, cells: buffer.Empty(area)}
 }
 
 func WithLines(lines []string) *Backend {
 	cells := buffer.WithLines(lines)
 	return &Backend{
-		size:  layout.Size{Width: cells.Area.Width, Height: cells.Area.Height},
-		cells: cells,
+		size:          layout.Size{Width: cells.Area.Width, Height: cells.Area.Height},
+		cursorVisible: true,
+		cells:         cells,
 	}
 }
 
@@ -97,11 +99,13 @@ func (b *Backend) ClearRegion(clearType terminal.ClearType) error {
 
 func (b *Backend) HideCursor() error {
 	b.hideCursorCount++
+	b.cursorVisible = false
 	return nil
 }
 
 func (b *Backend) ShowCursor() error {
 	b.showCursorCount++
+	b.cursorVisible = true
 	return nil
 }
 
@@ -182,6 +186,14 @@ func (b *Backend) ShowCursorCount() int {
 
 func (b *Backend) CursorPositions() []layout.Position {
 	return append([]layout.Position(nil), b.cursorPositions...)
+}
+
+func (b *Backend) CursorVisible() bool {
+	return b.cursorVisible
+}
+
+func (b *Backend) CursorPosition() layout.Position {
+	return b.cursorPosition
 }
 
 func (b *Backend) AppendLinesCalls() []int {

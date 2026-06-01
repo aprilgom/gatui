@@ -79,6 +79,7 @@ func TestPublicAPISurface_shouldExposeInitialRatatuiPortTypes(t *testing.T) {
 		return nil
 	})
 	backend.SetSize(10, 2)
+	_, _ = term.Size()
 	_ = term.Autoresize()
 	_ = term.Area()
 	frame := term.Frame()
@@ -91,6 +92,7 @@ func TestPublicAPISurface_shouldExposeInitialRatatuiPortTypes(t *testing.T) {
 	_ = term.HideCursor()
 	_ = term.ShowCursor()
 	_ = term.SetCursorPosition(layout.Position{X: 1, Y: 0})
+	_, _ = term.GetCursorPosition()
 	term.Resize(layout.NewRect(0, 0, 10, 2))
 	_ = term.Clear()
 	_ = term.Backend()
@@ -101,6 +103,8 @@ func TestPublicAPISurface_shouldExposeInitialRatatuiPortTypes(t *testing.T) {
 	_ = backend.HideCursorCount()
 	_ = backend.ShowCursorCount()
 	_ = backend.CursorPositions()
+	_ = backend.CursorVisible()
+	_ = backend.CursorPosition()
 	_ = backend.AppendLines(1)
 	_ = backend.AppendLinesCalls()
 }
