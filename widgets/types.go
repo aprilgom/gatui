@@ -85,9 +85,14 @@ type Axis struct {
 	labelsAlignment layout.Alignment
 }
 
+type ChartPoint struct {
+	X float64
+	Y float64
+}
+
 type Dataset struct {
 	name      string
-	data      []layout.Position
+	data      []ChartPoint
 	graphType GraphType
 	style     style.Style
 }
@@ -163,7 +168,15 @@ func (d Dataset) Name(name string) Dataset {
 }
 
 func (d Dataset) Data(data []layout.Position) Dataset {
-	d.data = append([]layout.Position(nil), data...)
+	d.data = make([]ChartPoint, 0, len(data))
+	for _, point := range data {
+		d.data = append(d.data, ChartPoint{X: float64(point.X), Y: float64(point.Y)})
+	}
+	return d
+}
+
+func (d Dataset) DataPoints(data []ChartPoint) Dataset {
+	d.data = append([]ChartPoint(nil), data...)
 	return d
 }
 
@@ -219,6 +232,7 @@ func (c Chart) Render(area layout.Rect, buf *buffer.Buffer) {
 	c.renderYLabels(buf, layout)
 	c.renderXLabels(buf, layout)
 	c.renderYTitle(buf, layout)
+	c.renderDatasets(buf, layout)
 }
 
 type chartAxisLayout struct {
@@ -395,6 +409,111 @@ func (c Chart) renderYTitle(buf *buffer.Buffer, l chartAxisLayout) {
 		cell.Style = c.yAxis.axisStyle.Patch(cell.Style)
 		buf.SetCell(x, l.area.Y, cell)
 		x++
+	}
+}
+
+func (c Chart) renderDatasets(buf *buffer.Buffer, l chartAxisLayout) {
+	graphArea := c.graphArea(l)
+	if graphArea.Width <= 0 || graphArea.Height <= 0 {
+		return
+	}
+	xMin, xMax := c.xAxis.bounds[0], c.xAxis.bounds[1]
+	yMin, yMax := c.yAxis.bounds[0], c.yAxis.bounds[1]
+	if xMin == xMax || yMin == yMax {
+		return
+	}
+	for _, dataset := range c.datasets {
+		switch dataset.graphType {
+		case GraphTypeLine:
+			c.renderLineDataset(buf, graphArea, dataset, xMin, xMax, yMin, yMax)
+		case GraphTypeScatter:
+			for _, point := range dataset.data {
+				c.plotPoint(buf, graphArea, dataset.style, point, xMin, xMax, yMin, yMax)
+			}
+		}
+	}
+}
+
+func (c Chart) graphArea(l chartAxisLayout) layout.Rect {
+	bottom := l.axisY
+	if l.hasXAxis {
+		bottom--
+	}
+	if bottom < l.area.Y {
+		return layout.NewRect(l.graphLeft, l.area.Y, 0, 0)
+	}
+	return layout.NewRect(l.graphLeft, l.area.Y, l.graphRight-l.graphLeft, bottom-l.area.Y+1)
+}
+
+func (c Chart) renderLineDataset(buf *buffer.Buffer, area layout.Rect, dataset Dataset, xMin, xMax, yMin, yMax float64) {
+	var previous *layout.Position
+	for _, point := range dataset.data {
+		mapped, ok := c.mapPoint(area, point, xMin, xMax, yMin, yMax)
+		if !ok {
+			previous = nil
+			continue
+		}
+		if previous == nil {
+			c.plotMappedPoint(buf, dataset.style, mapped)
+		} else {
+			c.plotLine(buf, dataset.style, *previous, mapped)
+		}
+		previous = &mapped
+	}
+}
+
+func (c Chart) plotPoint(buf *buffer.Buffer, area layout.Rect, pointStyle style.Style, point ChartPoint, xMin, xMax, yMin, yMax float64) {
+	mapped, ok := c.mapPoint(area, point, xMin, xMax, yMin, yMax)
+	if !ok {
+		return
+	}
+	c.plotMappedPoint(buf, pointStyle, mapped)
+}
+
+func (c Chart) mapPoint(area layout.Rect, point ChartPoint, xMin, xMax, yMin, yMax float64) (layout.Position, bool) {
+	if point.X < xMin || point.X > xMax || point.Y < yMin || point.Y > yMax {
+		return layout.Position{}, false
+	}
+	xRatio := (point.X - xMin) / (xMax - xMin)
+	yRatio := (yMax - point.Y) / (yMax - yMin)
+	x := area.X + int(math.Round(xRatio*float64(area.Width-1)))
+	y := area.Y + int(math.Round(yRatio*float64(area.Height-1)))
+	if x < area.X || x >= area.X+area.Width || y < area.Y || y >= area.Y+area.Height {
+		return layout.Position{}, false
+	}
+	return layout.Position{X: x, Y: y}, true
+}
+
+func (c Chart) plotLine(buf *buffer.Buffer, lineStyle style.Style, start, end layout.Position) {
+	dx := end.X - start.X
+	if dx < 0 {
+		dx = -dx
+	}
+	dy := end.Y - start.Y
+	if dy < 0 {
+		dy = -dy
+	}
+	steps := maxInt(dx, dy)
+	if steps == 0 {
+		c.plotMappedPoint(buf, lineStyle, start)
+		return
+	}
+	for i := 0; i <= steps; i++ {
+		t := float64(i) / float64(steps)
+		x := int(math.Round(float64(start.X) + float64(end.X-start.X)*t))
+		y := int(math.Round(float64(start.Y) + float64(end.Y-start.Y)*t))
+		c.plotMappedPoint(buf, lineStyle, layout.Position{X: x, Y: y})
+	}
+}
+
+func (c Chart) plotMappedPoint(buf *buffer.Buffer, pointStyle style.Style, point layout.Position) {
+	if cell, ok := buf.CellAt(point.X, point.Y); ok {
+		if cell.Symbol != " " {
+			return
+		}
+		cell.Symbol = "•"
+		cell.Style = cell.Style.Patch(pointStyle)
+		buf.SetCell(point.X, point.Y, cell)
 	}
 }
 

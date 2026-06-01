@@ -296,6 +296,120 @@ func TestChart_shouldStyleTopLine(t *testing.T) {
 	}
 }
 
+func TestChart_shouldStyleTopLineWithLineDataset(t *testing.T) {
+	titleStyle := style.NewStyle().Fg(style.Red).Bg(style.LightBlue)
+	dataStyle := style.NewStyle().Fg(style.Blue)
+	buf := buffer.Empty(layout.NewRect(0, 0, 9, 5))
+	chart := widgets.NewChart([]widgets.Dataset{
+		widgets.NewDataset().
+			GraphType(widgets.GraphTypeLine).
+			Style(dataStyle).
+			DataPoints([]widgets.ChartPoint{
+				{X: 0, Y: 1},
+				{X: 1, Y: 1},
+			}),
+	}).
+		YAxis(widgets.NewAxis().
+			Title(text.NewLine(text.StyledSpan("abc", titleStyle))).
+			Bounds(0, 1).
+			LabelStrings([]string{"a", "b"})).
+		XAxis(widgets.NewAxis().Bounds(0, 1))
+
+	chart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"b│abc••••",
+		" │       ",
+		" │       ",
+		" │       ",
+		"a│       ",
+	})
+	for x := 2; x <= 4; x++ {
+		assertCellStyle(t, buf, x, 0, titleStyle)
+	}
+	for x := 5; x <= 8; x++ {
+		assertCellStyle(t, buf, x, 0, dataStyle)
+	}
+}
+
+func TestChart_shouldAllowEmptyLineDataset(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 20, 5))
+	chart := widgets.NewChart([]widgets.Dataset{
+		widgets.NewDataset().
+			GraphType(widgets.GraphTypeLine).
+			DataPoints([]widgets.ChartPoint{}),
+	}).
+		XAxis(widgets.NewAxis().Bounds(0, 1).LabelStrings([]string{"0", "1"})).
+		YAxis(widgets.NewAxis().Bounds(0, 1).LabelStrings([]string{"0", "1"}))
+
+	assertNotPanics(t, func() {
+		chart.Render(buf.Area, buf)
+	})
+}
+
+func TestChart_shouldHandlePlottingOverflows(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 20, 5))
+	chart := widgets.NewChart([]widgets.Dataset{
+		widgets.NewDataset().
+			GraphType(widgets.GraphTypeLine).
+			DataPoints([]widgets.ChartPoint{
+				{X: -1_000_000, Y: 0},
+				{X: 1, Y: 1},
+				{X: 1_000_000, Y: 2},
+			}),
+	}).
+		XAxis(widgets.NewAxis().Bounds(0, 1_000_000_000).LabelStrings([]string{"0", "1B"})).
+		YAxis(widgets.NewAxis().Bounds(0, 1).LabelStrings([]string{"0", "1"}))
+
+	assertNotPanics(t, func() {
+		chart.Render(buf.Area, buf)
+	})
+}
+
+func TestChart_shouldPlotScatterPoint(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 9, 5))
+	chart := widgets.NewChart([]widgets.Dataset{
+		widgets.NewDataset().
+			Style(style.NewStyle().Fg(style.Green)).
+			DataPoints([]widgets.ChartPoint{{X: 0.5, Y: 0.5}}),
+	}).
+		XAxis(widgets.NewAxis().Bounds(0, 1)).
+		YAxis(widgets.NewAxis().Bounds(0, 1).LabelStrings([]string{"0", "1"}))
+
+	chart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"1│       ",
+		" │       ",
+		" │   •   ",
+		" │       ",
+		"0│       ",
+	})
+	assertCellStyle(t, buf, 5, 2, style.NewStyle().Fg(style.Green))
+}
+
+func TestChart_shouldPlotLineBetweenTwoPoints(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 6, 3))
+	chart := widgets.NewChart([]widgets.Dataset{
+		widgets.NewDataset().
+			GraphType(widgets.GraphTypeLine).
+			DataPoints([]widgets.ChartPoint{
+				{X: 0, Y: 0.5},
+				{X: 1, Y: 0.5},
+			}),
+	}).
+		XAxis(widgets.NewAxis().Bounds(0, 1)).
+		YAxis(widgets.NewAxis().Bounds(0, 1))
+
+	chart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"      ",
+		"••••••",
+		"      ",
+	})
+}
+
 func assertChartLines(t *testing.T, width, height int, xAxis widgets.Axis, yAxis widgets.Axis, expected []string) {
 	t.Helper()
 	buf := buffer.Empty(layout.NewRect(0, 0, width, height))
