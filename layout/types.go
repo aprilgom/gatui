@@ -8,7 +8,61 @@ type Rect struct {
 }
 
 func NewRect(x, y, width, height int) Rect {
+	width = maxInt(0, width)
+	height = maxInt(0, height)
 	return Rect{X: x, Y: y, Width: width, Height: height}
+}
+
+func (r Rect) Left() int {
+	return r.X
+}
+
+func (r Rect) Right() int {
+	return r.X + r.Width
+}
+
+func (r Rect) Top() int {
+	return r.Y
+}
+
+func (r Rect) Bottom() int {
+	return r.Y + r.Height
+}
+
+func (r Rect) Inner(margin Margin) Rect {
+	width := r.Width - margin.Horizontal*2
+	height := r.Height - margin.Vertical*2
+	if width < 0 || height < 0 {
+		return Rect{}
+	}
+
+	return NewRect(r.X+margin.Horizontal, r.Y+margin.Vertical, width, height)
+}
+
+func (r Rect) Outer(margin Margin) Rect {
+	x := r.X - margin.Horizontal
+	y := r.Y - margin.Vertical
+	return NewRect(x, y, r.Right()+margin.Horizontal-x, r.Bottom()+margin.Vertical-y)
+}
+
+func (r Rect) Offset(offset Offset) Rect {
+	return NewRect(r.X+offset.X, r.Y+offset.Y, r.Width, r.Height)
+}
+
+func (r Rect) Intersection(other Rect) Rect {
+	x1 := maxInt(r.X, other.X)
+	y1 := maxInt(r.Y, other.Y)
+	x2 := minInt(r.Right(), other.Right())
+	y2 := minInt(r.Bottom(), other.Bottom())
+	return NewRect(x1, y1, maxInt(0, x2-x1), maxInt(0, y2-y1))
+}
+
+func (r Rect) Clamp(other Rect) Rect {
+	width := minInt(r.Width, other.Width)
+	height := minInt(r.Height, other.Height)
+	x := clampInt(r.X, other.X, other.Right()-width)
+	y := clampInt(r.Y, other.Y, other.Bottom()-height)
+	return NewRect(x, y, width, height)
 }
 
 type Position struct {
@@ -24,6 +78,19 @@ type Size struct {
 type Margin struct {
 	Horizontal int
 	Vertical   int
+}
+
+func NewMargin(horizontal, vertical int) Margin {
+	return Margin{Horizontal: horizontal, Vertical: vertical}
+}
+
+type Offset struct {
+	X int
+	Y int
+}
+
+func NewOffset(x, y int) Offset {
+	return Offset{X: x, Y: y}
 }
 
 type Direction int
@@ -117,4 +184,24 @@ func minInt(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func clampInt(value, low, high int) int {
+	if high < low {
+		return low
+	}
+	if value < low {
+		return low
+	}
+	if value > high {
+		return high
+	}
+	return value
 }

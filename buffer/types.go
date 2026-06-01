@@ -1,6 +1,8 @@
 package buffer
 
 import (
+	"strings"
+
 	"gatui/layout"
 	"gatui/style"
 )
@@ -29,4 +31,32 @@ func (b *Buffer) SetCell(x, y int, cell Cell) {
 	}
 	index := (y-b.Area.Y)*b.Area.Width + (x - b.Area.X)
 	b.Cells[index] = cell
+}
+
+func (b *Buffer) SetSymbol(x, y int, symbol string) {
+	if b == nil || x < b.Area.X || y < b.Area.Y || x >= b.Area.X+b.Area.Width || y >= b.Area.Y+b.Area.Height {
+		return
+	}
+	index := (y-b.Area.Y)*b.Area.Width + (x - b.Area.X)
+	b.Cells[index].Symbol = symbol
+}
+
+func (b *Buffer) Lines() []string {
+	if b == nil || b.Area.Height == 0 {
+		return nil
+	}
+
+	lines := make([]string, b.Area.Height)
+	for y := 0; y < b.Area.Height; y++ {
+		var builder strings.Builder
+		for x := 0; x < b.Area.Width; x++ {
+			symbol := b.Cells[y*b.Area.Width+x].Symbol
+			if symbol == "" {
+				symbol = " "
+			}
+			builder.WriteString(symbol)
+		}
+		lines[y] = builder.String()
+	}
+	return lines
 }
