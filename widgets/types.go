@@ -283,8 +283,30 @@ type tableCellSelection struct {
 	column int
 }
 
+const tableStateMaxIndex = int(^uint(0) >> 1)
+
 func NewTableState() TableState {
 	return TableState{}
+}
+
+func (s TableState) WithOffset(offset int) TableState {
+	s.SetOffset(offset)
+	return s
+}
+
+func (s TableState) WithSelected(index int) TableState {
+	s.Select(index)
+	return s
+}
+
+func (s TableState) WithSelectedColumn(index int) TableState {
+	s.SelectColumn(index)
+	return s
+}
+
+func (s TableState) WithSelectedCell(row, column int) TableState {
+	s.SelectCell(row, column)
+	return s
 }
 
 func (s *TableState) Select(index int) {
@@ -319,10 +341,14 @@ func (s TableState) SelectedColumn() (int, bool) {
 }
 
 func (s *TableState) SelectCell(row, column int) {
+	s.Select(row)
+	s.SelectColumn(column)
 	s.selectedCell = &tableCellSelection{row: row, column: column}
 }
 
 func (s *TableState) ClearCellSelection() {
+	s.ClearSelection()
+	s.ClearColumnSelection()
 	s.selectedCell = nil
 }
 
@@ -342,6 +368,96 @@ func (s *TableState) SetOffset(offset int) {
 		offset = 0
 	}
 	s.offset = offset
+}
+
+func (s *TableState) SelectNext() {
+	s.ScrollDownBy(1)
+}
+
+func (s *TableState) SelectPrevious() {
+	s.ScrollUpBy(1)
+}
+
+func (s *TableState) SelectFirst() {
+	s.Select(0)
+}
+
+func (s *TableState) SelectLast() {
+	s.Select(tableStateMaxIndex)
+}
+
+func (s *TableState) SelectNextColumn() {
+	s.ScrollRightBy(1)
+}
+
+func (s *TableState) SelectPreviousColumn() {
+	s.ScrollLeftBy(1)
+}
+
+func (s *TableState) SelectFirstColumn() {
+	s.SelectColumn(0)
+}
+
+func (s *TableState) SelectLastColumn() {
+	s.SelectColumn(tableStateMaxIndex)
+}
+
+func (s *TableState) ScrollDownBy(amount int) {
+	if amount <= 0 {
+		return
+	}
+	selected := 0
+	if s.selected != nil {
+		selected = *s.selected
+	}
+	s.Select(saturatingAddInt(selected, amount))
+}
+
+func (s *TableState) ScrollUpBy(amount int) {
+	if amount <= 0 {
+		return
+	}
+	selected := 0
+	if s.selected != nil {
+		selected = *s.selected
+	}
+	s.Select(saturatingSubInt(selected, amount))
+}
+
+func (s *TableState) ScrollRightBy(amount int) {
+	if amount <= 0 {
+		return
+	}
+	selected := 0
+	if s.selectedColumn != nil {
+		selected = *s.selectedColumn
+	}
+	s.SelectColumn(saturatingAddInt(selected, amount))
+}
+
+func (s *TableState) ScrollLeftBy(amount int) {
+	if amount <= 0 {
+		return
+	}
+	selected := 0
+	if s.selectedColumn != nil {
+		selected = *s.selectedColumn
+	}
+	s.SelectColumn(saturatingSubInt(selected, amount))
+}
+
+func saturatingAddInt(value, amount int) int {
+	if amount > tableStateMaxIndex-value {
+		return tableStateMaxIndex
+	}
+	return value + amount
+}
+
+func saturatingSubInt(value, amount int) int {
+	if amount >= value {
+		return 0
+	}
+	return value - amount
 }
 
 func NewTable(rows []TableRow, widths []layout.Constraint) Table {

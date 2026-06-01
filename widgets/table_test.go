@@ -484,6 +484,156 @@ func TestTableState_ClearSelection_shouldResetOffset(t *testing.T) {
 	}
 }
 
+func TestTableState_shouldSupportFluentSetters(t *testing.T) {
+	state := widgets.NewTableState().
+		WithOffset(4).
+		WithSelected(2).
+		WithSelectedColumn(1).
+		WithSelectedCell(3, 5)
+
+	if got := state.Offset(); got != 4 {
+		t.Fatalf("offset = %d, want 4", got)
+	}
+	if selected, ok := state.Selected(); !ok || selected != 3 {
+		t.Fatalf("selected = %d, %v; want 3, true", selected, ok)
+	}
+	if selectedColumn, ok := state.SelectedColumn(); !ok || selectedColumn != 5 {
+		t.Fatalf("selected column = %d, %v; want 5, true", selectedColumn, ok)
+	}
+	if row, column, ok := state.SelectedCell(); !ok || row != 3 || column != 5 {
+		t.Fatalf("selected cell = %d,%d,%v; want 3,5,true", row, column, ok)
+	}
+}
+
+func TestTableState_SelectCell_shouldSynchronizeRowAndColumnSelection(t *testing.T) {
+	state := widgets.NewTableState()
+
+	state.SelectCell(2, 4)
+
+	if selected, ok := state.Selected(); !ok || selected != 2 {
+		t.Fatalf("selected = %d, %v; want 2, true", selected, ok)
+	}
+	if selectedColumn, ok := state.SelectedColumn(); !ok || selectedColumn != 4 {
+		t.Fatalf("selected column = %d, %v; want 4, true", selectedColumn, ok)
+	}
+	if row, column, ok := state.SelectedCell(); !ok || row != 2 || column != 4 {
+		t.Fatalf("selected cell = %d,%d,%v; want 2,4,true", row, column, ok)
+	}
+}
+
+func TestTableState_ClearCellSelection_shouldClearSelectionsAndResetOffset(t *testing.T) {
+	state := widgets.NewTableState().
+		WithOffset(3).
+		WithSelectedCell(1, 2)
+
+	state.ClearCellSelection()
+
+	if _, ok := state.Selected(); ok {
+		t.Fatal("expected row selection to be cleared")
+	}
+	if _, ok := state.SelectedColumn(); ok {
+		t.Fatal("expected column selection to be cleared")
+	}
+	if _, _, ok := state.SelectedCell(); ok {
+		t.Fatal("expected cell selection to be cleared")
+	}
+	if got := state.Offset(); got != 0 {
+		t.Fatalf("offset = %d, want 0", got)
+	}
+}
+
+func TestTableState_shouldNavigateRows(t *testing.T) {
+	state := widgets.NewTableState()
+
+	state.SelectFirst()
+	if selected, ok := state.Selected(); !ok || selected != 0 {
+		t.Fatalf("selected after first = %d, %v; want 0, true", selected, ok)
+	}
+
+	state.SelectPrevious()
+	if selected, ok := state.Selected(); !ok || selected != 0 {
+		t.Fatalf("selected after previous at start = %d, %v; want 0, true", selected, ok)
+	}
+
+	state.SelectNext()
+	if selected, ok := state.Selected(); !ok || selected != 1 {
+		t.Fatalf("selected after next = %d, %v; want 1, true", selected, ok)
+	}
+
+	state.SelectPrevious()
+	if selected, ok := state.Selected(); !ok || selected != 0 {
+		t.Fatalf("selected after previous = %d, %v; want 0, true", selected, ok)
+	}
+
+	state.SelectLast()
+	if selected, ok := state.Selected(); !ok || selected <= 1 {
+		t.Fatalf("selected after last = %d, %v; want sentinel > 1, true", selected, ok)
+	}
+}
+
+func TestTableState_shouldScrollRows(t *testing.T) {
+	state := widgets.NewTableState()
+
+	state.ScrollDownBy(3)
+	if selected, ok := state.Selected(); !ok || selected != 3 {
+		t.Fatalf("selected after scroll down from empty = %d, %v; want 3, true", selected, ok)
+	}
+
+	state.ScrollUpBy(10)
+	if selected, ok := state.Selected(); !ok || selected != 0 {
+		t.Fatalf("selected after scroll up past start = %d, %v; want 0, true", selected, ok)
+	}
+
+	state.ScrollDownBy(-1)
+	if selected, ok := state.Selected(); !ok || selected != 0 {
+		t.Fatalf("selected after negative scroll down = %d, %v; want 0, true", selected, ok)
+	}
+}
+
+func TestTableState_shouldNavigateColumns(t *testing.T) {
+	state := widgets.NewTableState()
+
+	state.SelectFirstColumn()
+	state.SelectPreviousColumn()
+	if selected, ok := state.SelectedColumn(); !ok || selected != 0 {
+		t.Fatalf("selected column after previous at start = %d, %v; want 0, true", selected, ok)
+	}
+
+	state.SelectNextColumn()
+	if selected, ok := state.SelectedColumn(); !ok || selected != 1 {
+		t.Fatalf("selected column after next = %d, %v; want 1, true", selected, ok)
+	}
+
+	state.SelectPreviousColumn()
+	if selected, ok := state.SelectedColumn(); !ok || selected != 0 {
+		t.Fatalf("selected column after previous = %d, %v; want 0, true", selected, ok)
+	}
+
+	state.SelectLastColumn()
+	if selected, ok := state.SelectedColumn(); !ok || selected <= 1 {
+		t.Fatalf("selected column after last = %d, %v; want sentinel > 1, true", selected, ok)
+	}
+}
+
+func TestTableState_shouldScrollColumns(t *testing.T) {
+	state := widgets.NewTableState()
+
+	state.ScrollRightBy(3)
+	if selected, ok := state.SelectedColumn(); !ok || selected != 3 {
+		t.Fatalf("selected column after scroll right from empty = %d, %v; want 3, true", selected, ok)
+	}
+
+	state.ScrollLeftBy(10)
+	if selected, ok := state.SelectedColumn(); !ok || selected != 0 {
+		t.Fatalf("selected column after scroll left past start = %d, %v; want 0, true", selected, ok)
+	}
+
+	state.ScrollRightBy(-1)
+	if selected, ok := state.SelectedColumn(); !ok || selected != 0 {
+		t.Fatalf("selected column after negative scroll right = %d, %v; want 0, true", selected, ok)
+	}
+}
+
 func TestTable_shouldRenderMultilineRowsWithSelection(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -739,6 +889,58 @@ func TestTable_RenderStateful_shouldClampSelectedColumnAndCell(t *testing.T) {
 	if row, column, ok := state.SelectedCell(); !ok || row != 1 || column != 1 {
 		t.Fatalf("selected cell = %d,%d,%v; want 1,1,true", row, column, ok)
 	}
+}
+
+func TestTable_RenderStateful_shouldClampSelectLastToFinalRow(t *testing.T) {
+	state := widgets.NewTableState()
+	state.SelectLast()
+
+	widgets.NewTable([]widgets.TableRow{
+		widgets.TableRowFromStrings([]string{"A"}),
+		widgets.TableRowFromStrings([]string{"B"}),
+		widgets.TableRowFromStrings([]string{"C"}),
+	}, []layout.Constraint{layout.Length(1)}).
+		RenderStateful(layout.NewRect(0, 0, 1, 3), buffer.Empty(layout.NewRect(0, 0, 1, 3)), &state)
+
+	if selected, ok := state.Selected(); !ok || selected != 2 {
+		t.Fatalf("selected = %d, %v; want 2, true", selected, ok)
+	}
+}
+
+func TestTable_RenderStateful_shouldClampSelectLastColumnToFinalColumn(t *testing.T) {
+	state := widgets.NewTableState()
+	state.SelectLastColumn()
+
+	widgets.NewTable([]widgets.TableRow{
+		widgets.TableRowFromStrings([]string{"A", "B", "C"}),
+	}, []layout.Constraint{layout.Length(1), layout.Length(1), layout.Length(1)}).
+		RenderStateful(layout.NewRect(0, 0, 5, 1), buffer.Empty(layout.NewRect(0, 0, 5, 1)), &state)
+
+	if selectedColumn, ok := state.SelectedColumn(); !ok || selectedColumn != 2 {
+		t.Fatalf("selected column = %d, %v; want 2, true", selectedColumn, ok)
+	}
+}
+
+func TestTable_RenderStateful_WithSelectedCell_shouldHighlightSameCellAsSelectCell(t *testing.T) {
+	table := widgets.NewTable([]widgets.TableRow{
+		widgets.TableRowFromStrings([]string{"A", "B"}),
+	}, []layout.Constraint{layout.Length(1), layout.Length(1)}).
+		CellHighlightStyle(style.NewStyle().Fg(style.Red))
+
+	selectCellBuf := buffer.Empty(layout.NewRect(0, 0, 3, 1))
+	selectCellState := widgets.NewTableState()
+	selectCellState.SelectCell(0, 1)
+	table.RenderStateful(selectCellBuf.Area, selectCellBuf, &selectCellState)
+
+	withSelectedCellBuf := buffer.Empty(layout.NewRect(0, 0, 3, 1))
+	withSelectedCellState := widgets.NewTableState().WithSelectedCell(0, 1)
+	table.RenderStateful(withSelectedCellBuf.Area, withSelectedCellBuf, &withSelectedCellState)
+
+	cell, ok := selectCellBuf.CellAt(2, 0)
+	if !ok {
+		t.Fatal("expected selected cell")
+	}
+	assertCellStyle(t, withSelectedCellBuf, 2, 0, cell.Style)
 }
 
 func TestTable_ClearColumnAndCellSelection_shouldRemoveHighlights(t *testing.T) {
