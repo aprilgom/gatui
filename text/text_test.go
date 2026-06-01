@@ -232,6 +232,41 @@ func TestLine_Width_shouldSumSpanDisplayWidths(t *testing.T) {
 	}
 }
 
+func TestLineFromSpans_shouldCreateLineFromStyledSpans(t *testing.T) {
+	red := style.NewStyle().Fg(style.Red)
+	green := style.NewStyle().Fg(style.Green)
+
+	got := text.LineFromSpans(
+		text.StyledSpan("Hello,", red),
+		text.StyledSpan(" world!", green),
+	)
+
+	wantSpans := []text.Span{
+		text.StyledSpan("Hello,", red),
+		text.StyledSpan(" world!", green),
+	}
+	if !reflect.DeepEqual(got.Spans, wantSpans) {
+		t.Fatalf("spans = %#v, want %#v", got.Spans, wantSpans)
+	}
+	if got.LineStyle != style.NewStyle() {
+		t.Fatalf("line style = %#v, want default", got.LineStyle)
+	}
+	if got.Alignment != nil {
+		t.Fatalf("alignment = %#v, want nil", got.Alignment)
+	}
+}
+
+func TestLine_String_shouldConcatenateSpanContent(t *testing.T) {
+	got := text.LineFromSpans(
+		text.StyledSpan("Hello,", style.NewStyle().Fg(style.Red)),
+		text.StyledSpan(" world!", style.NewStyle().Fg(style.Green)),
+	).String()
+
+	if got != "Hello, world!" {
+		t.Fatalf("String() = %q, want %q", got, "Hello, world!")
+	}
+}
+
 func TestLine_PatchStyle_shouldPatchExistingLineStyle(t *testing.T) {
 	base := text.LineFromString("hi").Style(style.NewStyle().Fg(style.Yellow))
 	patch := style.NewStyle().AddModifier(style.ModifierItalic)
@@ -264,6 +299,31 @@ func TestLine_ResetStyle_shouldResetLineStyleAndPreserveSpansAndAlignment(t *tes
 	}
 	if got.LineStyle != wantStyle {
 		t.Fatalf("line style = %#v, want %#v", got.LineStyle, wantStyle)
+	}
+}
+
+func TestLine_Extend_shouldAppendSpansAndPreserveMetadata(t *testing.T) {
+	baseStyle := style.NewStyle().Fg(style.Yellow).AddModifier(style.ModifierBold)
+	got := text.LineFromString("A").
+		Style(baseStyle).
+		Right().
+		Extend(
+			text.StyledSpan("B", style.NewStyle().Fg(style.Red)),
+			text.StyledSpan("C", style.NewStyle().Fg(style.Green)),
+		)
+
+	if got.String() != "ABC" {
+		t.Fatalf("String() = %q, want ABC", got.String())
+	}
+	if got.LineStyle != baseStyle {
+		t.Fatalf("line style = %#v, want %#v", got.LineStyle, baseStyle)
+	}
+	if got.Alignment == nil || *got.Alignment != layout.Right {
+		t.Fatalf("alignment = %#v, want Right", got.Alignment)
+	}
+	if got.Spans[1] != text.StyledSpan("B", style.NewStyle().Fg(style.Red)) ||
+		got.Spans[2] != text.StyledSpan("C", style.NewStyle().Fg(style.Green)) {
+		t.Fatalf("appended span styles = %#v, want red/green", got.Spans)
 	}
 }
 
@@ -305,6 +365,52 @@ func TestLine_AppendSpans_shouldAppendMultipleSpans(t *testing.T) {
 	}
 }
 
+func TestTextFromSpan_shouldCreateSingleLineText(t *testing.T) {
+	span := text.StyledSpan("hello", style.NewStyle().Fg(style.Red))
+
+	got := text.TextFromSpan(span)
+
+	if len(got.Lines) != 1 || len(got.Lines[0].Spans) != 1 {
+		t.Fatalf("text shape = %#v, want one line with one span", got)
+	}
+	if got.Lines[0].Spans[0] != span {
+		t.Fatalf("span = %#v, want %#v", got.Lines[0].Spans[0], span)
+	}
+	if got.String() != "hello" {
+		t.Fatalf("String() = %q, want hello", got.String())
+	}
+}
+
+func TestTextFromLine_shouldCreateSingleLineText(t *testing.T) {
+	line := text.LineFromString("hello").
+		Style(style.NewStyle().Fg(style.Yellow)).
+		Center()
+
+	got := text.TextFromLine(line)
+
+	if len(got.Lines) != 1 {
+		t.Fatalf("line count = %d, want 1", len(got.Lines))
+	}
+	if !reflect.DeepEqual(got.Lines[0], line) {
+		t.Fatalf("line = %#v, want %#v", got.Lines[0], line)
+	}
+}
+
+func TestText_String_shouldJoinLinesWithNewline(t *testing.T) {
+	got := text.NewText(
+		text.LineFromSpans(
+			text.StyledSpan("Hello,", style.NewStyle().Fg(style.Red)),
+			text.StyledSpan(" world!", style.NewStyle().Fg(style.Green)),
+		),
+		text.LineFromString("second").Right(),
+		text.NewLine(),
+	).String()
+
+	if got != "Hello, world!\nsecond\n" {
+		t.Fatalf("String() = %q, want %q", got, "Hello, world!\nsecond\n")
+	}
+}
+
 func TestText_Width_shouldReuseLineWidth(t *testing.T) {
 	got := text.NewText(
 		text.NewLine(text.NewSpan("a"), text.NewSpan("コンピ")),
@@ -313,6 +419,52 @@ func TestText_Width_shouldReuseLineWidth(t *testing.T) {
 
 	if got.Width() != 7 {
 		t.Fatalf("Width() = %d, want 7", got.Width())
+	}
+}
+
+func TestText_Extend_shouldAppendLinesAndPreserveTextMetadata(t *testing.T) {
+	textStyle := style.NewStyle().Fg(style.Cyan).AddModifier(style.ModifierItalic)
+	got := text.TextFromLine(text.LineFromString("A")).
+		PatchStyle(textStyle).
+		Center().
+		Extend(
+			text.LineFromString("B").Right(),
+			text.LineFromString("C"),
+		)
+
+	if got.String() != "A\nB\nC" {
+		t.Fatalf("String() = %q, want A\\nB\\nC", got.String())
+	}
+	if got.Style != textStyle {
+		t.Fatalf("style = %#v, want %#v", got.Style, textStyle)
+	}
+	if got.Alignment == nil || *got.Alignment != layout.Center {
+		t.Fatalf("alignment = %#v, want Center", got.Alignment)
+	}
+	if got.Lines[1].Alignment == nil || *got.Lines[1].Alignment != layout.Right {
+		t.Fatalf("appended line alignment = %#v, want Right", got.Lines[1].Alignment)
+	}
+}
+
+func TestText_AppendText_shouldAppendLinesAndIgnoreRightMetadata(t *testing.T) {
+	leftStyle := style.NewStyle().Fg(style.Red)
+	rightStyle := style.NewStyle().Fg(style.Green)
+	left := text.FromString("left").PatchStyle(leftStyle).Left()
+	right := text.FromString("right").PatchStyle(rightStyle).Right()
+
+	got := left.AppendText(right)
+
+	if got.String() != "left\nright" {
+		t.Fatalf("String() = %q, want left\\nright", got.String())
+	}
+	if got.Style != leftStyle {
+		t.Fatalf("style = %#v, want %#v", got.Style, leftStyle)
+	}
+	if got.Alignment == nil || *got.Alignment != layout.Left {
+		t.Fatalf("alignment = %#v, want Left", got.Alignment)
+	}
+	if len(got.Lines) != 2 || got.Lines[1].String() != "right" {
+		t.Fatalf("lines = %#v, want appended right line", got.Lines)
 	}
 }
 

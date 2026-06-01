@@ -94,6 +94,10 @@ func NewLine(spans ...Span) Line {
 	return Line{Spans: append([]Span(nil), spans...), LineStyle: style.NewStyle()}
 }
 
+func LineFromSpans(spans ...Span) Line {
+	return NewLine(spans...)
+}
+
 func LineFromString(content string) Line {
 	return NewLine(NewSpan(content))
 }
@@ -109,6 +113,18 @@ func (l Line) PatchStyle(lineStyle style.Style) Line {
 
 func (l Line) ResetStyle() Line {
 	return l.PatchStyle(style.ResetStyle())
+}
+
+func (l Line) String() string {
+	var builder strings.Builder
+	for _, span := range l.Spans {
+		builder.WriteString(span.Content)
+	}
+	return builder.String()
+}
+
+func (l Line) Extend(spans ...Span) Line {
+	return l.AppendSpans(spans...)
 }
 
 func (l Line) PushSpan(span Span) Line {
@@ -229,6 +245,14 @@ func NewText(lines ...Line) Text {
 	return Text{Lines: append([]Line(nil), lines...), Style: style.NewStyle()}
 }
 
+func TextFromSpan(span Span) Text {
+	return NewText(NewLine(span))
+}
+
+func TextFromLine(line Line) Text {
+	return NewText(line)
+}
+
 func FromString(content string) Text {
 	parts := strings.Split(content, "\n")
 	lines := make([]Line, 0, len(parts))
@@ -251,6 +275,23 @@ func (t Text) PatchStyle(textStyle style.Style) Text {
 
 func (t Text) ResetStyle() Text {
 	return t.PatchStyle(style.ResetStyle())
+}
+
+func (t Text) String() string {
+	lines := make([]string, 0, len(t.Lines))
+	for _, line := range t.Lines {
+		lines = append(lines, line.String())
+	}
+	return strings.Join(lines, "\n")
+}
+
+func (t Text) Extend(lines ...Line) Text {
+	return t.AppendText(NewText(lines...))
+}
+
+func (t Text) AppendText(other Text) Text {
+	t.Lines = append(append([]Line(nil), t.Lines...), other.Lines...)
+	return t
 }
 
 func (t Text) Align(alignment layout.Alignment) Text {
