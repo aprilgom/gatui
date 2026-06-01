@@ -360,13 +360,22 @@ func renderSpan(span Span, area layout.Rect, buf *buffer.Buffer, skipWidth int) 
 
 	x := area.X
 	right := area.Right()
+	renderedAny := false
 	for _, r := range span.Content {
+		if r == '\n' {
+			continue
+		}
 		symbol := string(r)
 		width := runewidth.StringWidth(symbol)
-		if width == 0 && symbol != "" {
-			width = 1
-		}
 		if width == 0 {
+			if !renderedAny {
+				setSpanCellSymbol(buf, x, area.Y, symbol, span.Style, false)
+				renderedAny = true
+			} else if x == area.X {
+				setSpanCellSymbol(buf, x, area.Y, symbol, span.Style, true)
+			} else {
+				setSpanCellSymbol(buf, x-1, area.Y, symbol, span.Style, true)
+			}
 			continue
 		}
 		if skipWidth >= width {
@@ -381,17 +390,26 @@ func renderSpan(span Span, area layout.Rect, buf *buffer.Buffer, skipWidth int) 
 			break
 		}
 
-		cellStyle := style.NewStyle()
-		if cell, ok := buf.CellAt(x, area.Y); ok {
-			cellStyle = cell.Style
-		}
-		buf.SetCell(x, area.Y, buffer.Cell{Symbol: symbol, Style: cellStyle.Patch(span.Style)})
+		setSpanCellSymbol(buf, x, area.Y, symbol, span.Style, renderedAny && x == area.X)
 		for hidden := 1; hidden < width; hidden++ {
 			buf.SetCell(x+hidden, area.Y, buffer.Cell{Symbol: " ", Style: style.NewStyle()})
 		}
 		x += width
+		renderedAny = true
 	}
 	return x
+}
+
+func setSpanCellSymbol(buf *buffer.Buffer, x, y int, symbol string, spanStyle style.Style, appendSymbol bool) {
+	cellStyle := style.NewStyle()
+	cellSymbol := symbol
+	if cell, ok := buf.CellAt(x, y); ok {
+		cellStyle = cell.Style
+		if appendSymbol {
+			cellSymbol = cell.Symbol + symbol
+		}
+	}
+	buf.SetCell(x, y, buffer.Cell{Symbol: cellSymbol, Style: cellStyle.Patch(spanStyle)})
 }
 
 func alignedRenderOffset(lineWidth, areaWidth int, alignment *layout.Alignment) int {

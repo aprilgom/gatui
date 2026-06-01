@@ -468,6 +468,75 @@ func TestSpan_Render_shouldRenderWideSymbolAndClearHiddenCell(t *testing.T) {
 	}
 }
 
+func TestSpan_Render_shouldAppendLeadingZeroWidthToFirstCell(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 3, 1))
+
+	text.NewSpan("\u200Babc").Render(buf.Area, buf)
+
+	assertTextCellSymbols(t, buf, []string{"\u200Ba", "b", "c"})
+}
+
+func TestSpan_Render_shouldAppendMiddleZeroWidthToPreviousCell(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    []string
+	}{
+		{name: "second", content: "a\u200Bbc", want: []string{"a\u200B", "b", "c"}},
+		{name: "middle", content: "ab\u200Bc", want: []string{"a", "b\u200B", "c"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := buffer.Empty(layout.NewRect(0, 0, 3, 1))
+
+			text.NewSpan(tt.content).Render(buf.Area, buf)
+
+			assertTextCellSymbols(t, buf, tt.want)
+		})
+	}
+}
+
+func TestSpan_Render_shouldAppendTrailingZeroWidthToLastCell(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 3, 1))
+
+	text.NewSpan("abc\u200B").Render(buf.Area, buf)
+
+	assertTextCellSymbols(t, buf, []string{"a", "b", "c\u200B"})
+}
+
+func TestSpan_Render_shouldHandleLeftToRightMarkAtBufferEnd(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 5, 1))
+
+	text.NewSpan("Hello\u200E").Render(buf.Area, buf)
+
+	assertTextCellSymbols(t, buf, []string{"H", "e", "l", "l", "o\u200E"})
+}
+
+func TestSpan_Render_shouldIgnoreNewlineDuringRender(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 2, 1))
+
+	text.NewSpan("a\nb").Render(buf.Area, buf)
+
+	assertTextCellSymbols(t, buf, []string{"a", "b"})
+}
+
+func TestSpan_Render_shouldTruncateWideSymbolAsWholeSymbol(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 6, 1))
+
+	text.NewSpan("test 😃 content").Render(buf.Area, buf)
+
+	assertTextLines(t, buf, []string{"test  "})
+}
+
+func TestSpan_Render_shouldTruncateOverflowingAreaToBuffer(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 15, 1))
+
+	text.NewSpan("test content").Render(layout.NewRect(10, 0, 20, 1), buf)
+
+	assertTextLines(t, buf, []string{"          test "})
+}
+
 func TestLine_Render_shouldRespectAlignmentAndTruncation(t *testing.T) {
 	tests := []struct {
 		name string
@@ -541,5 +610,17 @@ func assertTextCellStyle(t *testing.T, buf *buffer.Buffer, x, y int, expected st
 	}
 	if cell.Style != expected {
 		t.Fatalf("style at (%d,%d) = %#v, want %#v", x, y, cell.Style, expected)
+	}
+}
+
+func assertTextCellSymbols(t *testing.T, buf *buffer.Buffer, expected []string) {
+	t.Helper()
+	if len(buf.Cells) != len(expected) {
+		t.Fatalf("cell count = %d, want %d", len(buf.Cells), len(expected))
+	}
+	for i, want := range expected {
+		if got := buf.Cells[i].Symbol; got != want {
+			t.Fatalf("cell %d symbol = %#v, want %#v", i, got, want)
+		}
 	}
 }
