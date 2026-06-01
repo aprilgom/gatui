@@ -4,6 +4,7 @@ import (
 	"gatui/buffer"
 	"gatui/layout"
 	"gatui/style"
+	"math/bits"
 )
 
 type RenderDirection int
@@ -14,12 +15,17 @@ const (
 )
 
 type SparklineBar struct {
-	value uint64
-	style style.Style
+	value   uint64
+	present bool
+	style   style.Style
 }
 
 func NewSparklineBar(value uint64) SparklineBar {
-	return SparklineBar{value: value, style: style.NewStyle()}
+	return SparklineBar{value: value, present: true, style: style.NewStyle()}
+}
+
+func NewAbsentSparklineBar() SparklineBar {
+	return SparklineBar{style: style.NewStyle()}
 }
 
 func (b SparklineBar) Style(barStyle style.Style) SparklineBar {
@@ -28,17 +34,63 @@ func (b SparklineBar) Style(barStyle style.Style) SparklineBar {
 }
 
 type Sparkline struct {
-	data      []SparklineBar
-	max       *uint64
-	block     *Block
-	style     style.Style
-	direction RenderDirection
+	data              []SparklineBar
+	max               *uint64
+	block             *Block
+	style             style.Style
+	absentValueStyle  style.Style
+	absentValueSymbol string
+	barSet            SparklineBarSet
+	direction         RenderDirection
+}
+
+type SparklineBarSet struct {
+	Full          string
+	SevenEighths  string
+	ThreeQuarters string
+	FiveEighths   string
+	Half          string
+	ThreeEighths  string
+	OneQuarter    string
+	OneEighth     string
+	Empty         string
+}
+
+func NineLevelSparklineBarSet() SparklineBarSet {
+	return SparklineBarSet{
+		Full:          "█",
+		SevenEighths:  "▇",
+		ThreeQuarters: "▆",
+		FiveEighths:   "▅",
+		Half:          "▄",
+		ThreeEighths:  "▃",
+		OneQuarter:    "▂",
+		OneEighth:     "▁",
+		Empty:         " ",
+	}
+}
+
+func ThreeLevelSparklineBarSet() SparklineBarSet {
+	return SparklineBarSet{
+		Full:          "█",
+		SevenEighths:  "█",
+		ThreeQuarters: "▄",
+		FiveEighths:   "▄",
+		Half:          "▄",
+		ThreeEighths:  "▄",
+		OneQuarter:    "▄",
+		OneEighth:     " ",
+		Empty:         " ",
+	}
 }
 
 func NewSparkline() Sparkline {
 	return Sparkline{
-		style:     style.NewStyle(),
-		direction: RenderDirectionLeftToRight,
+		style:             style.NewStyle(),
+		absentValueStyle:  style.NewStyle(),
+		absentValueSymbol: " ",
+		barSet:            NineLevelSparklineBarSet(),
+		direction:         RenderDirectionLeftToRight,
 	}
 }
 
@@ -71,6 +123,21 @@ func (s Sparkline) Style(sparklineStyle style.Style) Sparkline {
 	return s
 }
 
+func (s Sparkline) AbsentValueStyle(absentValueStyle style.Style) Sparkline {
+	s.absentValueStyle = absentValueStyle
+	return s
+}
+
+func (s Sparkline) AbsentValueSymbol(symbol string) Sparkline {
+	s.absentValueSymbol = symbol
+	return s
+}
+
+func (s Sparkline) BarSet(barSet SparklineBarSet) Sparkline {
+	s.barSet = barSet
+	return s
+}
+
 func (s Sparkline) Direction(direction RenderDirection) Sparkline {
 	s.direction = direction
 	return s
@@ -100,10 +167,18 @@ func (s Sparkline) renderSparkline(area layout.Rect, buf *buffer.Buffer) {
 		if s.direction == RenderDirectionRightToLeft {
 			x = area.X + area.Width - i - 1
 		}
+		if !bar.present {
+			cellStyle := s.style.Patch(s.absentValueStyle)
+			for rowFromBottom := 0; rowFromBottom < area.Height; rowFromBottom++ {
+				y := area.Y + area.Height - 1 - rowFromBottom
+				buf.SetCell(x, y, buffer.Cell{Symbol: s.absentValueSymbol, Style: cellStyle})
+			}
+			continue
+		}
 		height := scaleSparklineHeight(bar.value, maxValue, area.Height)
 		cellStyle := s.style.Patch(bar.style)
 		for rowFromBottom := 0; rowFromBottom < area.Height; rowFromBottom++ {
-			symbol := sparklineSymbolForHeight(height)
+			symbol := s.barSet.symbolForHeight(height)
 			if height > 8 {
 				height -= 8
 			} else {
@@ -121,7 +196,7 @@ func (s Sparkline) effectiveMax() uint64 {
 	}
 	var maxValue uint64
 	for _, bar := range s.data {
-		if bar.value > maxValue {
+		if bar.present && bar.value > maxValue {
 			maxValue = bar.value
 		}
 	}
@@ -133,32 +208,36 @@ func scaleSparklineHeight(value, maxValue uint64, maxHeight int) uint64 {
 		return 0
 	}
 	maxTicks := uint64(maxHeight * 8)
-	ticks := value * maxTicks / maxValue
+	if value >= maxValue {
+		return maxTicks
+	}
+	hi, lo := bits.Mul64(value, maxTicks)
+	ticks, _ := bits.Div64(hi, lo, maxValue)
 	if ticks > maxTicks {
 		return maxTicks
 	}
 	return ticks
 }
 
-func sparklineSymbolForHeight(height uint64) string {
+func (s SparklineBarSet) symbolForHeight(height uint64) string {
 	switch height {
 	case 0:
-		return " "
+		return s.Empty
 	case 1:
-		return "▁"
+		return s.OneEighth
 	case 2:
-		return "▂"
+		return s.OneQuarter
 	case 3:
-		return "▃"
+		return s.ThreeEighths
 	case 4:
-		return "▄"
+		return s.Half
 	case 5:
-		return "▅"
+		return s.FiveEighths
 	case 6:
-		return "▆"
+		return s.ThreeQuarters
 	case 7:
-		return "▇"
+		return s.SevenEighths
 	default:
-		return "█"
+		return s.Full
 	}
 }
