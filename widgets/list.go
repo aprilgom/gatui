@@ -228,6 +228,18 @@ func (l List) RenderStateful(area layout.Rect, buf *buffer.Buffer, state *ListSt
 	}
 }
 
+func (l List) RenderStatefulRef(area layout.Rect, buf *buffer.Buffer, state any) {
+	if state == nil {
+		l.RenderStateful(area, buf, nil)
+		return
+	}
+	listState, ok := state.(*ListState)
+	if !ok {
+		panic("gatui: invalid state type for List")
+	}
+	l.RenderStateful(area, buf, listState)
+}
+
 func (l List) visibleBounds(state *ListState, height int) (int, int) {
 	if height <= 0 || len(l.items) == 0 {
 		return 0, 0

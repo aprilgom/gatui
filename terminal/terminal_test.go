@@ -1571,6 +1571,113 @@ func TestFrame_RenderWidget_shouldRenderIntoCurrentBuffer(t *testing.T) {
 	}
 }
 
+func TestFrame_RenderStatefulWidget_shouldRenderListWithState(t *testing.T) {
+	term, err := terminal.New(newRecordingBackend(10, 3))
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+	state := widgets.ListState{}
+	state.Select(1)
+
+	completed, err := term.Draw(func(frame *terminal.Frame) {
+		frame.RenderStatefulWidget(widgets.NewList([]widgets.ListItem{
+			widgets.ListItemFromString("Item 1"),
+			widgets.ListItemFromString("Item 2"),
+			widgets.ListItemFromString("Item 3"),
+		}).HighlightSymbol(">> "), frame.Area(), &state)
+	})
+	if err != nil {
+		t.Fatalf("Draw returned error: %v", err)
+	}
+
+	if got, want := completed.Buffer.Lines(), []string{"   Item 1 ", ">> Item 2 ", "   Item 3 "}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("buffer lines = %#v, want %#v", got, want)
+	}
+}
+
+func TestFrame_RenderStatefulWidget_shouldRenderTableWithState(t *testing.T) {
+	term, err := terminal.New(newRecordingBackend(7, 2))
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+	state := widgets.NewTableState().WithSelected(1)
+
+	completed, err := term.Draw(func(frame *terminal.Frame) {
+		frame.RenderStatefulWidget(widgets.NewTable([]widgets.TableRow{
+			widgets.TableRowFromStrings([]string{"one"}),
+			widgets.TableRowFromStrings([]string{"two"}),
+		}, []layout.Constraint{layout.Length(3)}).HighlightSymbol(">> "), frame.Area(), &state)
+	})
+	if err != nil {
+		t.Fatalf("Draw returned error: %v", err)
+	}
+
+	if got, want := completed.Buffer.Lines(), []string{"   one ", ">> two "}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("buffer lines = %#v, want %#v", got, want)
+	}
+}
+
+func TestFrame_RenderStatefulWidget_shouldRenderScrollbarWithState(t *testing.T) {
+	term, err := terminal.New(newRecordingBackend(2, 1))
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+	state := widgets.NewScrollbarState(2).Position(1)
+
+	completed, err := term.Draw(func(frame *terminal.Frame) {
+		frame.RenderStatefulWidget(
+			widgets.NewScrollbar(widgets.ScrollbarOrientationHorizontalTop).ClearBeginSymbol().ClearEndSymbol(),
+			frame.Area(),
+			&state,
+		)
+	})
+	if err != nil {
+		t.Fatalf("Draw returned error: %v", err)
+	}
+
+	if got, want := completed.Buffer.Lines(), []string{"═█"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("buffer lines = %#v, want %#v", got, want)
+	}
+}
+
+func TestFrame_RenderStatefulWidget_shouldPanicOnWrongStateType(t *testing.T) {
+	term, err := terminal.New(newRecordingBackend(10, 1))
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+
+	defer func() {
+		got := recover()
+		if got != "gatui: invalid state type for List" {
+			t.Fatalf("panic = %#v, want %q", got, "gatui: invalid state type for List")
+		}
+	}()
+
+	_, _ = term.Draw(func(frame *terminal.Frame) {
+		frame.RenderStatefulWidget(widgets.NewList([]widgets.ListItem{
+			widgets.ListItemFromString("Item"),
+		}), frame.Area(), &widgets.TableState{})
+	})
+}
+
+func TestFrame_RenderStatefulWidget_shouldIgnoreNilWidget(t *testing.T) {
+	term, err := terminal.New(newRecordingBackend(4, 1))
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+
+	completed, err := term.Draw(func(frame *terminal.Frame) {
+		frame.RenderStatefulWidget(nil, frame.Area(), nil)
+	})
+	if err != nil {
+		t.Fatalf("Draw returned error: %v", err)
+	}
+
+	if got, want := completed.Buffer.Lines(), []string{"    "}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("buffer lines = %#v, want %#v", got, want)
+	}
+}
+
 func TestTerminal_Draw_shouldHideCursorWhenUnset(t *testing.T) {
 	backend := newRecordingBackend(2, 1)
 	term, err := terminal.New(backend)

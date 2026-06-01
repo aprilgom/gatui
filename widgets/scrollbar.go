@@ -227,6 +227,18 @@ func (s Scrollbar) RenderStateful(area layout.Rect, buf *buffer.Buffer, state *S
 	}
 }
 
+func (s Scrollbar) RenderStatefulRef(area layout.Rect, buf *buffer.Buffer, state any) {
+	if state == nil {
+		s.RenderStateful(area, buf, nil)
+		return
+	}
+	scrollbarState, ok := state.(*ScrollbarState)
+	if !ok {
+		panic("gatui: invalid state type for Scrollbar")
+	}
+	s.RenderStateful(area, buf, scrollbarState)
+}
+
 func (s Scrollbar) scrollbarArea(area layout.Rect) layout.Rect {
 	switch s.orientation {
 	case ScrollbarOrientationVerticalLeft:

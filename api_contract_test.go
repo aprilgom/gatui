@@ -70,6 +70,17 @@ func TestPublicAPISurface_shouldExposeInitialRatatuiPortTypes(t *testing.T) {
 	completed, err := term.Draw(func(frame *terminal.Frame) {
 		_ = frame.Size()
 		frame.RenderWidget(widgets.NewParagraph(text.FromString("terminal")), frame.Area())
+		frame.RenderStatefulWidget(widgets.NewList([]widgets.ListItem{
+			widgets.ListItemFromString("list"),
+		}), frame.Area(), &widgets.ListState{})
+		frame.RenderStatefulWidget(widgets.NewTable([]widgets.TableRow{
+			widgets.TableRowFromStrings([]string{"table"}),
+		}, []layout.Constraint{layout.Length(5)}), frame.Area(), &widgets.TableState{})
+		frame.RenderStatefulWidget(
+			widgets.NewScrollbar(widgets.ScrollbarOrientationHorizontalTop),
+			frame.Area(),
+			&widgets.ScrollbarState{},
+		)
 		frame.SetCursorPosition(layout.Position{X: 1, Y: 0})
 	})
 	if err != nil {

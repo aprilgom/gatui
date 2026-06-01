@@ -431,6 +431,18 @@ func (t Table) RenderStateful(area layout.Rect, buf *buffer.Buffer, state *Table
 	}
 }
 
+func (t Table) RenderStatefulRef(area layout.Rect, buf *buffer.Buffer, state any) {
+	if state == nil {
+		t.RenderStateful(area, buf, nil)
+		return
+	}
+	tableState, ok := state.(*TableState)
+	if !ok {
+		panic("gatui: invalid state type for Table")
+	}
+	t.RenderStateful(area, buf, tableState)
+}
+
 func (t Table) clampState(state *TableState) {
 	if len(t.rows) == 0 {
 		state.ClearSelection()

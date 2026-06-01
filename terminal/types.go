@@ -678,6 +678,13 @@ func (f *Frame) RenderWidget(widget widgets.Widget, area layout.Rect) {
 	widget.Render(area, f.buffer)
 }
 
+func (f *Frame) RenderStatefulWidget(widget widgets.StatefulWidget, area layout.Rect, state any) {
+	if widget == nil {
+		return
+	}
+	widget.RenderStatefulRef(area, f.buffer, state)
+}
+
 func (f *Frame) SetCursorPosition(pos layout.Position) {
 	f.cursorPosition = &pos
 }
