@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+
+echo "running go fix ./..."
+go fix ./...
+
+echo "running go test ./..."
+go test ./...
+
+echo "running golangci-lint run ./..."
+golangci-lint run ./...
