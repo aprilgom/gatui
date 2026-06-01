@@ -9,7 +9,7 @@ flowchart TD
     text[text<br/>Span, Line, Text]
     widgets[widgets<br/>Widget, Paragraph, Block, Clear]
     buffer[buffer<br/>Buffer, Cell]
-    backend[future backend/tcell<br/>terminal flush and events]
+    backend[backend/tcell<br/>terminal drawing and flush]
 
     style --> text
     style --> buffer
@@ -27,7 +27,8 @@ flowchart TD
 - `text` owns styled textual content. It may depend on `style`, but not on `buffer` or `widgets`.
 - `buffer` owns the off-screen cell grid. It may depend on `layout` and `style`.
 - `widgets` owns renderable components. Widgets write into `buffer.Buffer` inside a `layout.Rect`.
-- Future `backend/tcell` should translate `buffer.Cell` and `style.Style` into `tcell` drawing calls.
+- `backend/tcell` translates `buffer.Cell` and `style.Style` into `tcell` drawing calls.
+- Input and event polling are not core responsibilities. Applications should handle keyboard, mouse, and resize events directly with `tcell` or an equivalent input library, then call `terminal.Resize` when the terminal area changes.
 
 ## Porting Strategy
 

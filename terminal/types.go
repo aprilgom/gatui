@@ -13,7 +13,6 @@ type Backend interface {
 	Draw([]buffer.CellDiff) error
 	Flush() error
 	Clear() error
-	PollEvent() (Event, error)
 	HideCursor() error
 	ShowCursor() error
 	SetCursorPosition(layout.Position) error

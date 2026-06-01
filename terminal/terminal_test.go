@@ -46,10 +46,6 @@ func (b *recordingBackend) Clear() error {
 	return nil
 }
 
-func (b *recordingBackend) PollEvent() (terminal.Event, error) {
-	return terminal.UnknownEvent{}, nil
-}
-
 func (b *recordingBackend) HideCursor() error {
 	b.hideCursorCount++
 	return nil
@@ -63,6 +59,10 @@ func (b *recordingBackend) ShowCursor() error {
 func (b *recordingBackend) SetCursorPosition(pos layout.Position) error {
 	b.cursorPositions = append(b.cursorPositions, pos)
 	return nil
+}
+
+func TestTerminalBackendInterface_shouldNotRequireEventPolling(t *testing.T) {
+	var _ terminal.Backend = (*recordingBackend)(nil)
 }
 
 func TestTerminal_New_shouldCreateBuffersFromBackendSize(t *testing.T) {

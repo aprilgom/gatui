@@ -10,7 +10,7 @@ The project currently focuses on core, backend-independent packages:
 - `buffer`
 - `widgets`
 
-The planned terminal backend is `tcell`, but core rendering stays independent so package tests can run without a terminal.
+The `tcell` backend handles terminal drawing, while input and event polling stay outside core. Applications should read keyboard, mouse, and resize events directly with `tcell` or an equivalent input library.
 
 ## Quick Start
 
