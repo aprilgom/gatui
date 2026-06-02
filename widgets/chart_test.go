@@ -679,6 +679,130 @@ func TestChart_shouldPatchDatasetStyleIntoLegendName(t *testing.T) {
 	}
 }
 
+func TestAxis_canBeStylized(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 8, 4))
+	axis := widgets.NewAxis().
+		Bounds(0, 1).
+		LabelStrings([]string{"0", "1"}).
+		TitleString("Y").
+		Fg(style.Black).
+		Bg(style.White).
+		Bold().
+		Dim().
+		Italic().
+		Cyan()
+	want := style.NewStyle().
+		Fg(style.Cyan).
+		Bg(style.White).
+		AddModifier(style.ModifierBold | style.ModifierDim | style.ModifierItalic)
+	chart := widgets.NewChart([]widgets.Dataset{}).YAxis(axis)
+
+	chart.Render(buf.Area, buf)
+
+	assertCellStyle(t, buf, 1, 0, want)
+	assertCellStyle(t, buf, 0, 3, want)
+	assertCellStyle(t, buf, 2, 0, want)
+}
+
+func TestDataset_canBeStylized(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 12, 6))
+	dataset := widgets.NewDataset().
+		Name("D").
+		DataPoints([]widgets.ChartPoint{{X: 0.5, Y: 0.5}}).
+		Fg(style.Black).
+		Bg(style.White).
+		Bold().
+		Dim().
+		Italic().
+		Cyan()
+	want := style.NewStyle().
+		Fg(style.Cyan).
+		Bg(style.White).
+		AddModifier(style.ModifierBold | style.ModifierDim | style.ModifierItalic)
+	chart := widgets.NewChart([]widgets.Dataset{dataset}).
+		HiddenLegendConstraints(layout.Length(100), layout.Length(100)).
+		XAxis(widgets.NewAxis().Bounds(0, 1)).
+		YAxis(widgets.NewAxis().Bounds(0, 1))
+
+	chart.Render(buf.Area, buf)
+
+	assertCellStyle(t, buf, 6, 3, style.NewStyle().Fg(style.Cyan))
+	assertCellStyle(t, buf, 10, 1, want)
+}
+
+func TestChart_canBeStylized(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 4, 2))
+	chart := widgets.NewChart([]widgets.Dataset{}).
+		Fg(style.Black).
+		Bg(style.White).
+		Bold().
+		Dim().
+		Italic().
+		Cyan()
+	want := style.NewStyle().
+		Fg(style.Cyan).
+		Bg(style.White).
+		AddModifier(style.ModifierBold | style.ModifierDim | style.ModifierItalic)
+
+	chart.Render(buf.Area, buf)
+
+	assertCellStyle(t, buf, 0, 0, want)
+	assertCellStyle(t, buf, 3, 1, want)
+}
+
+func TestChart_shouldApplyChartStyleToPlotBackground(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 5))
+	chart := widgets.NewChart([]widgets.Dataset{}).
+		Style(style.NewStyle().Bg(style.Blue)).
+		XAxis(widgets.NewAxis().Bounds(0, 1).LabelStrings([]string{"0", "1"})).
+		YAxis(widgets.NewAxis().Bounds(0, 1).LabelStrings([]string{"0", "1"}))
+
+	chart.Render(buf.Area, buf)
+
+	assertCellStyle(t, buf, 5, 1, style.NewStyle().Bg(style.Blue))
+}
+
+func TestChart_shouldPatchAxisStyleOverChartStyle(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 5))
+	chart := widgets.NewChart([]widgets.Dataset{}).
+		Style(style.NewStyle().Bg(style.Blue)).
+		XAxis(widgets.NewAxis().
+			Bounds(0, 1).
+			LabelStrings([]string{"0", "1"}).
+			TitleString("X").
+			Fg(style.Red)).
+		YAxis(widgets.NewAxis().
+			Bounds(0, 1).
+			LabelStrings([]string{"0", "1"}).
+			Fg(style.Green))
+
+	chart.Render(buf.Area, buf)
+
+	assertCellStyle(t, buf, 1, 2, style.NewStyle().Fg(style.Green).Bg(style.Blue))
+	assertCellStyle(t, buf, 2, 3, style.NewStyle().Fg(style.Red).Bg(style.Blue))
+	assertCellStyle(t, buf, 0, 2, style.NewStyle().Fg(style.Green).Bg(style.Blue))
+	assertCellStyle(t, buf, 9, 4, style.NewStyle().Fg(style.Red).Bg(style.Blue))
+}
+
+func TestChart_shouldPatchDatasetStyleOverChartStyle(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 12, 6))
+	chart := widgets.NewChart([]widgets.Dataset{
+		widgets.NewDataset().
+			Name("D").
+			DataPoints([]widgets.ChartPoint{{X: 0.5, Y: 0.5}}).
+			Fg(style.Red),
+	}).
+		Style(style.NewStyle().Bg(style.Blue)).
+		HiddenLegendConstraints(layout.Length(100), layout.Length(100)).
+		XAxis(widgets.NewAxis().Bounds(0, 1)).
+		YAxis(widgets.NewAxis().Bounds(0, 1))
+
+	chart.Render(buf.Area, buf)
+
+	assertCellStyle(t, buf, 6, 3, style.NewStyle().Fg(style.Red).Bg(style.Blue))
+	assertCellStyle(t, buf, 10, 1, style.NewStyle().Fg(style.Red).Bg(style.Blue))
+}
+
 func TestChart_shouldRenderStyledAxisLabelsWithCellWidthClipping(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 6, 5))
 	axisStyle := style.NewStyle().Bg(style.Blue)

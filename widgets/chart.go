@@ -57,6 +57,7 @@ type Dataset struct {
 type Chart struct {
 	datasets           []Dataset
 	block              *Block
+	style              style.Style
 	xAxis              Axis
 	yAxis              Axis
 	legendPosition     *LegendPosition
@@ -104,6 +105,35 @@ func (a Axis) Style(axisStyle style.Style) Axis {
 	return a
 }
 
+func (a Axis) Fg(color style.Color) Axis {
+	a.axisStyle = a.axisStyle.Fg(color)
+	return a
+}
+
+func (a Axis) Bg(color style.Color) Axis {
+	a.axisStyle = a.axisStyle.Bg(color)
+	return a
+}
+
+func (a Axis) Bold() Axis {
+	a.axisStyle = a.axisStyle.AddModifier(style.ModifierBold)
+	return a
+}
+
+func (a Axis) Dim() Axis {
+	a.axisStyle = a.axisStyle.AddModifier(style.ModifierDim)
+	return a
+}
+
+func (a Axis) Italic() Axis {
+	a.axisStyle = a.axisStyle.AddModifier(style.ModifierItalic)
+	return a
+}
+
+func (a Axis) Cyan() Axis {
+	return a.Fg(style.Cyan)
+}
+
 func (a Axis) LabelsAlignment(alignment layout.Alignment) Axis {
 	a.labelsAlignment = alignment
 	return a
@@ -147,6 +177,35 @@ func (d Dataset) Style(datasetStyle style.Style) Dataset {
 	return d
 }
 
+func (d Dataset) Fg(color style.Color) Dataset {
+	d.style = d.style.Fg(color)
+	return d
+}
+
+func (d Dataset) Bg(color style.Color) Dataset {
+	d.style = d.style.Bg(color)
+	return d
+}
+
+func (d Dataset) Bold() Dataset {
+	d.style = d.style.AddModifier(style.ModifierBold)
+	return d
+}
+
+func (d Dataset) Dim() Dataset {
+	d.style = d.style.AddModifier(style.ModifierDim)
+	return d
+}
+
+func (d Dataset) Italic() Dataset {
+	d.style = d.style.AddModifier(style.ModifierItalic)
+	return d
+}
+
+func (d Dataset) Cyan() Dataset {
+	return d.Fg(style.Cyan)
+}
+
 func (d Dataset) Marker(marker CanvasMarker) Dataset {
 	d.marker = marker
 	return d
@@ -156,6 +215,7 @@ func NewChart(datasets []Dataset) Chart {
 	defaultLegendPosition := LegendPositionTopRight
 	return Chart{
 		datasets:           append([]Dataset(nil), datasets...),
+		style:              style.NewStyle(),
 		xAxis:              NewAxis(),
 		yAxis:              NewAxis(),
 		legendPosition:     &defaultLegendPosition,
@@ -167,6 +227,40 @@ func NewChart(datasets []Dataset) Chart {
 func (c Chart) Block(block Block) Chart {
 	c.block = &block
 	return c
+}
+
+func (c Chart) Style(chartStyle style.Style) Chart {
+	c.style = chartStyle
+	return c
+}
+
+func (c Chart) Fg(color style.Color) Chart {
+	c.style = c.style.Fg(color)
+	return c
+}
+
+func (c Chart) Bg(color style.Color) Chart {
+	c.style = c.style.Bg(color)
+	return c
+}
+
+func (c Chart) Bold() Chart {
+	c.style = c.style.AddModifier(style.ModifierBold)
+	return c
+}
+
+func (c Chart) Dim() Chart {
+	c.style = c.style.AddModifier(style.ModifierDim)
+	return c
+}
+
+func (c Chart) Italic() Chart {
+	c.style = c.style.AddModifier(style.ModifierItalic)
+	return c
+}
+
+func (c Chart) Cyan() Chart {
+	return c.Fg(style.Cyan)
 }
 
 func (c Chart) XAxis(axis Axis) Chart {
@@ -207,6 +301,7 @@ func (c Chart) Render(area layout.Rect, buf *buffer.Buffer) {
 	if chartArea.Width == 0 || chartArea.Height == 0 {
 		return
 	}
+	buf.SetStyle(chartArea, c.style)
 
 	layout := c.layout(chartArea)
 	c.renderYAxis(buf, layout)
@@ -291,7 +386,7 @@ func (c Chart) renderYAxis(buf *buffer.Buffer, l chartAxisLayout) {
 		return
 	}
 	for y := l.area.Y; y <= l.axisY && y < l.area.Y+l.area.Height; y++ {
-		buf.SetCell(l.axisX, y, buffer.Cell{Symbol: "│", Style: c.yAxis.axisStyle})
+		c.setCell(buf, l.axisX, y, "│", c.yAxis.axisStyle)
 	}
 }
 
@@ -301,10 +396,10 @@ func (c Chart) renderXAxis(buf *buffer.Buffer, l chartAxisLayout) {
 	}
 	start := l.graphLeft
 	if l.hasYAxis {
-		buf.SetCell(l.axisX, l.axisY, buffer.Cell{Symbol: "└", Style: c.yAxis.axisStyle.Patch(c.xAxis.axisStyle)})
+		c.setCell(buf, l.axisX, l.axisY, "└", c.yAxis.axisStyle.Patch(c.xAxis.axisStyle))
 	}
 	for x := start; x < l.graphRight; x++ {
-		buf.SetCell(x, l.axisY, buffer.Cell{Symbol: "─", Style: c.xAxis.axisStyle})
+		c.setCell(buf, x, l.axisY, "─", c.xAxis.axisStyle)
 	}
 }
 
@@ -427,11 +522,21 @@ func (c Chart) renderLegend(buf *buffer.Buffer, l chartAxisLayout) {
 			if x >= legendArea.X+legendArea.Width-1 {
 				break
 			}
-			buf.SetCell(x, y, buffer.Cell{Symbol: string(r), Style: dataset.style})
+			cell, ok := buf.CellAt(x, y)
+			if ok {
+				cell.Symbol = string(r)
+				cell.Style = cell.Style.Patch(dataset.style)
+				buf.SetCell(x, y, cell)
+			}
 			x++
 		}
 		for ; x < legendArea.X+1+innerWidth; x++ {
-			buf.SetCell(x, y, buffer.Cell{Symbol: " ", Style: dataset.style})
+			cell, ok := buf.CellAt(x, y)
+			if ok {
+				cell.Symbol = " "
+				cell.Style = cell.Style.Patch(dataset.style)
+				buf.SetCell(x, y, cell)
+			}
 		}
 		y++
 	}
@@ -622,4 +727,14 @@ func (c Chart) renderLabel(buf *buffer.Buffer, label text.Line, area layout.Rect
 	}
 	offset := alignedOffset(minInt(label.Width(), area.Width), area.Width, alignment)
 	renderLine(layout.NewRect(area.X+offset, area.Y, area.Width-offset, 1), buf, label, baseStyle)
+}
+
+func (c Chart) setCell(buf *buffer.Buffer, x, y int, symbol string, cellStyle style.Style) {
+	cell, ok := buf.CellAt(x, y)
+	if !ok {
+		return
+	}
+	cell.Symbol = symbol
+	cell.Style = cell.Style.Patch(cellStyle)
+	buf.SetCell(x, y, cell)
 }
