@@ -1,6 +1,7 @@
 package widgets_test
 
 import (
+	"math"
 	"testing"
 
 	"gatui/buffer"
@@ -135,4 +136,250 @@ func TestBarChart_shouldLetPerBarStylesOverrideChartStyles(t *testing.T) {
 
 	assertCellStyle(t, buf, 0, 1, style.NewStyle().Fg(style.Red))
 	assertCellStyle(t, buf, 1, 2, style.NewStyle().Fg(style.Blue))
+}
+
+func TestBarChart_shouldRenderDataWithDefaultNineLevelBarSet(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 8, 5))
+	barchart := widgets.NewBarChart().
+		DataPairs([]widgets.BarData{
+			{Label: "A", Value: 1},
+			{Label: "B", Value: 2},
+			{Label: "C", Value: 3},
+		}).
+		Max(4).
+		BarGap(1)
+
+	barchart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"        ",
+		"    █   ",
+		"  █ █   ",
+		"1 2 3   ",
+		"A B C   ",
+	})
+}
+
+func TestBarChart_shouldUseConfiguredBarWidth(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 8, 5))
+	barchart := widgets.NewBarChart().
+		DataPairs([]widgets.BarData{{Label: "A", Value: 1}, {Label: "B", Value: 2}}).
+		Max(2).
+		BarWidth(2).
+		BarGap(1)
+
+	barchart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"   ██   ",
+		"   ██   ",
+		"██ ██   ",
+		"1█ 2█   ",
+		"A  B    ",
+	})
+}
+
+func TestBarChart_shouldUseConfiguredBarGap(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 8, 4))
+	barchart := widgets.NewBarChart().
+		DataPairs([]widgets.BarData{{Label: "A", Value: 1}, {Label: "B", Value: 2}}).
+		Max(2).
+		BarGap(2)
+
+	barchart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"   █    ",
+		"▄  █    ",
+		"1  2    ",
+		"A  B    ",
+	})
+}
+
+func TestBarChart_shouldUseConfiguredBarSet(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 8, 5))
+	barchart := widgets.NewBarChart().
+		DataPairs([]widgets.BarData{
+			{Label: "A", Value: 1},
+			{Label: "B", Value: 2},
+			{Label: "C", Value: 3},
+		}).
+		Max(4).
+		BarGap(1).
+		BarSet(widgets.ThreeLevelBarSet)
+
+	barchart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"        ",
+		"    █   ",
+		"  █ █   ",
+		"1 2 3   ",
+		"A B C   ",
+	})
+}
+
+func TestBarChart_shouldUseNineLevelBarSetPreset(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 2))
+	barchart := widgets.NewBarChart().
+		DataPairs([]widgets.BarData{
+			{Label: "0", Value: 0},
+			{Label: "1", Value: 1},
+			{Label: "2", Value: 2},
+			{Label: "3", Value: 3},
+			{Label: "4", Value: 4},
+		}).
+		Max(8).
+		BarGap(1).
+		BarSet(widgets.NineLevelBarSet)
+
+	barchart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"  ▁ ▂ ▃ ▄ ",
+		"0 1 2 3 4 ",
+	})
+}
+
+func TestBarChart_shouldApplyValueStyle(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 3, 3))
+	barchart := widgets.NewBarChart().
+		DataPairs([]widgets.BarData{{Label: "A", Value: 1}}).
+		ValueStyle(style.NewStyle().Fg(style.Red))
+
+	barchart.Render(buf.Area, buf)
+
+	assertCellStyle(t, buf, 0, 1, style.NewStyle().Fg(style.Red))
+}
+
+func TestBarChart_shouldApplyLabelStyle(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 3, 3))
+	barchart := widgets.NewBarChart().
+		DataPairs([]widgets.BarData{{Label: "A", Value: 1}}).
+		LabelStyle(style.NewStyle().Fg(style.Blue))
+
+	barchart.Render(buf.Area, buf)
+
+	assertCellStyle(t, buf, 0, 2, style.NewStyle().Fg(style.Blue))
+}
+
+func TestBarChart_shouldApplyChartAreaStyle(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 4, 3))
+	barchart := widgets.NewBarChart().
+		DataPairs([]widgets.BarData{{Label: "A", Value: 1}}).
+		Style(style.NewStyle().Bg(style.Yellow))
+
+	barchart.Render(buf.Area, buf)
+
+	assertCellStyle(t, buf, 3, 0, style.NewStyle().Bg(style.Yellow))
+	assertCellStyle(t, buf, 0, 0, style.NewStyle().Bg(style.Yellow))
+	assertCellStyle(t, buf, 0, 1, style.NewStyle().Bg(style.Yellow))
+	assertCellStyle(t, buf, 0, 2, style.NewStyle().Bg(style.Yellow))
+}
+
+func TestBarChart_shouldIgnoreEmptyGroups(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 8, 3))
+	barchart := widgets.NewBarChart().
+		Data(widgets.NewBarGroup(nil).Label("empty")).
+		DataPairs([]widgets.BarData{{Label: "A", Value: 1}})
+
+	barchart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"█       ",
+		"1       ",
+		"A       ",
+	})
+}
+
+func TestBarChart_shouldRenderSingleLine(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 4, 1))
+	barchart := widgets.NewBarChart().
+		DataPairs([]widgets.BarData{{Label: "A", Value: 1}})
+
+	barchart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"█   "})
+}
+
+func TestBarChart_shouldRenderTwoLines(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 4, 2))
+	barchart := widgets.NewBarChart().
+		DataPairs([]widgets.BarData{{Label: "A", Value: 1}})
+
+	barchart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"█   ",
+		"A   ",
+	})
+}
+
+func TestBarChart_shouldRenderThreeLines(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 4, 3))
+	barchart := widgets.NewBarChart().
+		DataPairs([]widgets.BarData{{Label: "A", Value: 1}})
+
+	barchart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"█   ",
+		"1   ",
+		"A   ",
+	})
+}
+
+func TestBarChart_shouldRenderFourLines(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 4, 4))
+	barchart := widgets.NewBarChart().
+		DataPairs([]widgets.BarData{{Label: "A", Value: 1}})
+
+	barchart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"█   ",
+		"█   ",
+		"1   ",
+		"A   ",
+	})
+}
+
+func TestBarChart_shouldRenderUint64MaxValue(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 3, 3))
+	barchart := widgets.NewBarChart().
+		DataPairs([]widgets.BarData{{Label: "A", Value: math.MaxUint64}})
+
+	barchart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"█  ",
+		"1  ",
+		"A  ",
+	})
+}
+
+func TestBarChart_shouldKeepIntegerPrecisionForLargeValues(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 5, 10))
+	barchart := widgets.NewBarChart().
+		DataPairs([]widgets.BarData{
+			{Label: "A", Value: 9007199254740992},
+			{Label: "B", Value: 9007199254740993},
+		}).
+		Max(9007199254740993).
+		BarGap(1)
+
+	barchart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"▇ █  ",
+		"█ █  ",
+		"█ █  ",
+		"█ █  ",
+		"█ █  ",
+		"█ █  ",
+		"█ █  ",
+		"█ █  ",
+		"9 9  ",
+		"A B  ",
+	})
 }

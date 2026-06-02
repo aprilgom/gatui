@@ -74,6 +74,42 @@ func (g BarGroup) Bars(bars []Bar) BarGroup {
 	return g
 }
 
+type BarSet struct {
+	Empty         string
+	OneEighth     string
+	OneQuarter    string
+	ThreeEighths  string
+	Half          string
+	FiveEighths   string
+	ThreeQuarters string
+	SevenEighths  string
+	Full          string
+}
+
+var NineLevelBarSet = BarSet{
+	Empty:         " ",
+	OneEighth:     "▁",
+	OneQuarter:    "▂",
+	ThreeEighths:  "▃",
+	Half:          "▄",
+	FiveEighths:   "▅",
+	ThreeQuarters: "▆",
+	SevenEighths:  "▇",
+	Full:          "█",
+}
+
+var ThreeLevelBarSet = BarSet{
+	Empty:         " ",
+	OneEighth:     "▄",
+	OneQuarter:    "▄",
+	ThreeEighths:  "▄",
+	Half:          "▄",
+	FiveEighths:   "█",
+	ThreeQuarters: "█",
+	SevenEighths:  "█",
+	Full:          "█",
+}
+
 type BarChart struct {
 	groups     []BarGroup
 	block      *Block
@@ -81,9 +117,11 @@ type BarChart struct {
 	barWidth   int
 	barGap     int
 	groupGap   int
+	style      style.Style
 	barStyle   style.Style
 	valueStyle style.Style
 	labelStyle style.Style
+	barSet     BarSet
 }
 
 func NewBarChart() BarChart {
@@ -91,13 +129,18 @@ func NewBarChart() BarChart {
 		barWidth:   1,
 		barGap:     1,
 		groupGap:   1,
+		style:      style.NewStyle(),
 		barStyle:   style.NewStyle(),
 		valueStyle: style.NewStyle(),
 		labelStyle: style.NewStyle(),
+		barSet:     NineLevelBarSet,
 	}
 }
 
 func (c BarChart) Data(group BarGroup) BarChart {
+	if len(group.bars) == 0 {
+		return c
+	}
 	c.groups = append(c.groups, group)
 	return c
 }
@@ -135,6 +178,11 @@ func (c BarChart) GroupGap(gap int) BarChart {
 	return c
 }
 
+func (c BarChart) Style(chartStyle style.Style) BarChart {
+	c.style = chartStyle
+	return c
+}
+
 func (c BarChart) BarStyle(barStyle style.Style) BarChart {
 	c.barStyle = barStyle
 	return c
@@ -150,6 +198,11 @@ func (c BarChart) LabelStyle(labelStyle style.Style) BarChart {
 	return c
 }
 
+func (c BarChart) BarSet(barSet BarSet) BarChart {
+	c.barSet = barSet
+	return c
+}
+
 func (c BarChart) Render(area layout.Rect, buf *buffer.Buffer) {
 	if area.Width == 0 || area.Height == 0 {
 		return
@@ -162,12 +215,13 @@ func (c BarChart) Render(area layout.Rect, buf *buffer.Buffer) {
 	if chartArea.Width == 0 || chartArea.Height == 0 || len(c.groups) == 0 || c.barWidth <= 0 {
 		return
 	}
-	labelRows := 1
-	if c.hasGroupLabels() {
-		labelRows = 2
+	buf.SetStyle(chartArea, c.style)
+	labelRows := 0
+	if chartArea.Height >= 2 {
+		labelRows = 1
 	}
-	if chartArea.Height <= labelRows {
-		return
+	if chartArea.Height >= 3 && c.hasGroupLabels() {
+		labelRows = 2
 	}
 	max := c.effectiveMax()
 	barHeight := chartArea.Height - labelRows
@@ -195,11 +249,13 @@ func (c BarChart) Render(area layout.Rect, buf *buffer.Buffer) {
 				width = right - x
 			}
 			c.renderBar(buf, x, chartArea.Y, width, barHeight, max, bar)
-			c.renderCentered(buf, x, barLabelY, width, bar.label, c.labelStyle.Patch(bar.labelStyle))
+			if labelRows > 0 {
+				c.renderCentered(buf, x, barLabelY, width, bar.label, c.style.Patch(c.labelStyle).Patch(bar.labelStyle))
+			}
 			x += c.barWidth
 		}
 		if group.label != "" && groupStart < right {
-			writeStringWithin(buf, groupStart, groupLabelY, right, group.label, c.labelStyle)
+			writeStringWithin(buf, groupStart, groupLabelY, right, group.label, c.style.Patch(c.labelStyle))
 		}
 	}
 }
@@ -208,21 +264,25 @@ func (c BarChart) renderBar(buf *buffer.Buffer, x, y, width, height int, max uin
 	if width <= 0 || height <= 0 || max == 0 || bar.value == 0 {
 		return
 	}
-	eighths := min(int((bar.value*uint64(height)*8)/max), height*8)
-	barStyle := c.barStyle.Patch(bar.style)
+	totalEighths := height * 8
+	eighths := scaledTicks(bar.value, max, totalEighths)
+	barStyle := c.style.Patch(c.barStyle).Patch(bar.style)
 	buf.SetStyle(layout.NewRect(x, y, width, height), barStyle)
 	for rowFromBottom := range height {
 		rowEighths := eighths - rowFromBottom*8
 		if rowEighths <= 0 {
 			continue
 		}
-		symbol := "█"
+		symbol := c.barSet.Full
 		if rowEighths < 8 {
-			symbol = partialBarSymbol(rowEighths)
+			symbol = c.partialBarSymbol(rowEighths)
 		}
 		for dx := range width {
 			buf.SetCell(x+dx, y+height-1-rowFromBottom, buffer.Cell{Symbol: symbol, Style: barStyle})
 		}
+	}
+	if height == 1 {
+		return
 	}
 	value := bar.textValue
 	if value == "" {
@@ -267,25 +327,45 @@ func (c BarChart) effectiveMax() uint64 {
 	return max
 }
 
-func partialBarSymbol(eighths int) string {
+func (c BarChart) partialBarSymbol(eighths int) string {
 	switch eighths {
 	case 1:
-		return "▁"
+		return c.barSet.OneEighth
 	case 2:
-		return "▂"
+		return c.barSet.OneQuarter
 	case 3:
-		return "▃"
+		return c.barSet.ThreeEighths
 	case 4:
-		return "▄"
+		return c.barSet.Half
 	case 5:
-		return "▅"
+		return c.barSet.FiveEighths
 	case 6:
-		return "▆"
+		return c.barSet.ThreeQuarters
 	case 7:
-		return "▇"
+		return c.barSet.SevenEighths
 	default:
-		return " "
+		return c.barSet.Empty
 	}
+}
+
+func scaledTicks(value, max uint64, total int) int {
+	if total <= 0 || max == 0 || value == 0 {
+		return 0
+	}
+	if value >= max {
+		return total
+	}
+	var ticks int
+	var remainder uint64
+	for range total {
+		next := remainder + value
+		if next < remainder || next >= max {
+			ticks++
+			next -= max
+		}
+		remainder = next
+	}
+	return ticks
 }
 
 func uintToString(value uint64) string {
