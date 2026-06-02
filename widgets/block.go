@@ -8,7 +8,7 @@ import (
 )
 
 type Block struct {
-	title       text.Line
+	titles      []text.Line
 	borders     Borders
 	padding     Padding
 	style       style.Style
@@ -81,7 +81,7 @@ func BorderedBlock() Block {
 }
 
 func (b Block) Title(title text.Line) Block {
-	b.title = title
+	b.titles = append(append([]text.Line(nil), b.titles...), title)
 	return b
 }
 
@@ -201,6 +201,16 @@ func (b Block) Render(area layout.Rect, buf *buffer.Buffer) {
 }
 
 func (b Block) renderTitle(area layout.Rect, buf *buffer.Buffer) {
+	titleArea := b.titlesArea(area)
+	if titleArea.Width == 0 || titleArea.Height == 0 {
+		return
+	}
+	b.renderLeftTitles(titleArea, buf)
+	b.renderCenterTitles(titleArea, buf)
+	b.renderRightTitles(titleArea, buf)
+}
+
+func (b Block) titlesArea(area layout.Rect) layout.Rect {
 	titleX := area.X
 	titleWidth := area.Width
 	if b.borders.Has(LeftBorder) {
@@ -210,24 +220,138 @@ func (b Block) renderTitle(area layout.Rect, buf *buffer.Buffer) {
 	if b.borders.Has(RightBorder) {
 		titleWidth = saturatingSub(titleWidth, 1)
 	}
-	if titleWidth == 0 {
+	return layout.NewRect(titleX, area.Y, titleWidth, 1)
+}
+
+func (b Block) renderLeftTitles(area layout.Rect, buf *buffer.Buffer) {
+	for _, title := range b.alignedTitles(layout.Left) {
+		if area.Width == 0 {
+			break
+		}
+		titleWidth := title.Width()
+		titleArea := layout.NewRect(area.X, area.Y, minInt(titleWidth, area.Width), 1)
+		b.renderTitleLine(title, titleArea, buf, nil)
+
+		advance := saturatingAdd(titleWidth, 1)
+		area.X = saturatingAdd(area.X, advance)
+		area.Width = saturatingSub(area.Width, advance)
+	}
+}
+
+func (b Block) renderCenterTitles(area layout.Rect, buf *buffer.Buffer) {
+	titles := b.alignedTitles(layout.Center)
+	totalWidth := titlesTotalWidth(titles)
+	if totalWidth <= area.Width {
+		x := area.X + (area.Width-totalWidth)/2
+		titleArea := layout.NewRect(x, area.Y, area.Right()-x, 1)
+		for _, title := range titles {
+			if titleArea.Width == 0 {
+				break
+			}
+			width := title.Width()
+			renderArea := layout.NewRect(titleArea.X, titleArea.Y, minInt(width, titleArea.Width), 1)
+			b.renderTitleLine(title, renderArea, buf, nil)
+
+			advance := saturatingAdd(width, 1)
+			titleArea.X = saturatingAdd(titleArea.X, advance)
+			titleArea.Width = saturatingSub(titleArea.Width, advance)
+		}
 		return
 	}
 
-	renderWidth := minInt(b.title.Width(), titleWidth)
-	switch b.titleAlign {
-	case layout.Center:
-		titleX += (titleWidth - renderWidth) / 2
-	case layout.Right:
-		titleX += titleWidth - renderWidth
+	offset := (totalWidth - area.Width) / 2
+	for _, title := range titles {
+		if area.Width == 0 {
+			break
+		}
+		width := saturatingSub(minInt(area.Width, title.Width()), offset)
+		titleArea := layout.NewRect(area.X, area.Y, width, 1)
+		if offset > 0 {
+			alignment := layout.Right
+			b.renderTitleLine(title, titleArea, buf, &alignment)
+			offset = saturatingSub(saturatingSub(offset, width), 1)
+		} else {
+			alignment := layout.Left
+			b.renderTitleLine(title, titleArea, buf, &alignment)
+		}
+
+		advance := saturatingAdd(width, 1)
+		area.X = saturatingAdd(area.X, advance)
+		area.Width = saturatingSub(area.Width, advance)
+	}
+}
+
+func (b Block) renderRightTitles(area layout.Rect, buf *buffer.Buffer) {
+	titles := b.alignedTitles(layout.Right)
+	for i := len(titles) - 1; i >= 0; i-- {
+		if area.Width == 0 {
+			break
+		}
+		title := titles[i]
+		titleWidth := title.Width()
+		width := minInt(titleWidth, area.Width)
+		x := maxInt(area.Right()-width, area.X)
+		titleArea := layout.NewRect(x, area.Y, width, 1)
+		b.renderTitleLine(title, titleArea, buf, nil)
+
+		area.Width = saturatingSub(saturatingSub(area.Width, titleWidth), 1)
+	}
+}
+
+func (b Block) alignedTitles(alignment layout.Alignment) []text.Line {
+	titles := make([]text.Line, 0, len(b.titles))
+	for _, title := range b.titles {
+		titleAlignment := b.titleAlign
+		if title.Alignment != nil {
+			titleAlignment = *title.Alignment
+		}
+		if titleAlignment == alignment {
+			titles = append(titles, title)
+		}
+	}
+	return titles
+}
+
+func titlesTotalWidth(titles []text.Line) int {
+	width := 0
+	for _, title := range titles {
+		width = saturatingAdd(width, saturatingAdd(title.Width(), 1))
+	}
+	return saturatingSub(width, 1)
+}
+
+func (b Block) renderTitleLine(title text.Line, area layout.Rect, buf *buffer.Buffer, alignment *layout.Alignment) {
+	if area.Width == 0 || area.Height == 0 {
+		return
+	}
+	if alignment == nil {
+		alignment = title.Alignment
+	}
+	skipWidth := 0
+	lineWidth := title.Width()
+	if lineWidth > area.Width && alignment != nil {
+		switch *alignment {
+		case layout.Center:
+			skipWidth = (lineWidth - area.Width) / 2
+		case layout.Right:
+			skipWidth = lineWidth - area.Width
+		}
 	}
 
-	x := titleX
-	right := titleX + renderWidth
-	for _, grapheme := range b.title.StyledGraphemes(b.style.Patch(b.titleStyle)) {
+	x := area.X
+	right := area.Right()
+	for _, grapheme := range title.StyledGraphemes(b.style.Patch(b.titleStyle)) {
 		width := buffer.CellWidth(grapheme.Symbol)
 		if width == 0 {
 			continue
+		}
+		if skipWidth >= width {
+			skipWidth -= width
+			continue
+		}
+		if skipWidth > 0 {
+			x += width - skipWidth
+			skipWidth = 0
 		}
 		if x+width > right {
 			return

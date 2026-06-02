@@ -101,6 +101,17 @@ func TestBlock_centerTitleTruncated(t *testing.T) {
 	assertBlockLines(t, buf, []string{"C123456789"})
 }
 
+func TestBlock_centerTitleTruncatesLeftTitle(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 1))
+	block := NewBlock().
+		Title(text.LineFromString("L1234")).
+		Title(text.LineFromString("C5678").Center())
+
+	block.Render(buf.Area, buf)
+
+	assertBlockLines(t, buf, []string{"L1C5678   "})
+}
+
 func TestBlock_rightTitle(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 10, 1))
 	block := NewBlock().
@@ -121,6 +132,66 @@ func TestBlock_rightTitleTruncated(t *testing.T) {
 	block.Render(buf.Area, buf)
 
 	assertBlockLines(t, buf, []string{"R123456789"})
+}
+
+func TestBlock_rightTitleTruncatesLeftTitle(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 1))
+	block := NewBlock().
+		Title(text.LineFromString("L12345")).
+		Title(text.LineFromString("R67890").Right())
+
+	block.Render(buf.Area, buf)
+
+	assertBlockLines(t, buf, []string{"L123R67890"})
+}
+
+func TestBlock_rightTitleTruncatesCenterTitle(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 1))
+	block := NewBlock().
+		Title(text.LineFromString("C12345").Center()).
+		Title(text.LineFromString("R67890").Right())
+
+	block.Render(buf.Area, buf)
+
+	assertBlockLines(t, buf, []string{"  C1R67890"})
+}
+
+func TestBlock_titleAlignmentOverridesBlockTitleAlignment(t *testing.T) {
+	tests := []struct {
+		blockAlignment layout.Alignment
+		lineAlignment  func(text.Line) text.Line
+		want           string
+	}{
+		{blockAlignment: layout.Right, lineAlignment: func(line text.Line) text.Line { return line.Left() }, want: "test    "},
+		{blockAlignment: layout.Left, lineAlignment: func(line text.Line) text.Line { return line.Center() }, want: "  test  "},
+		{blockAlignment: layout.Center, lineAlignment: func(line text.Line) text.Line { return line.Right() }, want: "    test"},
+	}
+	for _, tt := range tests {
+		buf := buffer.Empty(layout.NewRect(0, 0, 8, 1))
+		block := NewBlock().
+			TitleAlignment(tt.blockAlignment).
+			Title(tt.lineAlignment(text.LineFromString("test")))
+
+		block.Render(buf.Area, buf)
+
+		assertBlockLines(t, buf, []string{tt.want})
+	}
+}
+
+func TestBlock_titleStyleOverridesBlockTitleStyle(t *testing.T) {
+	for _, alignment := range []layout.Alignment{layout.Left, layout.Center, layout.Right} {
+		buf := buffer.Empty(layout.NewRect(0, 0, 4, 1))
+		block := NewBlock().
+			TitleAlignment(alignment).
+			TitleStyle(style.NewStyle().Fg(style.Green).Bg(style.Red)).
+			Title(text.LineFromString("test").Fg(style.Yellow))
+
+		block.Render(buf.Area, buf)
+
+		for x := 0; x < 4; x++ {
+			assertBlockCellStyle(t, buf, x, 0, style.NewStyle().Fg(style.Yellow).Bg(style.Red))
+		}
+	}
 }
 
 func TestBlock_renderRightAlignedEmptyTitle(t *testing.T) {
