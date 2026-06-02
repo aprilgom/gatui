@@ -10,6 +10,8 @@ import (
 	"gatui/terminal"
 )
 
+const maxScrollbackLines = 65535
+
 type Backend struct {
 	size             layout.Size
 	draws            [][]buffer.CellDiff
@@ -268,7 +270,7 @@ func (b *Backend) AppendLines(count int) error {
 			visibleScroll = b.size.Height
 		}
 		for y := 0; y < visibleScroll; y++ {
-			b.scrollback = append(b.scrollback, b.lineAt(y))
+			b.appendScrollbackLine(b.lineAt(y))
 		}
 		for y := 0; y < b.size.Height-visibleScroll; y++ {
 			for x := 0; x < b.size.Width; x++ {
@@ -280,7 +282,7 @@ func (b *Backend) AppendLines(count int) error {
 			b.clearLine(y)
 		}
 		for y := visibleScroll; y < scroll; y++ {
-			b.scrollback = append(b.scrollback, b.blankLine())
+			b.appendScrollbackLine(b.blankLine())
 		}
 	}
 
@@ -316,7 +318,7 @@ func (b *Backend) ScrollRegionUp(startY, endY, count int) error {
 	if height <= 0 {
 		if startY == 0 {
 			for y := 0; y < count; y++ {
-				b.scrollback = append(b.scrollback, b.blankLine())
+				b.appendScrollbackLine(b.blankLine())
 			}
 		}
 		return nil
@@ -327,10 +329,10 @@ func (b *Backend) ScrollRegionUp(startY, endY, count int) error {
 	}
 	if startY == 0 {
 		for y := 0; y < visibleScroll; y++ {
-			b.scrollback = append(b.scrollback, b.lineAt(y))
+			b.appendScrollbackLine(b.lineAt(y))
 		}
 		for y := visibleScroll; y < count; y++ {
-			b.scrollback = append(b.scrollback, b.blankLine())
+			b.appendScrollbackLine(b.blankLine())
 		}
 	}
 	for y := startY; y < endY-visibleScroll; y++ {
@@ -407,6 +409,16 @@ func (b *Backend) clearLine(y int) {
 
 func (b *Backend) blankLine() string {
 	return strings.Repeat(" ", b.size.Width)
+}
+
+func (b *Backend) appendScrollbackLine(line string) {
+	b.scrollback = append(b.scrollback, line)
+	if len(b.scrollback) <= maxScrollbackLines {
+		return
+	}
+	keepFrom := len(b.scrollback) - maxScrollbackLines
+	copy(b.scrollback, b.scrollback[keepFrom:])
+	b.scrollback = b.scrollback[:maxScrollbackLines]
 }
 
 func (b *Backend) Draws() [][]buffer.CellDiff {

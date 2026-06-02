@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"slices"
+	"strconv"
 	"testing"
 
 	"gatui/buffer"
@@ -28,6 +29,23 @@ func TestTestBackend_WindowSize_shouldReturnBufferSizeAndDefaultPixels(t *testin
 	}
 }
 
+func TestBackend_New_shouldCreateBlankBufferAtRequestedSize(t *testing.T) {
+	backend := New(10, 2)
+
+	gotSize, err := backend.Size()
+	if err != nil {
+		t.Fatalf("Size() error = %v", err)
+	}
+	if want := (layout.Size{Width: 10, Height: 2}); gotSize != want {
+		t.Fatalf("Size() = %+v, want %+v", gotSize, want)
+	}
+	backend.AssertBufferLines(t, []string{
+		"          ",
+		"          ",
+	})
+	backend.AssertScrollbackEmpty(t)
+}
+
 func TestNoScrollBackend_WindowSize_shouldDelegateToWrappedBackend(t *testing.T) {
 	backend := NewNoScroll(10, 5)
 
@@ -45,6 +63,27 @@ func TestNoScrollBackend_WindowSize_shouldDelegateToWrappedBackend(t *testing.T)
 	}
 }
 
+func TestBackend_SetSize_shouldResizeBackingBuffer(t *testing.T) {
+	backend := New(10, 2)
+
+	backend.SetSize(5, 5)
+
+	gotSize, err := backend.Size()
+	if err != nil {
+		t.Fatalf("Size() error = %v", err)
+	}
+	if want := (layout.Size{Width: 5, Height: 5}); gotSize != want {
+		t.Fatalf("Size() = %+v, want %+v", gotSize, want)
+	}
+	backend.AssertBufferLines(t, []string{
+		"     ",
+		"     ",
+		"     ",
+		"     ",
+		"     ",
+	})
+}
+
 func TestTestBackend_Buffer_shouldReturnCurrentBuffer(t *testing.T) {
 	backend := WithLines([]string{
 		"abc",
@@ -60,6 +99,43 @@ func TestTestBackend_Buffer_shouldReturnCurrentBuffer(t *testing.T) {
 	if !buffersEqual(got, want) {
 		t.Fatalf("Buffer() = %#v, want %#v", got, want)
 	}
+}
+
+func TestBackend_Draw_shouldUpdateOnlyDiffCellsAndRecordCalls(t *testing.T) {
+	backend := New(10, 2)
+	cell := buffer.NewCell("a")
+
+	if err := backend.Draw([]buffer.CellDiff{{X: 0, Y: 0, Cell: cell}}); err != nil {
+		t.Fatalf("Draw() error = %v", err)
+	}
+	if err := backend.Draw([]buffer.CellDiff{{X: 0, Y: 1, Cell: cell}}); err != nil {
+		t.Fatalf("Draw() error = %v", err)
+	}
+
+	backend.AssertBufferLines(t, []string{
+		"a         ",
+		"a         ",
+	})
+	gotDraws := backend.Draws()
+	wantDraws := [][]buffer.CellDiff{
+		{{X: 0, Y: 0, Cell: cell}},
+		{{X: 0, Y: 1, Cell: cell}},
+	}
+	if !cellDiffBatchesEqual(gotDraws, wantDraws) {
+		t.Fatalf("Draws() = %#v, want %#v", gotDraws, wantDraws)
+	}
+}
+
+func cellDiffBatchesEqual(a, b [][]buffer.CellDiff) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if !slices.Equal(a[i], b[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 func TestTestBackend_Scrollback_shouldReturnScrollbackBuffer(t *testing.T) {
@@ -189,6 +265,23 @@ func TestTestBackend_AssertScrollbackLines_shouldPassForMatchingLines(t *testing
 	})
 }
 
+func TestTestBackend_AssertScrollbackLines_shouldFailForMismatchedLines(t *testing.T) {
+	if os.Getenv("GATUI_ASSERT_SCROLLBACK_LINES_MISMATCH") == "1" {
+		backend := New(10, 2)
+		backend.AssertScrollbackLines(t, []string{
+			"aaaaaaaaaa",
+			"aaaaaaaaaa",
+		})
+		return
+	}
+
+	cmd := exec.Command(os.Args[0], "-test.run=^TestTestBackend_AssertScrollbackLines_shouldFailForMismatchedLines$")
+	cmd.Env = append(os.Environ(), "GATUI_ASSERT_SCROLLBACK_LINES_MISMATCH=1")
+	if err := cmd.Run(); err == nil {
+		t.Fatal("AssertScrollbackLines() unexpectedly passed")
+	}
+}
+
 func TestTestBackend_AssertScrollbackEmpty_shouldPassWhenEmpty(t *testing.T) {
 	backend := New(4, 2)
 
@@ -231,6 +324,57 @@ func TestBackend_ClearRegion_beforeCursor(t *testing.T) {
 	if got := backend.Lines(); !slices.Equal(got, want) {
 		t.Fatalf("Lines() = %#v, want %#v", got, want)
 	}
+}
+
+func TestBackend_Clear_shouldRecordClearAllAndBlankBuffer(t *testing.T) {
+	backend := New(4, 2)
+	cell := buffer.NewCell("a")
+	if err := backend.Draw([]buffer.CellDiff{
+		{X: 0, Y: 0, Cell: cell},
+		{X: 0, Y: 1, Cell: cell},
+	}); err != nil {
+		t.Fatalf("Draw() error = %v", err)
+	}
+
+	if err := backend.Clear(); err != nil {
+		t.Fatalf("Clear() error = %v", err)
+	}
+
+	if got, want := backend.ClearCount(), 1; got != want {
+		t.Fatalf("ClearCount() = %d, want %d", got, want)
+	}
+	if got, want := backend.ClearRegions(), []terminal.ClearType{terminal.ClearAll}; !slices.Equal(got, want) {
+		t.Fatalf("ClearRegions() = %#v, want %#v", got, want)
+	}
+	backend.AssertBufferLines(t, []string{
+		"    ",
+		"    ",
+	})
+}
+
+func TestBackend_ClearRegion_all(t *testing.T) {
+	backend := WithLines([]string{
+		"aaaaaaaaaa",
+		"aaaaaaaaaa",
+		"aaaaaaaaaa",
+		"aaaaaaaaaa",
+		"aaaaaaaaaa",
+	})
+
+	if err := backend.ClearRegion(terminal.ClearAll); err != nil {
+		t.Fatalf("ClearRegion(ClearAll) error = %v", err)
+	}
+
+	if got, want := backend.ClearRegions(), []terminal.ClearType{terminal.ClearAll}; !slices.Equal(got, want) {
+		t.Fatalf("ClearRegions() = %#v, want %#v", got, want)
+	}
+	backend.AssertBufferLines(t, []string{
+		"          ",
+		"          ",
+		"          ",
+		"          ",
+		"          ",
+	})
 }
 
 func TestBackend_ClearRegion_untilNewLine(t *testing.T) {
@@ -443,6 +587,71 @@ func TestTestBackend_AppendLines_moreThanHeightLinesKeepsOnlyVisibleTail(t *test
 		"          ",
 		"          ",
 	})
+}
+
+func TestTestBackend_AppendLines_truncatesLargeScrollbackToTail(t *testing.T) {
+	backend := New(10, 5)
+	const rowCount = 65535 + 10
+
+	for row := 0; row <= rowCount; row++ {
+		if row > 4 {
+			if err := backend.SetCursorPosition(layout.Position{X: 0, Y: 4}); err != nil {
+				t.Fatalf("SetCursorPosition() error = %v", err)
+			}
+			if err := backend.AppendLines(1); err != nil {
+				t.Fatalf("AppendLines(1) error = %v", err)
+			}
+		}
+		writeRow(t, backend, 4, row)
+	}
+
+	backend.AssertBufferLines(t, []string{
+		"     65541",
+		"     65542",
+		"     65543",
+		"     65544",
+		"     65545",
+	})
+
+	scrollback := backend.ScrollbackLines()
+	if got, want := len(scrollback), 65535; got != want {
+		t.Fatalf("len(ScrollbackLines()) = %d, want %d", got, want)
+	}
+	if got, want := scrollback[:5], []string{
+		"         6",
+		"         7",
+		"         8",
+		"         9",
+		"        10",
+	}; !slices.Equal(got, want) {
+		t.Fatalf("first scrollback lines = %#v, want %#v", got, want)
+	}
+	if got, want := scrollback[len(scrollback)-5:], []string{
+		"     65536",
+		"     65537",
+		"     65538",
+		"     65539",
+		"     65540",
+	}; !slices.Equal(got, want) {
+		t.Fatalf("last scrollback lines = %#v, want %#v", got, want)
+	}
+}
+
+func writeRow(t testing.TB, backend *Backend, y, row int) {
+	t.Helper()
+	line := []rune(formatRow(row))
+	diffs := make([]buffer.CellDiff, len(line))
+	for x, r := range line {
+		diffs[x] = buffer.CellDiff{X: x, Y: y, Cell: buffer.NewCell(string(r))}
+	}
+	if err := backend.Draw(diffs); err != nil {
+		t.Fatalf("Draw() error = %v", err)
+	}
+}
+
+func formatRow(row int) string {
+	value := "          " + strconv.Itoa(row)
+	return value[len(value)-10:]
 }
 
 func TestTestBackend_AppendLines_zeroNoop(t *testing.T) {
