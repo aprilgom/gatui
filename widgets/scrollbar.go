@@ -308,7 +308,7 @@ func appendOptionalCell(cells []*buffer.Cell, symbol *string, cellStyle style.St
 }
 
 func appendRepeatedOptionalCells(cells []*buffer.Cell, symbol *string, cellStyle style.Style, count int) []*buffer.Cell {
-	for i := 0; i < count; i++ {
+	for range count {
 		if symbol == nil {
 			cells = append(cells, nil)
 			continue

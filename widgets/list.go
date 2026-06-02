@@ -173,10 +173,7 @@ func (l List) RenderStateful(area layout.Rect, buf *buffer.Buffer, state *ListSt
 		state.offset = 0
 	}
 	if state.selected != nil {
-		selected := *state.selected
-		if selected < 0 {
-			selected = 0
-		}
+		selected := max(*state.selected, 0)
 		if selected >= len(l.items) {
 			selected = len(l.items) - 1
 		}
@@ -244,13 +241,7 @@ func (l List) visibleBounds(state *ListState, height int) (int, int) {
 	if height <= 0 || len(l.items) == 0 {
 		return 0, 0
 	}
-	offset := state.offset
-	if offset > len(l.items)-1 {
-		offset = len(l.items) - 1
-	}
-	if offset < 0 {
-		offset = 0
-	}
+	offset := max(min(state.offset, len(l.items)-1), 0)
 	first := offset
 	last := offset
 	usedHeight := 0

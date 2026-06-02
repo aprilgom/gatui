@@ -29,15 +29,15 @@ func TestCanvas_shouldDrawLabels(t *testing.T) {
 		"     ",
 		"test ",
 	})
-	for y := 0; y < 5; y++ {
-		for x := 0; x < 5; x++ {
+	for y := range 5 {
+		for x := range 5 {
 			if y == 4 && x < 4 {
 				continue
 			}
 			assertCellStyle(t, buf, x, y, style.NewStyle().Bg(style.Yellow))
 		}
 	}
-	for x := 0; x < 4; x++ {
+	for x := range 4 {
 		assertCellStyle(t, buf, x, 4, style.NewStyle().Fg(style.Blue).Bg(style.Yellow))
 	}
 }
@@ -113,7 +113,7 @@ func TestCanvas_shouldOnlyApplyBackground_whenBoundsAreInvalid(t *testing.T) {
 	})
 
 	assertLines(t, buf, []string{"   "})
-	for x := 0; x < 3; x++ {
+	for x := range 3 {
 		assertCellStyle(t, buf, x, 0, style.NewStyle().Bg(style.Yellow))
 	}
 }

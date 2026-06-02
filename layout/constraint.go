@@ -41,6 +41,30 @@ func Fill(weight int) Constraint {
 	return Constraint{kind: constraintFill, value: weight}
 }
 
+func FromFills(values ...int) []Constraint {
+	constraints := make([]Constraint, len(values))
+	for i, value := range values {
+		constraints[i] = Fill(value)
+	}
+	return constraints
+}
+
+func FromPercentages(values ...int) []Constraint {
+	constraints := make([]Constraint, len(values))
+	for i, value := range values {
+		constraints[i] = Percentage(value)
+	}
+	return constraints
+}
+
+func FromRatios(values ...[2]int) []Constraint {
+	constraints := make([]Constraint, len(values))
+	for i, value := range values {
+		constraints[i] = Ratio(value[0], value[1])
+	}
+	return constraints
+}
+
 func (c Constraint) IsLength() bool {
 	return c.kind == constraintLength
 }

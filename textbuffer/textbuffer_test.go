@@ -30,7 +30,7 @@ func TestSetSpan_shouldWriteContentWithSpanStyle(t *testing.T) {
 
 	textbuffer.SetSpan(buf, 0, 0, text.StyledSpan("ab", red), 4)
 
-	for x := 0; x < 2; x++ {
+	for x := range 2 {
 		cell, ok := buf.CellAt(x, 0)
 		if !ok {
 			t.Fatalf("missing cell at %d,0", x)

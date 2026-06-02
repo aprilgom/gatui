@@ -147,7 +147,7 @@ func lastWhitespaceBreak(cells []buffer.Cell, trim bool) (int, bool) {
 }
 
 func hasNonSpaceBefore(cells []buffer.Cell, index int) bool {
-	for i := 0; i < index; i++ {
+	for i := range index {
 		if !isSpaceCell(cells[i]) {
 			return true
 		}

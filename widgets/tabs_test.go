@@ -89,7 +89,7 @@ func TestTabs_shouldNotHighlight_whenSelectionIsCleared(t *testing.T) {
 	tabs.Render(buf.Area, buf)
 
 	assertLines(t, buf, []string{" Tab1 "})
-	for x := 0; x < 6; x++ {
+	for x := range 6 {
 		assertCellStyle(t, buf, x, 0, style.NewStyle())
 	}
 }

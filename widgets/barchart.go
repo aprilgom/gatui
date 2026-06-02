@@ -208,13 +208,10 @@ func (c BarChart) renderBar(buf *buffer.Buffer, x, y, width, height int, max uin
 	if width <= 0 || height <= 0 || max == 0 || bar.value == 0 {
 		return
 	}
-	eighths := int((bar.value * uint64(height) * 8) / max)
-	if eighths > height*8 {
-		eighths = height * 8
-	}
+	eighths := min(int((bar.value*uint64(height)*8)/max), height*8)
 	barStyle := c.barStyle.Patch(bar.style)
 	buf.SetStyle(layout.NewRect(x, y, width, height), barStyle)
-	for rowFromBottom := 0; rowFromBottom < height; rowFromBottom++ {
+	for rowFromBottom := range height {
 		rowEighths := eighths - rowFromBottom*8
 		if rowEighths <= 0 {
 			continue
@@ -223,7 +220,7 @@ func (c BarChart) renderBar(buf *buffer.Buffer, x, y, width, height int, max uin
 		if rowEighths < 8 {
 			symbol = partialBarSymbol(rowEighths)
 		}
-		for dx := 0; dx < width; dx++ {
+		for dx := range width {
 			buf.SetCell(x+dx, y+height-1-rowFromBottom, buffer.Cell{Symbol: symbol, Style: barStyle})
 		}
 	}

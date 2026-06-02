@@ -7,13 +7,6 @@ func axisLength(area Rect, direction Direction) int {
 	return area.Width
 }
 
-func spacingAllowance(spacing int, constraintCount int) int {
-	if spacing <= 0 || constraintCount <= 1 {
-		return 0
-	}
-	return spacing * (constraintCount - 1)
-}
-
 func spacerRect(area Rect, direction Direction, start int, length int) Rect {
 	if direction == Vertical {
 		return Rect{X: area.X, Y: area.Y + start, Width: area.Width, Height: length}
@@ -49,6 +42,9 @@ func calculateLengths(areaLength int, constraints []Constraint, stretchFixedSurp
 			minIndexes = append(minIndexes, i)
 		}
 	}
+	if allProportionalConstraints(constraints) {
+		totalFixed += distributeProportionalRemainders(areaLength, lengths, constraints)
+	}
 
 	if fillCount > 0 {
 		if totalFixed > areaLength {
@@ -71,8 +67,12 @@ func calculateLengths(areaLength int, constraints []Constraint, stretchFixedSurp
 			lengths[len(lengths)-1] += surplus
 		}
 	case total > areaLength:
-		shrinkLengths(lengths, constraints, total-areaLength, false)
-		shrinkLengths(lengths, constraints, sumInts(lengths)-areaLength, true)
+		if allProportionalConstraints(constraints) {
+			shrinkLargestLengths(lengths, total-areaLength)
+		} else {
+			shrinkLengths(lengths, constraints, total-areaLength, false)
+			shrinkLengths(lengths, constraints, sumInts(lengths)-areaLength, true)
+		}
 	}
 
 	return lengths
@@ -94,6 +94,10 @@ func flexOffsets(areaLength int, lengths []int, flex Flex, spacing int) []int {
 	case FlexSpaceBetween:
 		if len(lengths) == 1 {
 			offsets[0] = 0
+			return offsets
+		}
+		if spacing < 0 {
+			setPackedOffsets(offsets, lengths, 0, spacing)
 			return offsets
 		}
 		surplus = maxInt(0, areaLength-sumInts(lengths))
@@ -185,6 +189,83 @@ func centeredLength(areaLength int, constraint Constraint) int {
 		return 0
 	}
 	return minInt(areaLength, lengths[0])
+}
+
+func allProportionalConstraints(constraints []Constraint) bool {
+	if len(constraints) == 0 {
+		return false
+	}
+	for _, constraint := range constraints {
+		if constraint.kind != constraintPercentage && constraint.kind != constraintRatio {
+			return false
+		}
+	}
+	return true
+}
+
+func distributeProportionalRemainders(areaLength int, lengths []int, constraints []Constraint) int {
+	type remainder struct {
+		index int
+		value float64
+	}
+
+	target := 0.0
+	remainders := make([]remainder, 0, len(constraints))
+	for i, constraint := range constraints {
+		exact := 0.0
+		switch constraint.kind {
+		case constraintPercentage:
+			exact = float64(areaLength*clampInt(constraint.value, 0, 100)) / 100
+		case constraintRatio:
+			if constraint.denominator <= 0 {
+				exact = float64(areaLength)
+			} else {
+				exact = float64(areaLength*constraint.value) / float64(constraint.denominator)
+			}
+		}
+		target += exact
+		remainders = append(remainders, remainder{index: i, value: exact - float64(lengths[i])})
+	}
+
+	extra := roundedDiv(int(target*1000), 1000) - sumInts(lengths)
+	added := 0
+	for ; extra > 0; extra-- {
+		best := -1
+		for i, remainder := range remainders {
+			if remainder.value <= 0 {
+				continue
+			}
+			if best == -1 || remainder.value > remainders[best].value {
+				best = i
+			}
+		}
+		if best == -1 {
+			return added
+		}
+		lengths[remainders[best].index]++
+		remainders[best].value = 0
+		added++
+	}
+	return added
+}
+
+func shrinkLargestLengths(lengths []int, shortage int) {
+	for shortage > 0 {
+		best := -1
+		for i, length := range lengths {
+			if length == 0 {
+				continue
+			}
+			if best == -1 || length > lengths[best] {
+				best = i
+			}
+		}
+		if best == -1 {
+			return
+		}
+		lengths[best]--
+		shortage--
+	}
 }
 
 func distributeFillLengths(lengths []int, constraints []Constraint, remaining int, totalPositiveWeight int) {

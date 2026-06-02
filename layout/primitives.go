@@ -10,7 +10,15 @@ func NewPosition(x, y int) Position {
 }
 
 func (p Position) Offset(offset Offset) Position {
+	return p.AddOffset(offset)
+}
+
+func (p Position) AddOffset(offset Offset) Position {
 	return NewPosition(p.X+offset.X, p.Y+offset.Y)
+}
+
+func (p Position) SubOffset(offset Offset) Position {
+	return NewPosition(p.X-offset.X, p.Y-offset.Y)
 }
 
 type Size struct {
@@ -24,6 +32,10 @@ func NewSize(width, height int) Size {
 
 func (s Size) Area() int {
 	return s.Width * s.Height
+}
+
+func (s Size) Tuple() (width, height int) {
+	return s.Width, s.Height
 }
 
 type Margin struct {
@@ -42,6 +54,10 @@ type Offset struct {
 
 func NewOffset(x, y int) Offset {
 	return Offset{X: x, Y: y}
+}
+
+func OffsetFromPosition(position Position) Offset {
+	return NewOffset(position.X, position.Y)
 }
 
 type Direction int

@@ -110,7 +110,7 @@ func (m Monthly) renderDays(left, top, right, bottom int, buf *buffer.Buffer) {
 		if y >= bottom {
 			return
 		}
-		for weekday := 0; weekday < 7; weekday++ {
+		for weekday := range 7 {
 			x := left + weekday*3
 			if x >= right {
 				continue

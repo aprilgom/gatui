@@ -131,10 +131,7 @@ func (t *Terminal) insertBeforeScrollingRegions(backend ScrollingRegionBackend, 
 
 func (t *Terminal) drawLines(yOffset, linesToDraw int, cells []buffer.Cell) ([]buffer.Cell, error) {
 	width := t.area.Width
-	count := width * linesToDraw
-	if count > len(cells) {
-		count = len(cells)
-	}
+	count := min(width*linesToDraw, len(cells))
 	toDraw := cells[:count]
 	remainder := cells[count:]
 	if linesToDraw <= 0 {
@@ -159,10 +156,7 @@ func (t *Terminal) drawLines(yOffset, linesToDraw int, cells []buffer.Cell) ([]b
 
 func (t *Terminal) drawLinesOverCleared(yOffset, linesToDraw int, cells []buffer.Cell) ([]buffer.Cell, error) {
 	width := t.area.Width
-	count := width * linesToDraw
-	if count > len(cells) {
-		count = len(cells)
-	}
+	count := min(width*linesToDraw, len(cells))
 	toDraw := cells[:count]
 	remainder := cells[count:]
 	if linesToDraw <= 0 {
@@ -200,10 +194,7 @@ func (t *Terminal) scrollUp(lines int) error {
 func (t *Terminal) resizeInlineArea(terminalArea layout.Rect) (layout.Rect, layout.Position, error) {
 	offset := 0
 	if t.cursorPosition != nil {
-		offset = t.cursorPosition.Y - t.area.Y
-		if offset < 0 {
-			offset = 0
-		}
+		offset = max(t.cursorPosition.Y-t.area.Y, 0)
 	}
 
 	originalCursor, err := t.backend.GetCursorPosition()
@@ -223,26 +214,14 @@ func computeInlineArea(backend Backend, height int, size layout.Size, offsetInPr
 		return layout.Rect{}, layout.Position{}, err
 	}
 	row := pos.Y
-	maxHeight := height
-	if maxHeight > size.Height {
-		maxHeight = size.Height
-	}
-	if maxHeight < 0 {
-		maxHeight = 0
-	}
+	maxHeight := max(min(height, size.Height), 0)
 
-	linesAfterCursor := height - offsetInPreviousViewport - 1
-	if linesAfterCursor < 0 {
-		linesAfterCursor = 0
-	}
+	linesAfterCursor := max(height-offsetInPreviousViewport-1, 0)
 	if err := backend.AppendLines(linesAfterCursor); err != nil {
 		return layout.Rect{}, layout.Position{}, err
 	}
 
-	availableLines := size.Height - row - 1
-	if availableLines < 0 {
-		availableLines = 0
-	}
+	availableLines := max(size.Height-row-1, 0)
 	missingLines := linesAfterCursor - availableLines
 	if missingLines > 0 {
 		row -= missingLines

@@ -766,7 +766,7 @@ func TestSpan_Render_shouldDrawStyledContent(t *testing.T) {
 	text.StyledSpan("test content", spanStyle).Render(buf.Area, buf)
 
 	assertTextLines(t, buf, []string{"test content   "})
-	for x := 0; x < len("test content"); x++ {
+	for x := range len("test content") {
 		assertTextCellStyle(t, buf, x, 0, spanStyle)
 	}
 }

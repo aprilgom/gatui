@@ -18,7 +18,7 @@ func TestParagraph_shouldPreserveStylizedSpanStyle(t *testing.T) {
 	paragraph.Render(buf.Area, buf)
 
 	assertLines(t, buf, []string{"Text      "})
-	for x := 0; x < 4; x++ {
+	for x := range 4 {
 		assertCellStyle(t, buf, x, 0, style.NewStyle().Fg(style.Cyan))
 	}
 }
@@ -68,13 +68,13 @@ func TestParagraph_shouldRenderStyledLines(t *testing.T) {
 		"cyan text  ",
 		"dim text   ",
 	})
-	for x := 0; x < len("bold text"); x++ {
+	for x := range len("bold text") {
 		assertCellStyle(t, buf, x, 1, style.NewStyle().AddModifier(style.ModifierBold))
 	}
-	for x := 0; x < len("cyan text"); x++ {
+	for x := range len("cyan text") {
 		assertCellStyle(t, buf, x, 2, style.NewStyle().Fg(style.Cyan))
 	}
-	for x := 0; x < len("dim text"); x++ {
+	for x := range len("dim text") {
 		assertCellStyle(t, buf, x, 3, style.NewStyle().AddModifier(style.ModifierDim))
 	}
 }

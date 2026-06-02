@@ -388,10 +388,7 @@ func (t Table) RenderStateful(area layout.Rect, buf *buffer.Buffer, state *Table
 		footerHeight = t.footer.topMargin + normalizedRowHeight(*t.footer) + t.footer.bottomMargin
 		footerY -= footerHeight
 	}
-	bodyHeight := tableArea.Y + tableArea.Height - y - footerHeight
-	if bodyHeight < 0 {
-		bodyHeight = 0
-	}
+	bodyHeight := max(tableArea.Y+tableArea.Height-y-footerHeight, 0)
 	first, last := t.visibleBounds(state, bodyHeight)
 	state.offset = first
 	for index := first; index < last; index++ {
@@ -457,10 +454,7 @@ func (t Table) clampState(state *TableState) {
 		state.offset = 0
 	}
 	if state.selected != nil {
-		selected := *state.selected
-		if selected < 0 {
-			selected = 0
-		}
+		selected := max(*state.selected, 0)
 		if selected >= len(t.rows) {
 			selected = len(t.rows) - 1
 		}
@@ -473,10 +467,7 @@ func (t Table) clampState(state *TableState) {
 		return
 	}
 	if state.selectedColumn != nil {
-		selectedColumn := *state.selectedColumn
-		if selectedColumn < 0 {
-			selectedColumn = 0
-		}
+		selectedColumn := max(*state.selectedColumn, 0)
 		if selectedColumn >= columnCount {
 			selectedColumn = columnCount - 1
 		}
@@ -504,13 +495,7 @@ func (t Table) visibleBounds(state *TableState, height int) (int, int) {
 	if height <= 0 || len(t.rows) == 0 {
 		return 0, 0
 	}
-	offset := state.offset
-	if offset > len(t.rows)-1 {
-		offset = len(t.rows) - 1
-	}
-	if offset < 0 {
-		offset = 0
-	}
+	offset := max(min(state.offset, len(t.rows)-1), 0)
 	first := offset
 	last := offset
 	usedHeight := 0
@@ -749,7 +734,7 @@ func (t Table) renderRow(row TableRow, widths []int, area layout.Rect, y int, ro
 
 func (t Table) cellSpanArea(widths []int, startColumn, span int, area layout.Rect) (int, int) {
 	x := area.X
-	for column := 0; column < startColumn; column++ {
+	for column := range startColumn {
 		if column > 0 {
 			x += t.columnSpacing
 		}

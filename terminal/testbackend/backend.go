@@ -258,18 +258,12 @@ func (b *Backend) AppendLines(count int) error {
 		newX = b.size.Width - 1
 	}
 	maxY := b.size.Height - 1
-	linesAfterCursor := maxY - b.cursorPosition.Y
-	if linesAfterCursor < 0 {
-		linesAfterCursor = 0
-	}
+	linesAfterCursor := max(maxY-b.cursorPosition.Y, 0)
 
 	if count > linesAfterCursor {
 		scroll := count - linesAfterCursor
-		visibleScroll := scroll
-		if visibleScroll > b.size.Height {
-			visibleScroll = b.size.Height
-		}
-		for y := 0; y < visibleScroll; y++ {
+		visibleScroll := min(scroll, b.size.Height)
+		for y := range visibleScroll {
 			b.appendScrollbackLine(b.lineAt(y))
 		}
 		for y := 0; y < b.size.Height-visibleScroll; y++ {
@@ -286,10 +280,7 @@ func (b *Backend) AppendLines(count int) error {
 		}
 	}
 
-	newY := b.cursorPosition.Y + count
-	if newY > maxY {
-		newY = maxY
-	}
+	newY := min(b.cursorPosition.Y+count, maxY)
 	b.cursorPosition = layout.Position{X: newX, Y: newY}
 	return nil
 }
@@ -317,18 +308,15 @@ func (b *Backend) ScrollRegionUp(startY, endY, count int) error {
 	height := endY - startY
 	if height <= 0 {
 		if startY == 0 {
-			for y := 0; y < count; y++ {
+			for range count {
 				b.appendScrollbackLine(b.blankLine())
 			}
 		}
 		return nil
 	}
-	visibleScroll := count
-	if visibleScroll > height {
-		visibleScroll = height
-	}
+	visibleScroll := min(count, height)
 	if startY == 0 {
-		for y := 0; y < visibleScroll; y++ {
+		for y := range visibleScroll {
 			b.appendScrollbackLine(b.lineAt(y))
 		}
 		for y := visibleScroll; y < count; y++ {

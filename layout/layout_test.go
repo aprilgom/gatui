@@ -1,6 +1,7 @@
 package layout_test
 
 import (
+	"fmt"
 	"slices"
 	"testing"
 
@@ -95,6 +96,33 @@ func TestConstraint_shouldExposeMaxAndFillKinds(t *testing.T) {
 	}
 }
 
+func TestConstraint_FromFills(t *testing.T) {
+	got := layout.FromFills(1, 2, 3)
+	want := []layout.Constraint{layout.Fill(1), layout.Fill(2), layout.Fill(3)}
+
+	if !slices.Equal(got, want) {
+		t.Fatalf("constraints mismatch\nwant: %#v\n got: %#v", want, got)
+	}
+}
+
+func TestConstraint_FromPercentages(t *testing.T) {
+	got := layout.FromPercentages(25, 50, 25)
+	want := []layout.Constraint{layout.Percentage(25), layout.Percentage(50), layout.Percentage(25)}
+
+	if !slices.Equal(got, want) {
+		t.Fatalf("constraints mismatch\nwant: %#v\n got: %#v", want, got)
+	}
+}
+
+func TestConstraint_FromRatios(t *testing.T) {
+	got := layout.FromRatios([2]int{1, 4}, [2]int{1, 2}, [2]int{1, 4})
+	want := []layout.Constraint{layout.Ratio(1, 4), layout.Ratio(1, 2), layout.Ratio(1, 4)}
+
+	if !slices.Equal(got, want) {
+		t.Fatalf("constraints mismatch\nwant: %#v\n got: %#v", want, got)
+	}
+}
+
 func TestNewVerticalLayout_shouldMatchRatatuiVerticalConstructor(t *testing.T) {
 	got := layout.NewVerticalLayout(layout.Min(0)).
 		Split(layout.NewRect(0, 0, 5, 10))
@@ -116,6 +144,57 @@ func TestNewHorizontalLayout_shouldMatchRatatuiHorizontalConstructor(t *testing.
 
 	if !slices.Equal(got, want) {
 		t.Fatalf("rects mismatch\nwant: %#v\n got: %#v", want, got)
+	}
+}
+
+func TestLayout_SplitN_returnsExpectedRects(t *testing.T) {
+	area := layout.NewRect(0, 0, 10, 5)
+	split := layout.NewHorizontalLayout(layout.Length(3), layout.Fill(1))
+	want := []layout.Rect{
+		layout.NewRect(0, 0, 3, 5),
+		layout.NewRect(3, 0, 7, 5),
+	}
+
+	got := split.SplitN(area, 2)
+
+	if !slices.Equal(got, want) {
+		t.Fatalf("SplitN(%#v, 2) mismatch\nwant: %#v\n got: %#v", area, want, got)
+	}
+}
+
+func TestLayout_SplitN_invalidNumberOfRectsPanics(t *testing.T) {
+	area := layout.NewRect(0, 0, 10, 5)
+	split := layout.NewHorizontalLayout(layout.Length(3), layout.Fill(1))
+	wantPanic := "invalid number of rects: expected 3, found 2"
+
+	defer func() {
+		got := recover()
+		if got == nil {
+			t.Fatalf("SplitN(%#v, 3) did not panic", area)
+		}
+		if fmt.Sprint(got) != wantPanic {
+			t.Fatalf("SplitN(%#v, 3) panic = %q, want %q", area, got, wantPanic)
+		}
+	}()
+
+	_ = split.SplitN(area, 3)
+}
+
+func TestLayout_TrySplitN_invalidNumberOfRectsReturnsError(t *testing.T) {
+	area := layout.NewRect(0, 0, 10, 5)
+	split := layout.NewHorizontalLayout(layout.Length(3), layout.Fill(1))
+	wantErr := "invalid number of rects: expected 3, found 2"
+
+	got, err := split.TrySplitN(area, 3)
+
+	if err == nil {
+		t.Fatalf("TrySplitN(%#v, 3) error = nil, want %q", area, wantErr)
+	}
+	if err.Error() != wantErr {
+		t.Fatalf("TrySplitN(%#v, 3) error = %q, want %q", area, err, wantErr)
+	}
+	if got != nil {
+		t.Fatalf("TrySplitN(%#v, 3) rects = %#v, want nil", area, got)
 	}
 }
 
@@ -816,6 +895,172 @@ func TestLayout_SplitWithSpacers_shouldMatchRatatuiSpacerRects(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestLayout_Split_fillOverlap(t *testing.T) {
+	tests := []struct {
+		name        string
+		constraints []layout.Constraint
+		flex        layout.Flex
+		spacing     int
+		want        []layout.Rect
+	}{
+		{
+			name:        "fill space between overlap 10",
+			constraints: []layout.Constraint{layout.Fill(1), layout.Fill(1)},
+			flex:        layout.FlexSpaceBetween,
+			spacing:     -10,
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 55, 1),
+				layout.NewRect(45, 0, 55, 1),
+			},
+		},
+		{
+			name:        "fill space evenly ignores overlap",
+			constraints: []layout.Constraint{layout.Fill(1), layout.Fill(1)},
+			flex:        layout.FlexSpaceEvenly,
+			spacing:     -10,
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 50, 1),
+				layout.NewRect(50, 0, 50, 1),
+			},
+		},
+		{
+			name:        "fill length fill overlap 10",
+			constraints: []layout.Constraint{layout.Fill(1), layout.Length(10), layout.Fill(1)},
+			flex:        layout.FlexStart,
+			spacing:     -10,
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 55, 1),
+				layout.NewRect(45, 0, 10, 1),
+				layout.NewRect(45, 0, 55, 1),
+			},
+		},
+		{
+			name:        "fill length fill space around ignores overlap",
+			constraints: []layout.Constraint{layout.Fill(1), layout.Length(10), layout.Fill(1)},
+			flex:        layout.FlexSpaceAround,
+			spacing:     -10,
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 45, 1),
+				layout.NewRect(45, 0, 10, 1),
+				layout.NewRect(55, 0, 45, 1),
+			},
+		},
+		{
+			name:        "fill length fill overlap 1",
+			constraints: []layout.Constraint{layout.Fill(1), layout.Length(10), layout.Fill(1)},
+			flex:        layout.FlexSpaceBetween,
+			spacing:     -1,
+			want: []layout.Rect{
+				layout.NewRect(0, 0, 46, 1),
+				layout.NewRect(45, 0, 10, 1),
+				layout.NewRect(54, 0, 46, 1),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := layout.NewLayout(layout.Horizontal).
+				Flex(tt.flex).
+				Spacing(tt.spacing).
+				Constraints(tt.constraints...).
+				Split(layout.NewRect(0, 0, 100, 1))
+
+			if !slices.Equal(got, tt.want) {
+				t.Fatalf("rects mismatch\nwant: %#v\n got: %#v", tt.want, got)
+			}
+		})
+	}
+}
+
+func TestLayout_Split_flexSpacingLowerPriorityThanUserSpacing(t *testing.T) {
+	got := layout.NewLayout(layout.Horizontal).
+		Flex(layout.FlexCenter).
+		Spacing(80).
+		Constraints(layout.Length(10), layout.Length(10)).
+		Split(layout.NewRect(0, 0, 100, 1))
+
+	want := []layout.Rect{
+		layout.NewRect(0, 0, 10, 1),
+		layout.NewRect(90, 0, 10, 1),
+	}
+	if !slices.Equal(got, want) {
+		t.Fatalf("rects mismatch\nwant: %#v\n got: %#v", want, got)
+	}
+}
+
+func TestLayout_Split_percentageSpaceBetween(t *testing.T) {
+	tests := []struct {
+		name        string
+		constraints []layout.Constraint
+		want        string
+	}{
+		{name: "zero half", constraints: []layout.Constraint{layout.Percentage(0), layout.Percentage(50)}, want: "     bbbbb"},
+		{name: "ten half", constraints: []layout.Constraint{layout.Percentage(10), layout.Percentage(50)}, want: "a    bbbbb"},
+		{name: "quarter quarter", constraints: []layout.Constraint{layout.Percentage(25), layout.Percentage(25)}, want: "aaa     bb"},
+		{name: "third full", constraints: []layout.Constraint{layout.Percentage(33), layout.Percentage(100)}, want: "aaabbbbbbb"},
+		{name: "half half", constraints: []layout.Constraint{layout.Percentage(50), layout.Percentage(50)}, want: "aaaaabbbbb"},
+		{name: "full half", constraints: []layout.Constraint{layout.Percentage(100), layout.Percentage(50)}, want: "aaaaabbbbb"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := renderLayoutLetters(layout.NewLayout(layout.Horizontal).
+				Flex(layout.FlexSpaceBetween).
+				Constraints(tt.constraints...), 10)
+
+			if got != tt.want {
+				t.Fatalf("letters mismatch\nwant: %q\n got: %q", tt.want, got)
+			}
+		})
+	}
+}
+
+func TestLayout_Split_ratioSpaceBetween(t *testing.T) {
+	tests := []struct {
+		name        string
+		constraints []layout.Constraint
+		want        string
+	}{
+		{name: "zero half", constraints: []layout.Constraint{layout.Ratio(0, 1), layout.Ratio(1, 2)}, want: "     bbbbb"},
+		{name: "tenth half", constraints: []layout.Constraint{layout.Ratio(1, 10), layout.Ratio(1, 2)}, want: "a    bbbbb"},
+		{name: "quarter quarter", constraints: []layout.Constraint{layout.Ratio(1, 4), layout.Ratio(1, 4)}, want: "aaa     bb"},
+		{name: "third full", constraints: []layout.Constraint{layout.Ratio(1, 3), layout.Ratio(1, 1)}, want: "aaabbbbbbb"},
+		{name: "half half", constraints: []layout.Constraint{layout.Ratio(1, 2), layout.Ratio(1, 2)}, want: "aaaaabbbbb"},
+		{name: "full half", constraints: []layout.Constraint{layout.Ratio(1, 1), layout.Ratio(1, 2)}, want: "aaaaabbbbb"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := renderLayoutLetters(layout.NewLayout(layout.Horizontal).
+				Flex(layout.FlexSpaceBetween).
+				Constraints(tt.constraints...), 10)
+
+			if got != tt.want {
+				t.Fatalf("letters mismatch\nwant: %q\n got: %q", tt.want, got)
+			}
+		})
+	}
+}
+
+func renderLayoutLetters(l layout.Layout, width int) string {
+	letters := []rune("abcdefghijklmnopqrstuvwxyz")
+	cells := make([]rune, width)
+	for i := range cells {
+		cells[i] = ' '
+	}
+
+	for i, rect := range l.Split(layout.NewRect(0, 0, width, 1)) {
+		letter := letters[i%len(letters)]
+		start := max(0, rect.X)
+		end := min(width, rect.X+rect.Width)
+		for x := start; x < end; x++ {
+			cells[x] = letter
+		}
+	}
+	return string(cells)
 }
 
 func TestLayout_SplitWithSpacers_shouldApplyMarginsBeforeSplitting(t *testing.T) {

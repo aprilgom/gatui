@@ -161,7 +161,7 @@ func (s Sparkline) renderSparkline(area layout.Rect, buf *buffer.Buffer) {
 	}
 	maxValue := s.effectiveMax()
 	maxIndex := minInt(area.Width, len(s.data))
-	for i := 0; i < maxIndex; i++ {
+	for i := range maxIndex {
 		bar := s.data[i]
 		x := area.X + i
 		if s.direction == RenderDirectionRightToLeft {

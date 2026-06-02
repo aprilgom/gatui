@@ -541,6 +541,65 @@ func TestBuffer_Merge_shouldMakeDiffIdempotent(t *testing.T) {
 	}
 }
 
+func TestBuffer_MergeDiff_link(t *testing.T) {
+	prev := buffer.Filled(layout.NewRect(0, 0, 4, 1), buffer.NewCell("x"))
+	next := buffer.Empty(layout.NewRect(0, 0, 4, 1))
+	linkCell := buffer.NewCell("\x1b]8;;https://example.test\x1b\\link\x1b]8;;\x1b\\")
+	linkCell.SetDiffOption(buffer.CellDiffForcedWidth)
+	linkCell.SetForcedWidth(4)
+	next.SetCell(0, 0, linkCell)
+
+	prev.Merge(next)
+
+	if diff := prev.Diff(next); len(diff) != 0 {
+		t.Fatalf("diff = %#v, want empty", diff)
+	}
+}
+
+func TestBuffer_MergeDiff_splitLink(t *testing.T) {
+	prev := buffer.Filled(layout.NewRect(0, 0, 8, 1), buffer.NewCell("x"))
+	next := buffer.Empty(layout.NewRect(0, 0, 8, 1))
+	startCell := buffer.NewCell("\x1b]8;;https://example.test\x1b\\")
+	startCell.SetDiffOption(buffer.CellDiffForcedWidth)
+	startCell.SetForcedWidth(1)
+	endCell := buffer.NewCell("\x1b]8;;\x1b\\")
+	endCell.SetDiffOption(buffer.CellDiffForcedWidth)
+	endCell.SetForcedWidth(1)
+	next.SetCell(0, 0, startCell)
+	next.SetSymbol(1, 0, "s")
+	next.SetSymbol(2, 0, "p")
+	next.SetSymbol(3, 0, "l")
+	next.SetSymbol(4, 0, "i")
+	next.SetSymbol(5, 0, "n")
+	next.SetSymbol(6, 0, "k")
+	next.SetCell(7, 0, endCell)
+
+	prev.Merge(next)
+
+	if diff := prev.Diff(next); len(diff) != 0 {
+		t.Fatalf("diff = %#v, want empty", diff)
+	}
+}
+
+func TestBuffer_MergeDiff_imageSequences(t *testing.T) {
+	prev := buffer.Filled(layout.NewRect(0, 0, 20, 1), buffer.NewCell("x"))
+	next := buffer.Empty(layout.NewRect(0, 0, 20, 1))
+	startCell := buffer.NewCell("\x1b_Ga=T,f=32,s=1,v=1;AAAA\x1b\\")
+	startCell.SetDiffOption(buffer.CellDiffForcedWidth)
+	startCell.SetForcedWidth(1)
+	endCell := buffer.NewCell("\x1b_Ga=d,d=I\x1b\\")
+	endCell.SetDiffOption(buffer.CellDiffForcedWidth)
+	endCell.SetForcedWidth(1)
+	next.SetCell(0, 0, startCell)
+	next.SetCell(19, 0, endCell)
+
+	prev.Merge(next)
+
+	if diff := prev.Diff(next); len(diff) != 0 {
+		t.Fatalf("diff = %#v, want empty", diff)
+	}
+}
+
 func TestBuffer_Lines_shouldSkipHiddenFlagEmojiCell(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 3, 1))
 	buf.SetSymbol(0, 0, "🇺🇸")

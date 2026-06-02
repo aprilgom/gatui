@@ -51,7 +51,7 @@ func TestList_shouldHighlightSelectedItem(t *testing.T) {
 		">> Item 2 ",
 		"   Item 3 ",
 	})
-	for x := 0; x < 10; x++ {
+	for x := range 10 {
 		assertCellStyle(t, buf, x, 1, style.NewStyle().Bg(style.Yellow))
 	}
 }
@@ -210,7 +210,7 @@ func TestList_shouldDisplayMultilineItems(t *testing.T) {
 		"   Item 3 ",
 		"   Item 3c",
 	})
-	for x := 0; x < 10; x++ {
+	for x := range 10 {
 		assertCellStyle(t, buf, x, 2, style.NewStyle().Bg(style.Yellow))
 		assertCellStyle(t, buf, x, 3, style.NewStyle().Bg(style.Yellow))
 	}
@@ -289,7 +289,7 @@ func TestList_highlightSpacing(t *testing.T) {
 		},
 		{
 			name:     "first never",
-			selected: intPtr(0),
+			selected: new(0),
 			spacing:  widgets.HighlightSpacingNever,
 			expected: []string{
 				"┌─────────────┐",
@@ -304,7 +304,7 @@ func TestList_highlightSpacing(t *testing.T) {
 		},
 		{
 			name:     "first when selected",
-			selected: intPtr(0),
+			selected: new(0),
 			spacing:  widgets.HighlightSpacingWhenSelected,
 			expected: []string{
 				"┌─────────────┐",
@@ -338,8 +338,4 @@ func TestList_highlightSpacing(t *testing.T) {
 			}
 		})
 	}
-}
-
-func intPtr(v int) *int {
-	return &v
 }

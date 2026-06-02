@@ -2,6 +2,7 @@ package widgets
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	"gatui/buffer"
@@ -106,9 +107,9 @@ func assertWrappedLines(t *testing.T, lines []wrappedLine, wantSymbols []string,
 }
 
 func cellsString(cells []buffer.Cell) string {
-	value := ""
+	var value strings.Builder
 	for _, cell := range cells {
-		value += cell.Symbol
+		value.WriteString(cell.Symbol)
 	}
-	return value
+	return value.String()
 }

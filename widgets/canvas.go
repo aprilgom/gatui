@@ -295,7 +295,7 @@ func NewCircle(x, y, radius float64, color style.Color) Circle {
 }
 
 func (c Circle) Draw(painter *CanvasPainter) {
-	for angle := 0; angle < 360; angle++ {
+	for angle := range 360 {
 		radians := float64(angle) * math.Pi / 180
 		x := c.X + c.Radius*math.Cos(radians)
 		y := c.Y + c.Radius*math.Sin(radians)

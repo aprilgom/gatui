@@ -692,7 +692,7 @@ func TestTable_shouldRenderMultilineRowsWithSelection(t *testing.T) {
 		},
 		{
 			name:     "first",
-			selected: intPtr(0),
+			selected: new(0),
 			expected: []string{
 				"┌────────────────────────────┐",
 				"│   Head1 Head2 Head3        │",
@@ -706,7 +706,7 @@ func TestTable_shouldRenderMultilineRowsWithSelection(t *testing.T) {
 		},
 		{
 			name:     "second",
-			selected: intPtr(1),
+			selected: new(1),
 			expected: []string{
 				"┌────────────────────────────┐",
 				"│   Head1 Head2 Head3        │",
@@ -720,7 +720,7 @@ func TestTable_shouldRenderMultilineRowsWithSelection(t *testing.T) {
 		},
 		{
 			name:     "fourth",
-			selected: intPtr(3),
+			selected: new(3),
 			expected: []string{
 				"┌────────────────────────────┐",
 				"│   Head1 Head2 Head3        │",
@@ -786,7 +786,7 @@ func TestTable_shouldRespectHighlightSpacing(t *testing.T) {
 			"│Row31 Row32 Row33           │",
 			"└────────────────────────────┘",
 		}},
-		{name: "first when selected", selected: intPtr(0), spacing: widgets.HighlightSpacingWhenSelected, expected: []string{
+		{name: "first when selected", selected: new(0), spacing: widgets.HighlightSpacingWhenSelected, expected: []string{
 			"┌────────────────────────────┐",
 			"│   Head1 Head2 Head3        │",
 			"│                            │",
@@ -796,7 +796,7 @@ func TestTable_shouldRespectHighlightSpacing(t *testing.T) {
 			"│   Row31 Row32 Row33        │",
 			"└────────────────────────────┘",
 		}},
-		{name: "first always", selected: intPtr(0), spacing: widgets.HighlightSpacingAlways, expected: []string{
+		{name: "first always", selected: new(0), spacing: widgets.HighlightSpacingAlways, expected: []string{
 			"┌────────────────────────────┐",
 			"│   Head1 Head2 Head3        │",
 			"│                            │",
@@ -806,7 +806,7 @@ func TestTable_shouldRespectHighlightSpacing(t *testing.T) {
 			"│   Row31 Row32 Row33        │",
 			"└────────────────────────────┘",
 		}},
-		{name: "first never", selected: intPtr(0), spacing: widgets.HighlightSpacingNever, expected: []string{
+		{name: "first never", selected: new(0), spacing: widgets.HighlightSpacingNever, expected: []string{
 			"┌────────────────────────────┐",
 			"│Head1 Head2 Head3           │",
 			"│                            │",
@@ -1204,7 +1204,7 @@ func TestTableCell_ColumnSpan_shouldApplyColumnAndCellHighlightsToSpannedCell(t 
 	table.RenderStateful(buf.Area, buf, &state)
 
 	expected := style.NewStyle().Fg(style.Red).AddModifier(style.ModifierBold | style.ModifierItalic | style.ModifierDim)
-	for x := 0; x < 11; x++ {
+	for x := range 11 {
 		assertCellStyle(t, buf, x, 0, expected)
 	}
 }

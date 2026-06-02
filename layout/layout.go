@@ -1,5 +1,7 @@
 package layout
 
+import "fmt"
+
 type Layout struct {
 	direction   Direction
 	constraints []Constraint
@@ -64,6 +66,22 @@ func (l Layout) Split(area Rect) []Rect {
 	return rects
 }
 
+func (l Layout) SplitN(area Rect, count int) []Rect {
+	rects, err := l.TrySplitN(area, count)
+	if err != nil {
+		panic(err)
+	}
+	return rects
+}
+
+func (l Layout) TrySplitN(area Rect, count int) ([]Rect, error) {
+	rects := l.Split(area)
+	if len(rects) != count {
+		return nil, fmt.Errorf("invalid number of rects: expected %d, found %d", count, len(rects))
+	}
+	return rects, nil
+}
+
 func (l Layout) SplitWithSpacers(area Rect) ([]Rect, []Rect) {
 	area = area.Inner(l.margin)
 	if len(l.constraints) == 0 {
@@ -81,7 +99,7 @@ func (l Layout) splitSegments(area Rect) ([]Rect, []int, []int) {
 	if l.direction == Vertical {
 		axisLength = area.Height
 	}
-	lengths := calculateLengths(maxInt(0, axisLength-spacingAllowance(l.spacing, len(l.constraints))), l.constraints, false)
+	lengths := calculateLengths(maxInt(0, axisLength-l.spacingAllowance()), l.constraints, false)
 	if l.flex == FlexSpaceBetween && len(lengths) == 1 {
 		lengths[0] = axisLength
 	}
@@ -113,6 +131,16 @@ func (l Layout) splitSegments(area Rect) ([]Rect, []int, []int) {
 	}
 
 	return rects, offsets, lengths
+}
+
+func (l Layout) spacingAllowance() int {
+	if l.spacing == 0 || len(l.constraints) <= 1 {
+		return 0
+	}
+	if l.spacing < 0 && (l.flex == FlexSpaceAround || l.flex == FlexSpaceEvenly) {
+		return 0
+	}
+	return l.spacing * (len(l.constraints) - 1)
 }
 
 func (l Layout) spacerRects(area Rect, offsets []int, lengths []int) []Rect {

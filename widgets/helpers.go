@@ -10,7 +10,7 @@ import (
 
 func writeString(buf *buffer.Buffer, x, y int, value string, width int, cellStyle style.Style) {
 	runes := []rune(value)
-	for i := 0; i < width; i++ {
+	for i := range width {
 		symbol := " "
 		if i < len(runes) {
 			symbol = string(runes[i])

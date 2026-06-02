@@ -1,6 +1,7 @@
 package layout_test
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -46,6 +47,178 @@ func TestPosition_NewAndOffset_shouldMatchRatatui(t *testing.T) {
 	}
 }
 
+func TestOffset_FromPosition_convertsCoordinates(t *testing.T) {
+	got := layout.OffsetFromPosition(layout.NewPosition(4, 9))
+	want := layout.NewOffset(4, 9)
+
+	if got != want {
+		t.Fatalf("OffsetFromPosition() mismatch\nwant: %#v\n got: %#v", want, got)
+	}
+}
+
+func TestPosition_AddAndSubtractOffset(t *testing.T) {
+	got := layout.NewPosition(10, 10).
+		AddOffset(layout.NewOffset(-3, 4)).
+		SubOffset(layout.NewOffset(5, 20))
+	want := layout.NewPosition(2, 0)
+
+	if got != want {
+		t.Fatalf("position mismatch\nwant: %#v\n got: %#v", want, got)
+	}
+}
+
+func TestPosition_AddAssignAndSubAssignOffset_goPattern(t *testing.T) {
+	position := layout.NewPosition(10, 10)
+
+	position = position.AddOffset(layout.NewOffset(-3, 4))
+	position = position.SubOffset(layout.NewOffset(5, 20))
+
+	if want := layout.NewPosition(2, 0); position != want {
+		t.Fatalf("position mismatch\nwant: %#v\n got: %#v", want, position)
+	}
+}
+
+func TestRect_FromPositionAndSize(t *testing.T) {
+	got := layout.RectFromPositionAndSize(layout.NewPosition(1, 2), layout.NewSize(3, 4))
+	want := layout.NewRect(1, 2, 3, 4)
+
+	if got != want {
+		t.Fatalf("RectFromPositionAndSize() mismatch\nwant: %#v\n got: %#v", want, got)
+	}
+}
+
+func TestRect_FromSize(t *testing.T) {
+	got := layout.RectFromSize(layout.NewSize(3, 4))
+	want := layout.NewRect(0, 0, 3, 4)
+
+	if got != want {
+		t.Fatalf("RectFromSize() mismatch\nwant: %#v\n got: %#v", want, got)
+	}
+}
+
+func TestRect_New_sizeTruncation(t *testing.T) {
+	got := layout.NewRect(layout.MaxCoordinate-100, layout.MaxCoordinate-1000, 200, 2000)
+	want := layout.Rect{X: layout.MaxCoordinate - 100, Y: layout.MaxCoordinate - 1000, Width: 100, Height: 1000}
+
+	if got != want {
+		t.Fatalf("NewRect() mismatch\nwant: %#v\n got: %#v", want, got)
+	}
+}
+
+func TestRect_New_sizePreservation(t *testing.T) {
+	got := layout.NewRect(10, 20, 200, 300)
+	want := layout.Rect{X: 10, Y: 20, Width: 200, Height: 300}
+
+	if got != want {
+		t.Fatalf("NewRect() mismatch\nwant: %#v\n got: %#v", want, got)
+	}
+}
+
+func TestRect_Offset_saturatesAtMaxCoordinate(t *testing.T) {
+	tests := []struct {
+		name   string
+		rect   layout.Rect
+		offset layout.Offset
+		want   layout.Rect
+	}{
+		{
+			name:   "offset",
+			rect:   layout.NewRect(layout.MaxCoordinate-10, layout.MaxCoordinate-20, 10, 20),
+			offset: layout.NewOffset(100, 100),
+			want:   layout.Rect{X: layout.MaxCoordinate - 10, Y: layout.MaxCoordinate - 20, Width: 10, Height: 20},
+		},
+		{
+			name:   "sub offset with negative values",
+			rect:   layout.NewRect(layout.MaxCoordinate-10, layout.MaxCoordinate-20, 10, 20),
+			offset: layout.NewOffset(-100, -100),
+			want:   layout.Rect{X: layout.MaxCoordinate - 10, Y: layout.MaxCoordinate - 20, Width: 10, Height: 20},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var got layout.Rect
+			if tt.name == "sub offset with negative values" {
+				got = tt.rect.SubOffset(tt.offset)
+			} else {
+				got = tt.rect.Offset(tt.offset)
+			}
+			if got != tt.want {
+				t.Fatalf("rect mismatch\nwant: %#v\n got: %#v", tt.want, got)
+			}
+		})
+	}
+}
+
+func TestRect_Resize_clampsAtBounds(t *testing.T) {
+	got := layout.NewRect(layout.MaxCoordinate-100, layout.MaxCoordinate-1000, 50, 60).
+		Resize(layout.NewSize(200, 2000))
+	want := layout.Rect{X: layout.MaxCoordinate - 100, Y: layout.MaxCoordinate - 1000, Width: 100, Height: 1000}
+
+	if got != want {
+		t.Fatalf("Resize() mismatch\nwant: %#v\n got: %#v", want, got)
+	}
+}
+
+func TestRect_Layout_returnsSplitRects(t *testing.T) {
+	rect := layout.NewRect(0, 0, 10, 5)
+	split := layout.NewHorizontalLayout(layout.Length(3), layout.Fill(1))
+	want := []layout.Rect{
+		layout.NewRect(0, 0, 3, 5),
+		layout.NewRect(3, 0, 7, 5),
+	}
+
+	got := rect.Layout(split)
+
+	if !slices.Equal(got, want) {
+		t.Fatalf("Rect.Layout(%#v) mismatch\nwant: %#v\n got: %#v", split, want, got)
+	}
+}
+
+func TestRect_SplitN_invalidNumberOfRectsPanics(t *testing.T) {
+	rect := layout.NewRect(0, 0, 10, 5)
+	split := layout.NewHorizontalLayout(layout.Length(3), layout.Fill(1))
+	wantPanic := "invalid number of rects: expected 3, found 2"
+
+	defer func() {
+		got := recover()
+		if got == nil {
+			t.Fatalf("Rect.SplitN(%#v, 3) did not panic", split)
+		}
+		if gotString := fmt.Sprint(got); gotString != wantPanic {
+			t.Fatalf("Rect.SplitN(%#v, 3) panic = %q, want %q", split, gotString, wantPanic)
+		}
+	}()
+
+	_ = rect.SplitN(split, 3)
+}
+
+func TestRect_TrySplitN_invalidNumberOfRectsReturnsError(t *testing.T) {
+	rect := layout.NewRect(0, 0, 10, 5)
+	split := layout.NewHorizontalLayout(layout.Length(3), layout.Fill(1))
+	wantErr := "invalid number of rects: expected 3, found 2"
+
+	got, err := rect.TrySplitN(split, 3)
+
+	if err == nil {
+		t.Fatalf("Rect.TrySplitN(%#v, 3) error = nil, want %q", split, wantErr)
+	}
+	if err.Error() != wantErr {
+		t.Fatalf("Rect.TrySplitN(%#v, 3) error = %q, want %q", split, err, wantErr)
+	}
+	if got != nil {
+		t.Fatalf("Rect.TrySplitN(%#v, 3) rects = %#v, want nil", split, got)
+	}
+}
+
+func TestSize_Tuple(t *testing.T) {
+	width, height := layout.NewSize(10, 20).Tuple()
+
+	if width != 10 || height != 20 {
+		t.Fatalf("Tuple() = (%d, %d), want (10, 20)", width, height)
+	}
+}
+
 func TestRect_Rows_shouldIterateTopToBottom(t *testing.T) {
 	tests := []struct {
 		name string
@@ -87,6 +260,35 @@ func TestRect_Rows_shouldIterateTopToBottom(t *testing.T) {
 	}
 }
 
+func TestRect_RowsBack(t *testing.T) {
+	got := layout.NewRect(0, 0, 2, 3).RowsReversed()
+	want := []layout.Rect{
+		layout.NewRect(0, 2, 2, 1),
+		layout.NewRect(0, 1, 2, 1),
+		layout.NewRect(0, 0, 2, 1),
+	}
+
+	if !slices.Equal(got, want) {
+		t.Fatalf("RowsReversed() mismatch\nwant: %#v\n got: %#v", want, got)
+	}
+}
+
+func TestRect_RowsMeetInTheMiddle(t *testing.T) {
+	rows := layout.NewRect(0, 0, 2, 4).Rows()
+
+	got := consumeSliceEnds(rows, true, false, true, false)
+	want := []layout.Rect{
+		layout.NewRect(0, 0, 2, 1),
+		layout.NewRect(0, 3, 2, 1),
+		layout.NewRect(0, 1, 2, 1),
+		layout.NewRect(0, 2, 2, 1),
+	}
+
+	if !slices.Equal(got, want) {
+		t.Fatalf("mixed row traversal mismatch\nwant: %#v\n got: %#v", want, got)
+	}
+}
+
 func TestRect_Columns_shouldIterateLeftToRight(t *testing.T) {
 	tests := []struct {
 		name string
@@ -125,6 +327,57 @@ func TestRect_Columns_shouldIterateLeftToRight(t *testing.T) {
 				t.Fatalf("Columns() mismatch\nwant: %#v\n got: %#v", tt.want, got)
 			}
 		})
+	}
+}
+
+func TestRect_ColumnsBack(t *testing.T) {
+	got := layout.NewRect(0, 0, 3, 2).ColumnsReversed()
+	want := []layout.Rect{
+		layout.NewRect(2, 0, 1, 2),
+		layout.NewRect(1, 0, 1, 2),
+		layout.NewRect(0, 0, 1, 2),
+	}
+
+	if !slices.Equal(got, want) {
+		t.Fatalf("ColumnsReversed() mismatch\nwant: %#v\n got: %#v", want, got)
+	}
+}
+
+func TestRect_ColumnsMeetInTheMiddle(t *testing.T) {
+	columns := layout.NewRect(0, 0, 4, 2).Columns()
+
+	got := consumeSliceEnds(columns, true, false, true, false)
+	want := []layout.Rect{
+		layout.NewRect(0, 0, 1, 2),
+		layout.NewRect(3, 0, 1, 2),
+		layout.NewRect(1, 0, 1, 2),
+		layout.NewRect(2, 0, 1, 2),
+	}
+
+	if !slices.Equal(got, want) {
+		t.Fatalf("mixed column traversal mismatch\nwant: %#v\n got: %#v", want, got)
+	}
+}
+
+func TestRect_ColumnsMax(t *testing.T) {
+	columns := layout.NewRect(0, 0, layout.MaxCoordinate, 1).Columns()
+
+	got := columns[len(columns)-1]
+	want := layout.NewRect(layout.MaxCoordinate-1, 0, 1, 1)
+
+	if got != want {
+		t.Fatalf("last column mismatch\nwant: %#v\n got: %#v", want, got)
+	}
+}
+
+func TestRect_ColumnsMin(t *testing.T) {
+	columns := layout.NewRect(0, 0, layout.MaxCoordinate, 1).ColumnsReversed()
+
+	got := columns[len(columns)-1]
+	want := layout.NewRect(0, 0, 1, 1)
+
+	if got != want {
+		t.Fatalf("last reversed column mismatch\nwant: %#v\n got: %#v", want, got)
 	}
 }
 
@@ -179,6 +432,27 @@ func TestRect_Positions_shouldIterateRowMajor(t *testing.T) {
 			}
 		})
 	}
+}
+
+func consumeSliceEnds[T any](items []T, fromFront ...bool) []T {
+	front := 0
+	back := len(items) - 1
+	consumed := make([]T, 0, len(fromFront))
+
+	for _, takeFront := range fromFront {
+		if front > back {
+			break
+		}
+		if takeFront {
+			consumed = append(consumed, items[front])
+			front++
+			continue
+		}
+		consumed = append(consumed, items[back])
+		back--
+	}
+
+	return consumed
 }
 
 func TestSize_NewAndArea_shouldMatchRatatui(t *testing.T) {
@@ -386,6 +660,81 @@ func TestRect_Offset_shouldMoveWithoutResizing(t *testing.T) {
 	})
 }
 
+func TestRect_Offset_negative(t *testing.T) {
+	got := layout.NewRect(10, 10, 3, 4).Offset(layout.NewOffset(-4, -7))
+	want := layout.NewRect(6, 3, 3, 4)
+
+	if got != want {
+		t.Fatalf("Offset() mismatch\nwant: %#v\n got: %#v", want, got)
+	}
+}
+
+func TestRect_Offset_negativeSaturatesAtOrigin(t *testing.T) {
+	got := layout.NewRect(2, 3, 4, 5).Offset(layout.NewOffset(-10, -20))
+	want := layout.NewRect(0, 0, 4, 5)
+
+	if got != want {
+		t.Fatalf("Offset() mismatch\nwant: %#v\n got: %#v", want, got)
+	}
+}
+
+func TestRect_SubOffset(t *testing.T) {
+	tests := []struct {
+		name   string
+		rect   layout.Rect
+		offset layout.Offset
+		want   layout.Rect
+	}{
+		{
+			name:   "positive offset moves left and up",
+			rect:   layout.NewRect(10, 10, 3, 4),
+			offset: layout.NewOffset(4, 7),
+			want:   layout.NewRect(6, 3, 3, 4),
+		},
+		{
+			name:   "negative offset moves right and down",
+			rect:   layout.NewRect(10, 10, 3, 4),
+			offset: layout.NewOffset(-4, -7),
+			want:   layout.NewRect(14, 17, 3, 4),
+		},
+		{
+			name:   "saturates at origin",
+			rect:   layout.NewRect(2, 3, 4, 5),
+			offset: layout.NewOffset(10, 20),
+			want:   layout.NewRect(0, 0, 4, 5),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.rect.SubOffset(tt.offset)
+			if got != tt.want {
+				t.Fatalf("SubOffset() mismatch\nwant: %#v\n got: %#v", tt.want, got)
+			}
+		})
+	}
+}
+
+func TestRect_AddAssignOffset_goPattern(t *testing.T) {
+	rect := layout.NewRect(10, 10, 3, 4)
+
+	rect = rect.Offset(layout.NewOffset(-4, 7))
+
+	if want := layout.NewRect(6, 17, 3, 4); rect != want {
+		t.Fatalf("rect mismatch\nwant: %#v\n got: %#v", want, rect)
+	}
+}
+
+func TestRect_SubAssignOffset_goPattern(t *testing.T) {
+	rect := layout.NewRect(10, 10, 3, 4)
+
+	rect = rect.SubOffset(layout.NewOffset(4, -7))
+
+	if want := layout.NewRect(6, 17, 3, 4); rect != want {
+		t.Fatalf("rect mismatch\nwant: %#v\n got: %#v", want, rect)
+	}
+}
+
 func TestRect_Intersection_shouldReturnOverlappingArea(t *testing.T) {
 	a := layout.NewRect(2, 2, 6, 4)
 	b := layout.NewRect(5, 3, 6, 4)
@@ -408,6 +757,15 @@ func TestRect_Intersection_shouldReturnOverlappingArea(t *testing.T) {
 		"               ",
 		"               ",
 	})
+}
+
+func TestRect_Intersection_underflow(t *testing.T) {
+	got := layout.NewRect(1, 1, 2, 2).Intersection(layout.NewRect(4, 4, 2, 2))
+	want := layout.NewRect(4, 4, 0, 0)
+
+	if got != want {
+		t.Fatalf("Intersection() mismatch\nwant: %#v\n got: %#v", want, got)
+	}
 }
 
 func TestRect_Clamp_shouldMoveRectInsideArea(t *testing.T) {

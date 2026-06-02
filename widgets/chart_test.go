@@ -720,7 +720,7 @@ func TestChart_shouldRenderTopLeftLegend(t *testing.T) {
 
 func TestChart_shouldHideLegend_whenHiddenLegendConstraintsAreExceeded(t *testing.T) {
 	datasets := make([]widgets.Dataset, 0, 10)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		datasets = append(datasets, widgets.NewDataset().Name("Dataset #"+strconv.Itoa(i)))
 	}
 

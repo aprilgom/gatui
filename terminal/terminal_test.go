@@ -448,7 +448,7 @@ func TestFrame_Count_returnsCurrentFrameCount(t *testing.T) {
 	}
 
 	var counts []int
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		completed, err := term.Draw(func(frame *terminal.Frame) {
 			counts = append(counts, frame.Count())
 		})

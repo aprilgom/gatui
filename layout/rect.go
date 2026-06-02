@@ -1,5 +1,7 @@
 package layout
 
+const MaxCoordinate = 65535
+
 type Rect struct {
 	X      int
 	Y      int
@@ -8,9 +10,17 @@ type Rect struct {
 }
 
 func NewRect(x, y, width, height int) Rect {
-	width = maxInt(0, width)
-	height = maxInt(0, height)
+	width = clampRectExtent(x, width)
+	height = clampRectExtent(y, height)
 	return Rect{X: x, Y: y, Width: width, Height: height}
+}
+
+func RectFromPositionAndSize(position Position, size Size) Rect {
+	return NewRect(position.X, position.Y, size.Width, size.Height)
+}
+
+func RectFromSize(size Size) Rect {
+	return NewRect(0, 0, size.Width, size.Height)
 }
 
 func (r Rect) Area() int {
@@ -25,10 +35,26 @@ func (r Rect) Rows() []Rect {
 	return rows
 }
 
+func (r Rect) RowsReversed() []Rect {
+	rows := make([]Rect, r.Height)
+	for i := range rows {
+		rows[i] = NewRect(r.X, r.Y+r.Height-1-i, r.Width, 1)
+	}
+	return rows
+}
+
 func (r Rect) Columns() []Rect {
 	columns := make([]Rect, r.Width)
 	for i := range columns {
 		columns[i] = NewRect(r.X+i, r.Y, 1, r.Height)
+	}
+	return columns
+}
+
+func (r Rect) ColumnsReversed() []Rect {
+	columns := make([]Rect, r.Width)
+	for i := range columns {
+		columns[i] = NewRect(r.X+r.Width-1-i, r.Y, 1, r.Height)
 	}
 	return columns
 }
@@ -80,11 +106,27 @@ func (r Rect) Outer(margin Margin) Rect {
 }
 
 func (r Rect) Offset(offset Offset) Rect {
-	return NewRect(maxInt(0, r.X+offset.X), maxInt(0, r.Y+offset.Y), r.Width, r.Height)
+	return NewRect(clampRectOrigin(r.X+offset.X, r.Width), clampRectOrigin(r.Y+offset.Y, r.Height), r.Width, r.Height)
+}
+
+func (r Rect) SubOffset(offset Offset) Rect {
+	return NewRect(clampRectOrigin(r.X-offset.X, r.Width), clampRectOrigin(r.Y-offset.Y, r.Height), r.Width, r.Height)
 }
 
 func (r Rect) Resize(size Size) Rect {
 	return NewRect(r.X, r.Y, size.Width, size.Height)
+}
+
+func (r Rect) Layout(layout Layout) []Rect {
+	return layout.Split(r)
+}
+
+func (r Rect) SplitN(layout Layout, count int) []Rect {
+	return layout.SplitN(r, count)
+}
+
+func (r Rect) TrySplitN(layout Layout, count int) ([]Rect, error) {
+	return layout.TrySplitN(r, count)
 }
 
 func (r Rect) Union(other Rect) Rect {
@@ -145,4 +187,15 @@ func (r Rect) CenteredVertically(constraint Constraint) Rect {
 
 func (r Rect) Centered(horizontal, vertical Constraint) Rect {
 	return r.CenteredHorizontally(horizontal).CenteredVertically(vertical)
+}
+
+func clampRectExtent(origin, extent int) int {
+	extent = maxInt(0, extent)
+	available := maxInt(MaxCoordinate-origin, 0)
+	return minInt(extent, available)
+}
+
+func clampRectOrigin(origin, extent int) int {
+	maxOrigin := maxInt(MaxCoordinate-maxInt(0, extent), 0)
+	return clampInt(origin, 0, maxOrigin)
 }

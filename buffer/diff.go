@@ -13,12 +13,9 @@ func (b *Buffer) Diff(next *Buffer) []CellDiff {
 		panic("buffer areas must have the same x, y, and width")
 	}
 
-	height := b.Area.Height
-	if next.Area.Height < height {
-		height = next.Area.Height
-	}
+	height := min(next.Area.Height, b.Area.Height)
 	diffs := make([]CellDiff, 0)
-	for y := 0; y < height; y++ {
+	for y := range height {
 		for x := 0; x < b.Area.Width; x++ {
 			index := y*b.Area.Width + x
 			previous := b.Cells[index]
