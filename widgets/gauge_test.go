@@ -129,8 +129,8 @@ func TestGauge_canBeStylized(t *testing.T) {
 		"████50%     ",
 		"██████      ",
 	})
-	for y := 0; y < 3; y++ {
-		for x := 0; x < 12; x++ {
+	for y := range 3 {
+		for x := range 12 {
 			switch {
 			case y == 1 && x >= 4 && x <= 6:
 				continue

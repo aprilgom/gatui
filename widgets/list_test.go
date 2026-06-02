@@ -34,6 +34,89 @@ func TestList_shouldShowLength(t *testing.T) {
 	}
 }
 
+func TestList_canBeStylized(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 6, 2))
+	baseStyle := style.NewStyle().
+		Fg(style.Black).
+		Bg(style.White).
+		AddModifier(style.ModifierBold | style.ModifierDim | style.ModifierItalic)
+	itemStyle := style.NewStyle().
+		Fg(style.Red).
+		AddModifier(style.ModifierItalic)
+
+	widgets.NewList([]widgets.ListItem{
+		widgets.ListItemFromLines(text.NewLine(text.StyledSpan("ab", itemStyle))),
+	}).
+		Fg(style.Black).
+		Bg(style.White).
+		Bold().
+		Dim().
+		Italic().
+		Cyan().
+		Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"ab    ",
+		"      ",
+	})
+	assertCellStyle(t, buf, 0, 0, style.NewStyle().Fg(style.Red).Bg(style.White).AddModifier(style.ModifierBold|style.ModifierDim|style.ModifierItalic))
+	assertCellStyle(t, buf, 1, 0, style.NewStyle().Fg(style.Red).Bg(style.White).AddModifier(style.ModifierBold|style.ModifierDim|style.ModifierItalic))
+	for x := 2; x < 6; x++ {
+		assertCellStyle(t, buf, x, 0, baseStyle.Fg(style.Cyan))
+	}
+	for x := range 6 {
+		assertCellStyle(t, buf, x, 1, baseStyle.Fg(style.Cyan))
+	}
+}
+
+func TestList_noStyle(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 4, 2))
+
+	widgets.NewList([]widgets.ListItem{
+		widgets.ListItemFromString("ab"),
+	}).Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"ab  ",
+		"    ",
+	})
+	assertAllCellsStyle(t, buf, style.NewStyle())
+}
+
+func TestList_renderInMinimalBuffer(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 1, 1))
+
+	assertNotPanics(t, func() {
+		widgets.NewList([]widgets.ListItem{
+			widgets.ListItemFromString("ab"),
+		}).Render(buf.Area, buf)
+	})
+
+	assertLines(t, buf, []string{"a"})
+	assertCellStyle(t, buf, 0, 0, style.NewStyle())
+}
+
+func TestList_renderInZeroSizeBuffer(t *testing.T) {
+	tests := []struct {
+		area     layout.Rect
+		expected []string
+	}{
+		{area: layout.NewRect(0, 0, 0, 1), expected: []string{""}},
+		{area: layout.NewRect(0, 0, 1, 0), expected: []string{}},
+	}
+	for _, tt := range tests {
+		buf := buffer.Empty(tt.area)
+
+		assertNotPanics(t, func() {
+			widgets.NewList([]widgets.ListItem{
+				widgets.ListItemFromString("ab"),
+			}).Render(tt.area, buf)
+		})
+
+		assertLines(t, buf, tt.expected)
+	}
+}
+
 func TestList_shouldHighlightSelectedItem(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 10, 3))
 	state := widgets.ListState{}

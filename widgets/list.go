@@ -121,6 +121,35 @@ func (l List) Style(listStyle style.Style) List {
 	return l
 }
 
+func (l List) Fg(color style.Color) List {
+	l.style = l.style.Fg(color)
+	return l
+}
+
+func (l List) Bg(color style.Color) List {
+	l.style = l.style.Bg(color)
+	return l
+}
+
+func (l List) Bold() List {
+	l.style = l.style.AddModifier(style.ModifierBold)
+	return l
+}
+
+func (l List) Dim() List {
+	l.style = l.style.AddModifier(style.ModifierDim)
+	return l
+}
+
+func (l List) Italic() List {
+	l.style = l.style.AddModifier(style.ModifierItalic)
+	return l
+}
+
+func (l List) Cyan() List {
+	return l.Fg(style.Cyan)
+}
+
 func (l List) HighlightStyle(highlightStyle style.Style) List {
 	l.highlightStyle = highlightStyle
 	return l
