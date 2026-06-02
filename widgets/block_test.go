@@ -131,6 +131,155 @@ func TestBlock_renderSolidBorder(t *testing.T) {
 	})
 }
 
+func TestMergeStrategy_merge(t *testing.T) {
+	tests := []struct {
+		name     string
+		strategy MergeStrategy
+		prev     string
+		next     string
+		want     string
+	}{
+		{name: "replace", strategy: MergeStrategyReplace, prev: "│", next: "━", want: "━"},
+		{name: "exact plain cross", strategy: MergeStrategyExact, prev: "│", next: "─", want: "┼"},
+		{name: "exact mixed plain thick cross", strategy: MergeStrategyExact, prev: "│", next: "━", want: "┿"},
+		{name: "exact falls back to replace", strategy: MergeStrategyExact, prev: "┘", next: "╔", want: "╔"},
+		{name: "fuzzy double thick", strategy: MergeStrategyFuzzy, prev: "┘", next: "╔", want: "╬"},
+		{name: "fuzzy rounded plain", strategy: MergeStrategyFuzzy, prev: "┘", next: "╭", want: "┼"},
+		{name: "fuzzy dashed thick", strategy: MergeStrategyFuzzy, prev: "╎", next: "╍", want: "┿"},
+		{name: "non border previous wins when next is border", strategy: MergeStrategyExact, prev: "a", next: "╭", want: "a"},
+		{name: "non border next wins", strategy: MergeStrategyExact, prev: "┌", next: "a", want: "a"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := mergeBorderSymbols(tt.strategy, tt.prev, tt.next); got != tt.want {
+				t.Fatalf("mergeBorderSymbols(%v, %q, %q) = %q, want %q", tt.strategy, tt.prev, tt.next, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBlock_renderMergedBordersInMinimalBufferDoesNotPanic(t *testing.T) {
+	for _, strategy := range []MergeStrategy{MergeStrategyExact, MergeStrategyFuzzy} {
+		t.Run(strategy.String(), func(t *testing.T) {
+			buf := buffer.Empty(layout.NewRect(0, 0, 1, 1))
+
+			BorderedBlock().MergeBorders(strategy).Render(buf.Area, buf)
+
+			assertBlockLines(t, buf, []string{"┼"})
+		})
+	}
+}
+
+func TestBlock_renderMergedBorders(t *testing.T) {
+	tests := []struct {
+		name     string
+		strategy MergeStrategy
+		first    Block
+		firstAt  layout.Rect
+		second   Block
+		secondAt layout.Rect
+		want     []string
+	}{
+		{
+			name:     "replace touching corners",
+			strategy: MergeStrategyReplace,
+			first:    BorderedBlock(),
+			firstAt:  layout.NewRect(0, 0, 5, 5),
+			second:   BorderedBlock().BorderType(BorderTypeThick),
+			secondAt: layout.NewRect(4, 4, 5, 5),
+			want: []string{
+				"┌───┐    ",
+				"│   │    ",
+				"│   │    ",
+				"│   │    ",
+				"└───┏━━━┓",
+				"    ┃   ┃",
+				"    ┃   ┃",
+				"    ┃   ┃",
+				"    ┗━━━┛",
+			},
+		},
+		{
+			name:     "exact overlapping rectangles",
+			strategy: MergeStrategyExact,
+			first:    BorderedBlock(),
+			firstAt:  layout.NewRect(0, 0, 5, 5),
+			second:   BorderedBlock().BorderType(BorderTypeThick),
+			secondAt: layout.NewRect(2, 2, 5, 5),
+			want: []string{
+				"┌───┐    ",
+				"│   │    ",
+				"│ ┏━┿━┓  ",
+				"│ ┃ │ ┃  ",
+				"└─╂─┘ ┃  ",
+				"  ┃   ┃  ",
+				"  ┗━━━┛  ",
+			},
+		},
+		{
+			name:     "fuzzy touching vertical edges",
+			strategy: MergeStrategyFuzzy,
+			first:    BorderedBlock().BorderType(BorderTypeRounded),
+			firstAt:  layout.NewRect(0, 0, 5, 5),
+			second:   BorderedBlock(),
+			secondAt: layout.NewRect(4, 0, 5, 5),
+			want: []string{
+				"╭───┬───┐",
+				"│   │   │",
+				"│   │   │",
+				"│   │   │",
+				"╰───┴───┘",
+			},
+		},
+		{
+			name:     "fuzzy touching horizontal edges",
+			strategy: MergeStrategyFuzzy,
+			first:    BorderedBlock().BorderType(BorderTypeLightDoubleDashed),
+			firstAt:  layout.NewRect(0, 0, 5, 5),
+			second:   BorderedBlock().BorderType(BorderTypeHeavyDoubleDashed),
+			secondAt: layout.NewRect(0, 4, 5, 5),
+			want: []string{
+				"┌╌╌╌┐    ",
+				"╎   ╎    ",
+				"╎   ╎    ",
+				"╎   ╎    ",
+				"┢╍╍╍┪    ",
+				"╏   ╏    ",
+				"╏   ╏    ",
+				"╏   ╏    ",
+				"┗╍╍╍┛    ",
+			},
+		},
+		{
+			name:     "exact double dashed falls back where unrepresentable",
+			strategy: MergeStrategyExact,
+			first:    BorderedBlock(),
+			firstAt:  layout.NewRect(0, 0, 5, 5),
+			second:   BorderedBlock().BorderType(BorderTypeDouble),
+			secondAt: layout.NewRect(4, 0, 5, 5),
+			want: []string{
+				"┌───╔═══╗",
+				"│   ║   ║",
+				"│   ║   ║",
+				"│   ║   ║",
+				"└───╚═══╝",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := buffer.Empty(layout.NewRect(0, 0, 9, len(tt.want)))
+
+			tt.first.MergeBorders(tt.strategy).Render(tt.firstAt, buf)
+			tt.second.MergeBorders(tt.strategy).Render(tt.secondAt, buf)
+
+			assertBlockLines(t, buf, tt.want)
+		})
+	}
+}
+
 func TestBorderType_string(t *testing.T) {
 	tests := []struct {
 		borderType BorderType

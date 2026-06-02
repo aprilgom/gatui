@@ -14,6 +14,7 @@ type Block struct {
 	titlePosition TitlePosition
 	borders       Borders
 	borderSet     BorderSet
+	mergeBorders  MergeStrategy
 	padding       Padding
 	style         style.Style
 	borderStyle   style.Style
@@ -332,6 +333,7 @@ func NewBlock() Block {
 	return Block{
 		titlePosition: TitlePositionTop,
 		borderSet:     PlainBorderSet,
+		mergeBorders:  MergeStrategyReplace,
 		style:         style.NewStyle(),
 		borderStyle:   style.NewStyle(),
 		titleStyle:    style.NewStyle(),
@@ -379,6 +381,11 @@ func (b Block) BorderSet(borderSet BorderSet) Block {
 
 func (b Block) BorderType(borderType BorderType) Block {
 	b.borderSet = borderType.BorderSet()
+	return b
+}
+
+func (b Block) MergeBorders(strategy MergeStrategy) Block {
+	b.mergeBorders = strategy
 	return b
 }
 
@@ -686,38 +693,70 @@ func (b Block) renderBorders(area layout.Rect, buf *buffer.Buffer) {
 	borderStyle := b.style.Patch(b.borderStyle)
 	right := area.X + area.Width - 1
 	bottom := area.Y + area.Height - 1
+	mergeSidesInset := b.mergeBorders != MergeStrategyReplace
+	leftInset := 0
+	rightInset := 0
+	topInset := 0
+	bottomInset := 0
+	if mergeSidesInset && b.borders.Has(LeftBorder) {
+		leftInset = 1
+	}
+	if mergeSidesInset && b.borders.Has(RightBorder) {
+		rightInset = 1
+	}
+	if mergeSidesInset && b.borders.Has(TopBorder) {
+		topInset = 1
+	}
+	if mergeSidesInset && b.borders.Has(BottomBorder) {
+		bottomInset = 1
+	}
 	if b.borders.Has(TopBorder) {
-		for x := area.X; x <= right; x++ {
-			b.setCell(buf, x, area.Y, b.borderSet.HorizontalTop, borderStyle)
+		for x := area.X + leftInset; x <= right-rightInset; x++ {
+			b.setBorderCell(buf, x, area.Y, b.borderSet.HorizontalTop, borderStyle)
 		}
 	}
 	if b.borders.Has(BottomBorder) && bottom != area.Y {
-		for x := area.X; x <= right; x++ {
-			b.setCell(buf, x, bottom, b.borderSet.HorizontalBottom, borderStyle)
+		for x := area.X + leftInset; x <= right-rightInset; x++ {
+			b.setBorderCell(buf, x, bottom, b.borderSet.HorizontalBottom, borderStyle)
 		}
 	}
 	if b.borders.Has(LeftBorder) {
-		for y := area.Y; y <= bottom; y++ {
-			b.setCell(buf, area.X, y, b.borderSet.VerticalLeft, borderStyle)
+		for y := area.Y + topInset; y <= bottom-bottomInset; y++ {
+			b.setBorderCell(buf, area.X, y, b.borderSet.VerticalLeft, borderStyle)
 		}
 	}
 	if b.borders.Has(RightBorder) && right != area.X {
-		for y := area.Y; y <= bottom; y++ {
-			b.setCell(buf, right, y, b.borderSet.VerticalRight, borderStyle)
+		for y := area.Y + topInset; y <= bottom-bottomInset; y++ {
+			b.setBorderCell(buf, right, y, b.borderSet.VerticalRight, borderStyle)
 		}
 	}
+	// Corners are rendered after sides so 1x1 and shared-corner areas merge all segments.
+	if b.borders.Has(BottomBorder) && b.borders.Has(RightBorder) && (b.mergeBorders != MergeStrategyReplace || (right != area.X && bottom != area.Y)) {
+		b.setBorderCell(buf, right, bottom, b.borderSet.BottomRight, borderStyle)
+	}
+	if b.borders.Has(TopBorder) && b.borders.Has(RightBorder) && (b.mergeBorders != MergeStrategyReplace || right != area.X) {
+		b.setBorderCell(buf, right, area.Y, b.borderSet.TopRight, borderStyle)
+	}
+	if b.borders.Has(BottomBorder) && b.borders.Has(LeftBorder) && (b.mergeBorders != MergeStrategyReplace || bottom != area.Y) {
+		b.setBorderCell(buf, area.X, bottom, b.borderSet.BottomLeft, borderStyle)
+	}
 	if b.borders.Has(TopBorder) && b.borders.Has(LeftBorder) {
-		b.setCell(buf, area.X, area.Y, b.borderSet.TopLeft, borderStyle)
+		b.setBorderCell(buf, area.X, area.Y, b.borderSet.TopLeft, borderStyle)
 	}
-	if b.borders.Has(TopBorder) && b.borders.Has(RightBorder) && right != area.X {
-		b.setCell(buf, right, area.Y, b.borderSet.TopRight, borderStyle)
+}
+
+func (b Block) setBorderCell(buf *buffer.Buffer, x, y int, symbol string, cellStyle style.Style) {
+	cell, ok := buf.CellAt(x, y)
+	if !ok {
+		return
 	}
-	if b.borders.Has(BottomBorder) && b.borders.Has(LeftBorder) && bottom != area.Y {
-		b.setCell(buf, area.X, bottom, b.borderSet.BottomLeft, borderStyle)
+	if cell.Symbol == "" || cell.Symbol == " " {
+		cell.Symbol = symbol
+	} else {
+		cell.Symbol = mergeBorderSymbols(b.mergeBorders, cell.DisplaySymbol(), symbol)
 	}
-	if b.borders.Has(BottomBorder) && b.borders.Has(RightBorder) && right != area.X && bottom != area.Y {
-		b.setCell(buf, right, bottom, b.borderSet.BottomRight, borderStyle)
-	}
+	cell.Style = cell.Style.Patch(cellStyle)
+	buf.SetCell(x, y, cell)
 }
 
 func saturatingAdd(a, b int) int {
