@@ -88,10 +88,8 @@ func (l Layout) SplitWithSpacers(area Rect) ([]Rect, []Rect) {
 		return []Rect{area}, []Rect{emptySpacer(area, l.direction, 0), emptySpacer(area, l.direction, axisLength(area, l.direction))}
 	}
 
-	rects, offsets, lengths := l.splitSegments(area)
-	spacers := l.spacerRects(area, offsets, lengths)
-
-	return rects, spacers
+	solved := l.solveLayout(area)
+	return solved.segments, solved.spacers
 }
 
 func (l Layout) splitSegments(area Rect) ([]Rect, []int, []int) {

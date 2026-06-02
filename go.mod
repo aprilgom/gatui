@@ -3,6 +3,7 @@ module gatui
 go 1.26.3
 
 require (
+	github.com/aprilgom/casow v0.0.0-20260602062007-8bff66f14cd9
 	github.com/gdamore/tcell/v2 v2.13.10
 	github.com/rivo/uniseg v0.4.7
 )
