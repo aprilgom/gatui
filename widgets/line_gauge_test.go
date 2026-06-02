@@ -78,3 +78,22 @@ func TestLineGauge_shouldTruncateCustomLabelToAvailableWidth(t *testing.T) {
 
 	assertLines(t, buf, []string{"abcd"})
 }
+
+func TestLineGauge_shouldPreserveStyledMultiSpanLabel(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 6, 1))
+	label := text.NewLine(
+		text.StyledSpan("ab", style.NewStyle().Fg(style.Red)),
+		text.StyledSpan("cd", style.NewStyle().Fg(style.Green)),
+	).Style(style.NewStyle().Bg(style.Blue))
+
+	widgets.NewLineGauge().
+		Label(label).
+		Ratio(0.50).
+		Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"abcd ─"})
+	assertCellStyle(t, buf, 0, 0, style.NewStyle().Fg(style.Red).Bg(style.Blue))
+	assertCellStyle(t, buf, 1, 0, style.NewStyle().Fg(style.Red).Bg(style.Blue))
+	assertCellStyle(t, buf, 2, 0, style.NewStyle().Fg(style.Green).Bg(style.Blue))
+	assertCellStyle(t, buf, 3, 0, style.NewStyle().Fg(style.Green).Bg(style.Blue))
+}

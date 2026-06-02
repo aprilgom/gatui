@@ -679,6 +679,29 @@ func TestChart_shouldPatchDatasetStyleIntoLegendName(t *testing.T) {
 	}
 }
 
+func TestChart_shouldRenderStyledAxisLabelsWithCellWidthClipping(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 6, 5))
+	axisStyle := style.NewStyle().Bg(style.Blue)
+	label := text.NewLine(
+		text.StyledSpan("A", style.NewStyle().Fg(style.Red)),
+		text.StyledSpan("コ", style.NewStyle().Fg(style.Green)),
+	).Style(style.NewStyle().AddModifier(style.ModifierBold))
+	chart := widgets.NewChart([]widgets.Dataset{}).
+		XAxis(widgets.NewAxis().Bounds(0, 1).Labels([]text.Line{label, text.LineFromString("Z")}).Style(axisStyle))
+
+	chart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"      ",
+		"      ",
+		"      ",
+		"  ────",
+		"A    Z",
+	})
+	assertCellStyle(t, buf, 0, 4, style.NewStyle().Fg(style.Red).Bg(style.Blue).AddModifier(style.ModifierBold))
+	assertCellSymbol(t, buf, 1, 4, " ")
+}
+
 func TestChart_shouldRenderTopLeftLegend(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 30, 20))
 	chart := widgets.NewChart([]widgets.Dataset{

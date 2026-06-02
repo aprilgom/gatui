@@ -75,6 +75,38 @@ func TestList_shouldHighlightSelectedItemWithWideSymbol(t *testing.T) {
 	})
 }
 
+func TestList_shouldPreserveMultiSpanItemStyles(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 6, 1))
+	line := text.NewLine(
+		text.StyledSpan("ab", style.NewStyle().Fg(style.Red)),
+		text.StyledSpan("cd", style.NewStyle().Fg(style.Green)),
+	).Style(style.NewStyle().Bg(style.Blue))
+	list := widgets.NewList([]widgets.ListItem{
+		widgets.ListItemFromLines(line),
+	}).Style(style.NewStyle().AddModifier(style.ModifierBold))
+
+	list.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"abcd  "})
+	assertCellStyle(t, buf, 0, 0, style.NewStyle().Fg(style.Red).Bg(style.Blue).AddModifier(style.ModifierBold))
+	assertCellStyle(t, buf, 1, 0, style.NewStyle().Fg(style.Red).Bg(style.Blue).AddModifier(style.ModifierBold))
+	assertCellStyle(t, buf, 2, 0, style.NewStyle().Fg(style.Green).Bg(style.Blue).AddModifier(style.ModifierBold))
+	assertCellStyle(t, buf, 3, 0, style.NewStyle().Fg(style.Green).Bg(style.Blue).AddModifier(style.ModifierBold))
+}
+
+func TestList_shouldClipWideGraphemeByCellWidth(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 3, 1))
+	list := widgets.NewList([]widgets.ListItem{
+		widgets.ListItemFromLines(text.LineFromString("aコb")),
+	})
+
+	list.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"aコ"})
+	assertCellSymbol(t, buf, 1, 0, "コ")
+	assertCellSymbol(t, buf, 2, 0, " ")
+}
+
 func TestList_shouldTruncateItems(t *testing.T) {
 	tests := []struct {
 		name     string

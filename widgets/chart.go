@@ -383,16 +383,7 @@ func (c Chart) renderYTitle(buf *buffer.Buffer, l chartAxisLayout) {
 	if c.yAxis.title == nil || l.graphLeft >= l.graphRight {
 		return
 	}
-	cells := cellsFromLine(*c.yAxis.title)
-	x := l.graphLeft
-	for _, cell := range cells {
-		if x >= l.graphRight {
-			return
-		}
-		cell.Style = c.yAxis.axisStyle.Patch(cell.Style)
-		buf.SetCell(x, l.area.Y, cell)
-		x++
-	}
+	renderLine(layout.NewRect(l.graphLeft, l.area.Y, l.graphRight-l.graphLeft, 1), buf, *c.yAxis.title, c.yAxis.axisStyle)
 }
 
 func (c Chart) renderDatasets(buf *buffer.Buffer, l chartAxisLayout) {
@@ -629,13 +620,6 @@ func (c Chart) renderLabel(buf *buffer.Buffer, label text.Line, area layout.Rect
 	if area.Width <= 0 || area.Height <= 0 {
 		return
 	}
-	cells := cellsFromLine(label)
-	if len(cells) > area.Width {
-		cells = cells[:area.Width]
-	}
-	offset := alignedOffset(len(cells), area.Width, alignment)
-	for i, cell := range cells {
-		cell.Style = baseStyle.Patch(cell.Style)
-		buf.SetCell(area.X+offset+i, area.Y, cell)
-	}
+	offset := alignedOffset(minInt(label.Width(), area.Width), area.Width, alignment)
+	renderLine(layout.NewRect(area.X+offset, area.Y, area.Width-offset, 1), buf, label, baseStyle)
 }

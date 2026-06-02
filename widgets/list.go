@@ -298,11 +298,6 @@ func (l List) renderItem(item ListItem, area layout.Rect, buf *buffer.Buffer) {
 		lines = []text.Line{text.LineFromString("")}
 	}
 	for y := 0; y < area.Height && y < len(lines); y++ {
-		cells := cellsFromLine(lines[y])
-		for x := 0; x < area.Width && x < len(cells); x++ {
-			cell := cells[x]
-			cell.Style = l.style.Patch(cell.Style)
-			buf.SetCell(area.X+x, area.Y+y, cell)
-		}
+		renderLine(layout.NewRect(area.X, area.Y+y, area.Width, 1), buf, lines[y], l.style)
 	}
 }

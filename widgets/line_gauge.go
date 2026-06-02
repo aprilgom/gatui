@@ -8,6 +8,7 @@ import (
 	"gatui/layout"
 	"gatui/style"
 	"gatui/text"
+	"gatui/textbuffer"
 )
 
 type LineGauge struct {
@@ -113,14 +114,12 @@ func (g LineGauge) renderLineGauge(area layout.Rect, buf *buffer.Buffer) {
 }
 
 func (g LineGauge) writeLabel(x, y, right int, buf *buffer.Buffer) int {
-	for _, cell := range cellsFromLine(g.effectiveLineGaugeLabel()) {
-		if x >= right {
-			return x
-		}
-		buf.SetCell(x, y, cell)
-		x++
+	if x >= right {
+		return x
 	}
-	return x
+	label := g.effectiveLineGaugeLabel()
+	endX, _ := textbuffer.SetLine(buf, x, y, label, right-x)
+	return endX
 }
 
 func (g LineGauge) effectiveLineGaugeLabel() text.Line {

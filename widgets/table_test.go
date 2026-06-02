@@ -425,6 +425,43 @@ func TestTable_shouldPatchRowAndCellStyles(t *testing.T) {
 	assertCellStyle(t, buf, 2, 0, style.NewStyle().Fg(style.Cyan).Bg(style.Yellow))
 }
 
+func TestTable_shouldPatchCellLineAndSpanStylesInOrder(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 4, 1))
+	state := widgets.NewTableState()
+	state.Select(0)
+	state.SelectCell(0, 0)
+	line := text.NewLine(
+		text.StyledSpan("A", style.NewStyle().Fg(style.Red)),
+	).Style(style.NewStyle().Fg(style.Yellow))
+	row := widgets.NewTableRow([]widgets.TableCell{
+		widgets.NewTableCell(text.NewText(line)).Style(style.NewStyle().Bg(style.Green)),
+	}).Style(style.NewStyle().AddModifier(style.ModifierBold))
+	table := widgets.NewTable([]widgets.TableRow{row}, []layout.Constraint{layout.Length(1)}).
+		Style(style.NewStyle().Bg(style.Blue)).
+		RowHighlightStyle(style.NewStyle().AddModifier(style.ModifierItalic)).
+		CellHighlightStyle(style.NewStyle().Fg(style.Cyan).AddModifier(style.ModifierDim))
+
+	table.RenderStateful(buf.Area, buf, &state)
+
+	assertLines(t, buf, []string{"A   "})
+	assertCellStyle(t, buf, 0, 0, style.NewStyle().Fg(style.Red).Bg(style.Green).AddModifier(style.ModifierBold|style.ModifierItalic|style.ModifierDim))
+}
+
+func TestTable_shouldClearHiddenCellWhenWideGraphemeFits(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 3, 1))
+	table := widgets.NewTable([]widgets.TableRow{
+		widgets.NewTableRow([]widgets.TableCell{
+			widgets.NewTableCell(text.FromString("コ")),
+		}),
+	}, []layout.Constraint{layout.Length(2)})
+
+	table.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"コ "})
+	assertCellSymbol(t, buf, 0, 0, "コ")
+	assertCellSymbol(t, buf, 1, 0, " ")
+}
+
 func TestTable_shouldRenderElementsStyledIndividually(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 25, 4))
 	rows := []widgets.TableRow{

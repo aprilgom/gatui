@@ -798,10 +798,5 @@ func (t Table) renderCell(cell TableCell, rowStyle, highlightStyle style.Style, 
 	if len(cell.content.Lines) > 0 {
 		line = cell.content.Lines[0]
 	}
-	cells := cellsFromLine(line)
-	for i := 0; i < width && i < len(cells) && x+i < right; i++ {
-		rendered := cells[i]
-		rendered.Style = cellStyle.Patch(rendered.Style)
-		buf.SetCell(x+i, y, rendered)
-	}
+	renderLine(layout.NewRect(x, y, minInt(width, right-x), 1), buf, line, cellStyle)
 }

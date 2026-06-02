@@ -5,6 +5,7 @@ import (
 	"gatui/layout"
 	"gatui/style"
 	"gatui/text"
+	"gatui/textbuffer"
 )
 
 func writeString(buf *buffer.Buffer, x, y int, value string, width int, cellStyle style.Style) {
@@ -31,6 +32,14 @@ func writeStringWithin(buf *buffer.Buffer, x, y, right int, value string, cellSt
 
 func lineWidth(line text.Line) int {
 	return line.Width()
+}
+
+func renderLine(area layout.Rect, buf *buffer.Buffer, line text.Line, baseStyle style.Style) {
+	if area.Width <= 0 || area.Height <= 0 {
+		return
+	}
+	line = line.PatchStyle(baseStyle)
+	textbuffer.SetLine(buf, area.X, area.Y, line, area.Width)
 }
 
 func minInt(a, b int) int {
