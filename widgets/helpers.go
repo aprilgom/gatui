@@ -39,6 +39,18 @@ func renderLine(area layout.Rect, buf *buffer.Buffer, line text.Line, baseStyle 
 	textbuffer.SetLine(buf, area.X, area.Y, line, area.Width)
 }
 
+func renderLineAligned(area layout.Rect, buf *buffer.Buffer, line text.Line, baseStyle style.Style, alignment *layout.Alignment) {
+	if area.Width <= 0 || area.Height <= 0 {
+		return
+	}
+	line = line.PatchStyle(baseStyle)
+	offset := 0
+	if lineWidth := line.Width(); alignment != nil && lineWidth < area.Width {
+		offset = alignedOffset(lineWidth, area.Width, *alignment)
+	}
+	textbuffer.SetLine(buf, area.X+offset, area.Y, line, area.Width-offset)
+}
+
 func minInt(a, b int) int {
 	if a < b {
 		return a

@@ -92,6 +92,7 @@ type List struct {
 	highlightSymbol       string
 	repeatHighlightSymbol bool
 	highlightSpacing      HighlightSpacing
+	alignment             *layout.Alignment
 }
 
 func NewList(items []ListItem) List {
@@ -148,6 +149,23 @@ func (l List) Italic() List {
 
 func (l List) Cyan() List {
 	return l.Fg(style.Cyan)
+}
+
+func (l List) Alignment(alignment layout.Alignment) List {
+	l.alignment = &alignment
+	return l
+}
+
+func (l List) Left() List {
+	return l.Alignment(layout.Left)
+}
+
+func (l List) Center() List {
+	return l.Alignment(layout.Center)
+}
+
+func (l List) Right() List {
+	return l.Alignment(layout.Right)
 }
 
 func (l List) HighlightStyle(highlightStyle style.Style) List {
@@ -318,6 +336,13 @@ func (l List) renderItem(item ListItem, area layout.Rect, buf *buffer.Buffer) {
 		lines = []text.Line{text.LineFromString("")}
 	}
 	for y := 0; y < area.Height && y < len(lines); y++ {
-		renderLine(layout.NewRect(area.X, area.Y+y, area.Width, 1), buf, lines[y], l.style)
+		alignment := lines[y].Alignment
+		if alignment == nil {
+			alignment = item.content.Alignment
+		}
+		if alignment == nil {
+			alignment = l.alignment
+		}
+		renderLineAligned(layout.NewRect(area.X, area.Y+y, area.Width, 1), buf, lines[y], l.style, alignment)
 	}
 }

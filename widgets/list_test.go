@@ -190,6 +190,168 @@ func TestList_shouldClipWideGraphemeByCellWidth(t *testing.T) {
 	assertCellSymbol(t, buf, 2, 0, " ")
 }
 
+func TestList_alignmentEvenLineEvenArea(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 6, 4))
+	list := widgets.NewList([]widgets.ListItem{
+		widgets.ListItemFromLines(text.LineFromString("Odd").Left()),
+		widgets.ListItemFromLines(text.LineFromString("Even").Center()),
+		widgets.ListItemFromLines(text.LineFromString("Width").Right()),
+	})
+
+	list.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"Odd   ", " Even ", " Width", "      "})
+}
+
+func TestList_alignmentEvenLineOddArea(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 6, 4))
+	list := widgets.NewList([]widgets.ListItem{
+		widgets.ListItemFromLines(text.LineFromString("Odd").Left()),
+		widgets.ListItemFromLines(text.LineFromString("Even").Center()),
+		widgets.ListItemFromLines(text.LineFromString("Width").Right()),
+	})
+
+	list.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"Odd   ", " Even ", " Width", "      "})
+}
+
+func TestList_alignmentOddLineEvenArea(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 8, 4))
+	list := widgets.NewList([]widgets.ListItem{
+		widgets.ListItemFromLines(text.LineFromString("Odd").Left()),
+		widgets.ListItemFromLines(text.LineFromString("Even").Center()),
+		widgets.ListItemFromLines(text.LineFromString("Width").Right()),
+	})
+
+	list.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"Odd     ", "  Even  ", "   Width", "        "})
+}
+
+func TestList_alignmentOddLineOddArea(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 7, 4))
+	list := widgets.NewList([]widgets.ListItem{
+		widgets.ListItemFromLines(text.LineFromString("Odd").Left()),
+		widgets.ListItemFromLines(text.LineFromString("Even").Center()),
+		widgets.ListItemFromLines(text.LineFromString("Width").Right()),
+	})
+
+	list.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"Odd    ", " Even  ", "  Width", "       "})
+}
+
+func TestList_alignmentLineEqualToWidth(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 5, 2))
+	list := widgets.NewList([]widgets.ListItem{
+		widgets.ListItemFromLines(text.LineFromString("Exact").Left()),
+	})
+
+	list.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"Exact", "     "})
+}
+
+func TestList_alignmentLineGreaterThanWidth(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 5, 2))
+	list := widgets.NewList([]widgets.ListItem{
+		widgets.ListItemFromLines(text.LineFromString("Large line").Left()),
+	})
+
+	list.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"Large", "     "})
+}
+
+func TestList_alignmentLineLessThanWidth(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 2))
+	list := widgets.NewList([]widgets.ListItem{
+		widgets.ListItemFromLines(text.LineFromString("Small").Center()),
+	})
+
+	list.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"  Small   ", "          "})
+}
+
+func TestList_alignmentZeroAreaWidth(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 4, 1))
+	list := widgets.NewList([]widgets.ListItem{
+		widgets.ListItemFromLines(text.LineFromString("Text").Left()),
+	})
+
+	list.Render(layout.NewRect(0, 0, 4, 0), buf)
+
+	assertLines(t, buf, []string{"    "})
+}
+
+func TestList_alignmentZeroLineWidth(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 0, 2))
+	list := widgets.NewList([]widgets.ListItem{
+		widgets.ListItemFromLines(text.LineFromString("This line has zero width").Center()),
+	})
+
+	list.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"", ""})
+}
+
+func TestList_withAlignment(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 4))
+	list := widgets.NewList([]widgets.ListItem{
+		widgets.ListItemFromLines(text.LineFromString("Left").Left()),
+		widgets.ListItemFromLines(text.LineFromString("Center").Center()),
+		widgets.ListItemFromLines(text.LineFromString("Right").Right()),
+	})
+
+	list.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"Left      ", "  Center  ", "     Right", "          "})
+}
+
+func TestList_alignmentPrecedence(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 8, 4))
+	textAligned := text.NewText(text.LineFromString("text")).Center()
+	lineAligned := text.NewText(text.LineFromString("line").Right()).Center()
+	listAligned := text.NewText(text.LineFromString("list"))
+	defaultAligned := text.NewText(text.LineFromString("left"))
+	list := widgets.NewList([]widgets.ListItem{
+		widgets.NewListItem(lineAligned),
+		widgets.NewListItem(textAligned),
+		widgets.NewListItem(listAligned),
+		widgets.NewListItem(defaultAligned),
+	}).Right()
+
+	list.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"    line", "  text  ", "    list", "    left"})
+}
+
+func TestList_alignmentDefaultsLeft(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 8, 1))
+	list := widgets.NewList([]widgets.ListItem{
+		widgets.ListItemFromString("left"),
+	})
+
+	list.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"left    "})
+}
+
+func TestList_alignmentUsesItemAreaAfterHighlightSymbol(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 1))
+	state := widgets.ListState{}
+	state.Select(0)
+	list := widgets.NewList([]widgets.ListItem{
+		widgets.ListItemFromLines(text.LineFromString("abc").Center()),
+	}).HighlightSymbol(">> ")
+
+	list.RenderStateful(buf.Area, buf, &state)
+
+	assertLines(t, buf, []string{">>   abc  "})
+}
+
 func TestList_shouldTruncateItems(t *testing.T) {
 	tests := []struct {
 		name     string
