@@ -31,6 +31,13 @@ func (c Cell) DisplaySymbol() string {
 	return c.Symbol
 }
 
+func (c Cell) Equal(other Cell) bool {
+	return c.DisplaySymbol() == other.DisplaySymbol() &&
+		c.Style == other.Style &&
+		c.DiffOption == other.DiffOption &&
+		c.ForcedWidth == other.ForcedWidth
+}
+
 func (c Cell) Width() int {
 	if c.ForcedWidth > 0 {
 		return c.ForcedWidth

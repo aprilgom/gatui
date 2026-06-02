@@ -45,6 +45,43 @@ func TestCell_DisplaySymbol_shouldTreatEmptyAsSpace(t *testing.T) {
 	}
 }
 
+func TestCell_Equal_shouldTreatSameSymbolAsEqual(t *testing.T) {
+	cell1 := buffer.NewCell("あ")
+	cell2 := buffer.NewCell("あ")
+
+	if !cell1.Equal(cell2) {
+		t.Fatalf("Equal = false, want true for %#v and %#v", cell1, cell2)
+	}
+}
+
+func TestCell_Equal_shouldTreatEmptyAndSpaceAsEqual(t *testing.T) {
+	cell1 := buffer.Cell{}
+	cell2 := buffer.NewCell(" ")
+
+	if !cell1.Equal(cell2) {
+		t.Fatalf("Equal = false, want true for %#v and %#v", cell1, cell2)
+	}
+}
+
+func TestCell_Equal_shouldDetectDifferentSymbols(t *testing.T) {
+	cell1 := buffer.NewCell("あ")
+	cell2 := buffer.NewCell("い")
+
+	if cell1.Equal(cell2) {
+		t.Fatalf("Equal = true, want false for %#v and %#v", cell1, cell2)
+	}
+}
+
+func TestCell_Equal_shouldDetectDifferentStyle(t *testing.T) {
+	cell1 := buffer.NewCell("x")
+	cell2 := buffer.NewCell("x")
+	cell2.SetStyle(style.NewStyle().Fg(style.Red))
+
+	if cell1.Equal(cell2) {
+		t.Fatalf("Equal = true, want false for %#v and %#v", cell1, cell2)
+	}
+}
+
 func TestCell_SetSymbolAndSetChar_shouldUpdateSymbol(t *testing.T) {
 	cell := buffer.NewCell("a")
 
@@ -796,6 +833,17 @@ func TestBuffer_Diff_shouldReturnNoDiffForIdenticalBuffers(t *testing.T) {
 	buf := buffer.WithLines([]string{"hello"})
 
 	diff := buf.Diff(buf)
+
+	if len(diff) != 0 {
+		t.Fatalf("diff = %#v, want empty", diff)
+	}
+}
+
+func TestBuffer_Diff_shouldTreatEmptyAndSpaceCellsAsEqual(t *testing.T) {
+	prev := buffer.Empty(layout.NewRect(0, 0, 1, 1))
+	next := buffer.Filled(layout.NewRect(0, 0, 1, 1), buffer.NewCell(" "))
+
+	diff := prev.Diff(next)
 
 	if len(diff) != 0 {
 		t.Fatalf("diff = %#v, want empty", diff)

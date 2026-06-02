@@ -28,7 +28,7 @@ func (b *Buffer) Diff(next *Buffer) []CellDiff {
 			if current.DiffOption == CellDiffSkip {
 				continue
 			}
-			if current.DiffOption == CellDiffAlwaysUpdate || current != previous {
+			if current.DiffOption == CellDiffAlwaysUpdate || !current.Equal(previous) {
 				diffs = append(diffs, CellDiff{
 					X:    next.Area.X + x,
 					Y:    next.Area.Y + y,
