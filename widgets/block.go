@@ -1,6 +1,8 @@
 package widgets
 
 import (
+	"fmt"
+
 	"gatui/buffer"
 	"gatui/layout"
 	"gatui/style"
@@ -71,7 +73,197 @@ var (
 		HorizontalTop:    "━",
 		HorizontalBottom: "━",
 	}
+	LightDoubleDashedBorderSet = BorderSet{
+		TopLeft:          "┌",
+		TopRight:         "┐",
+		BottomLeft:       "└",
+		BottomRight:      "┘",
+		VerticalLeft:     "╎",
+		VerticalRight:    "╎",
+		HorizontalTop:    "╌",
+		HorizontalBottom: "╌",
+	}
+	HeavyDoubleDashedBorderSet = BorderSet{
+		TopLeft:          "┏",
+		TopRight:         "┓",
+		BottomLeft:       "┗",
+		BottomRight:      "┛",
+		VerticalLeft:     "╏",
+		VerticalRight:    "╏",
+		HorizontalTop:    "╍",
+		HorizontalBottom: "╍",
+	}
+	LightTripleDashedBorderSet = BorderSet{
+		TopLeft:          "┌",
+		TopRight:         "┐",
+		BottomLeft:       "└",
+		BottomRight:      "┘",
+		VerticalLeft:     "┆",
+		VerticalRight:    "┆",
+		HorizontalTop:    "┄",
+		HorizontalBottom: "┄",
+	}
+	HeavyTripleDashedBorderSet = BorderSet{
+		TopLeft:          "┏",
+		TopRight:         "┓",
+		BottomLeft:       "┗",
+		BottomRight:      "┛",
+		VerticalLeft:     "┇",
+		VerticalRight:    "┇",
+		HorizontalTop:    "┅",
+		HorizontalBottom: "┅",
+	}
+	LightQuadrupleDashedBorderSet = BorderSet{
+		TopLeft:          "┌",
+		TopRight:         "┐",
+		BottomLeft:       "└",
+		BottomRight:      "┘",
+		VerticalLeft:     "┊",
+		VerticalRight:    "┊",
+		HorizontalTop:    "┈",
+		HorizontalBottom: "┈",
+	}
+	HeavyQuadrupleDashedBorderSet = BorderSet{
+		TopLeft:          "┏",
+		TopRight:         "┓",
+		BottomLeft:       "┗",
+		BottomRight:      "┛",
+		VerticalLeft:     "┋",
+		VerticalRight:    "┋",
+		HorizontalTop:    "┉",
+		HorizontalBottom: "┉",
+	}
+	QuadrantInsideBorderSet = BorderSet{
+		TopLeft:          "▗",
+		TopRight:         "▖",
+		BottomLeft:       "▝",
+		BottomRight:      "▘",
+		VerticalLeft:     "▐",
+		VerticalRight:    "▌",
+		HorizontalTop:    "▄",
+		HorizontalBottom: "▀",
+	}
+	QuadrantOutsideBorderSet = BorderSet{
+		TopLeft:          "▛",
+		TopRight:         "▜",
+		BottomLeft:       "▙",
+		BottomRight:      "▟",
+		VerticalLeft:     "▌",
+		VerticalRight:    "▐",
+		HorizontalTop:    "▀",
+		HorizontalBottom: "▄",
+	}
 )
+
+type BorderType uint8
+
+const (
+	BorderTypePlain BorderType = iota
+	BorderTypeRounded
+	BorderTypeDouble
+	BorderTypeThick
+	BorderTypeLightDoubleDashed
+	BorderTypeHeavyDoubleDashed
+	BorderTypeLightTripleDashed
+	BorderTypeHeavyTripleDashed
+	BorderTypeLightQuadrupleDashed
+	BorderTypeHeavyQuadrupleDashed
+	BorderTypeQuadrantInside
+	BorderTypeQuadrantOutside
+)
+
+func (t BorderType) BorderSet() BorderSet {
+	switch t {
+	case BorderTypePlain:
+		return PlainBorderSet
+	case BorderTypeRounded:
+		return RoundedBorderSet
+	case BorderTypeDouble:
+		return DoubleBorderSet
+	case BorderTypeThick:
+		return SolidBorderSet
+	case BorderTypeLightDoubleDashed:
+		return LightDoubleDashedBorderSet
+	case BorderTypeHeavyDoubleDashed:
+		return HeavyDoubleDashedBorderSet
+	case BorderTypeLightTripleDashed:
+		return LightTripleDashedBorderSet
+	case BorderTypeHeavyTripleDashed:
+		return HeavyTripleDashedBorderSet
+	case BorderTypeLightQuadrupleDashed:
+		return LightQuadrupleDashedBorderSet
+	case BorderTypeHeavyQuadrupleDashed:
+		return HeavyQuadrupleDashedBorderSet
+	case BorderTypeQuadrantInside:
+		return QuadrantInsideBorderSet
+	case BorderTypeQuadrantOutside:
+		return QuadrantOutsideBorderSet
+	default:
+		return PlainBorderSet
+	}
+}
+
+func (t BorderType) String() string {
+	switch t {
+	case BorderTypePlain:
+		return "Plain"
+	case BorderTypeRounded:
+		return "Rounded"
+	case BorderTypeDouble:
+		return "Double"
+	case BorderTypeThick:
+		return "Thick"
+	case BorderTypeLightDoubleDashed:
+		return "LightDoubleDashed"
+	case BorderTypeHeavyDoubleDashed:
+		return "HeavyDoubleDashed"
+	case BorderTypeLightTripleDashed:
+		return "LightTripleDashed"
+	case BorderTypeHeavyTripleDashed:
+		return "HeavyTripleDashed"
+	case BorderTypeLightQuadrupleDashed:
+		return "LightQuadrupleDashed"
+	case BorderTypeHeavyQuadrupleDashed:
+		return "HeavyQuadrupleDashed"
+	case BorderTypeQuadrantInside:
+		return "QuadrantInside"
+	case BorderTypeQuadrantOutside:
+		return "QuadrantOutside"
+	default:
+		return fmt.Sprintf("BorderType(%d)", t)
+	}
+}
+
+func ParseBorderType(value string) (BorderType, error) {
+	switch value {
+	case "Plain":
+		return BorderTypePlain, nil
+	case "Rounded":
+		return BorderTypeRounded, nil
+	case "Double":
+		return BorderTypeDouble, nil
+	case "Thick":
+		return BorderTypeThick, nil
+	case "LightDoubleDashed":
+		return BorderTypeLightDoubleDashed, nil
+	case "HeavyDoubleDashed":
+		return BorderTypeHeavyDoubleDashed, nil
+	case "LightTripleDashed":
+		return BorderTypeLightTripleDashed, nil
+	case "HeavyTripleDashed":
+		return BorderTypeHeavyTripleDashed, nil
+	case "LightQuadrupleDashed":
+		return BorderTypeLightQuadrupleDashed, nil
+	case "HeavyQuadrupleDashed":
+		return BorderTypeHeavyQuadrupleDashed, nil
+	case "QuadrantInside":
+		return BorderTypeQuadrantInside, nil
+	case "QuadrantOutside":
+		return BorderTypeQuadrantOutside, nil
+	default:
+		return BorderTypePlain, fmt.Errorf("unknown border type %q", value)
+	}
+}
 
 type blockTitle struct {
 	position TitlePosition
@@ -182,6 +374,11 @@ func (b Block) Borders(borders Borders) Block {
 
 func (b Block) BorderSet(borderSet BorderSet) Block {
 	b.borderSet = borderSet
+	return b
+}
+
+func (b Block) BorderType(borderType BorderType) Block {
+	b.borderSet = borderType.BorderSet()
 	return b
 }
 

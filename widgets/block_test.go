@@ -130,6 +130,169 @@ func TestBlock_renderSolidBorder(t *testing.T) {
 	})
 }
 
+func TestBorderType_string(t *testing.T) {
+	tests := []struct {
+		borderType BorderType
+		want       string
+	}{
+		{BorderTypePlain, "Plain"},
+		{BorderTypeRounded, "Rounded"},
+		{BorderTypeDouble, "Double"},
+		{BorderTypeThick, "Thick"},
+		{BorderTypeLightDoubleDashed, "LightDoubleDashed"},
+		{BorderTypeHeavyDoubleDashed, "HeavyDoubleDashed"},
+		{BorderTypeLightTripleDashed, "LightTripleDashed"},
+		{BorderTypeHeavyTripleDashed, "HeavyTripleDashed"},
+		{BorderTypeLightQuadrupleDashed, "LightQuadrupleDashed"},
+		{BorderTypeHeavyQuadrupleDashed, "HeavyQuadrupleDashed"},
+		{BorderTypeQuadrantInside, "QuadrantInside"},
+		{BorderTypeQuadrantOutside, "QuadrantOutside"},
+	}
+
+	for _, tt := range tests {
+		if got := tt.borderType.String(); got != tt.want {
+			t.Fatalf("%#v.String() = %q, want %q", tt.borderType, got, tt.want)
+		}
+	}
+}
+
+func TestParseBorderType(t *testing.T) {
+	tests := []struct {
+		value string
+		want  BorderType
+	}{
+		{"Plain", BorderTypePlain},
+		{"Rounded", BorderTypeRounded},
+		{"Double", BorderTypeDouble},
+		{"Thick", BorderTypeThick},
+		{"LightDoubleDashed", BorderTypeLightDoubleDashed},
+		{"HeavyDoubleDashed", BorderTypeHeavyDoubleDashed},
+		{"LightTripleDashed", BorderTypeLightTripleDashed},
+		{"HeavyTripleDashed", BorderTypeHeavyTripleDashed},
+		{"LightQuadrupleDashed", BorderTypeLightQuadrupleDashed},
+		{"HeavyQuadrupleDashed", BorderTypeHeavyQuadrupleDashed},
+		{"QuadrantInside", BorderTypeQuadrantInside},
+		{"QuadrantOutside", BorderTypeQuadrantOutside},
+	}
+
+	for _, tt := range tests {
+		got, err := ParseBorderType(tt.value)
+		if err != nil {
+			t.Fatalf("ParseBorderType(%q) returned unexpected error: %v", tt.value, err)
+		}
+		if got != tt.want {
+			t.Fatalf("ParseBorderType(%q) = %#v, want %#v", tt.value, got, tt.want)
+		}
+	}
+
+	if _, err := ParseBorderType(""); err == nil {
+		t.Fatal("ParseBorderType(\"\") returned nil error, want error")
+	}
+}
+
+func TestBlock_renderBorderTypeDashedAndQuadrantBorders(t *testing.T) {
+	tests := []struct {
+		name       string
+		borderType BorderType
+		want       []string
+	}{
+		{
+			name:       "light double dashed",
+			borderType: BorderTypeLightDoubleDashed,
+			want: []string{
+				"┌╌╌╌╌╌╌╌╌┐",
+				"╎        ╎",
+				"└╌╌╌╌╌╌╌╌┘",
+			},
+		},
+		{
+			name:       "heavy double dashed",
+			borderType: BorderTypeHeavyDoubleDashed,
+			want: []string{
+				"┏╍╍╍╍╍╍╍╍┓",
+				"╏        ╏",
+				"┗╍╍╍╍╍╍╍╍┛",
+			},
+		},
+		{
+			name:       "light triple dashed",
+			borderType: BorderTypeLightTripleDashed,
+			want: []string{
+				"┌┄┄┄┄┄┄┄┄┐",
+				"┆        ┆",
+				"└┄┄┄┄┄┄┄┄┘",
+			},
+		},
+		{
+			name:       "heavy triple dashed",
+			borderType: BorderTypeHeavyTripleDashed,
+			want: []string{
+				"┏┅┅┅┅┅┅┅┅┓",
+				"┇        ┇",
+				"┗┅┅┅┅┅┅┅┅┛",
+			},
+		},
+		{
+			name:       "light quadruple dashed",
+			borderType: BorderTypeLightQuadrupleDashed,
+			want: []string{
+				"┌┈┈┈┈┈┈┈┈┐",
+				"┊        ┊",
+				"└┈┈┈┈┈┈┈┈┘",
+			},
+		},
+		{
+			name:       "heavy quadruple dashed",
+			borderType: BorderTypeHeavyQuadrupleDashed,
+			want: []string{
+				"┏┉┉┉┉┉┉┉┉┓",
+				"┋        ┋",
+				"┗┉┉┉┉┉┉┉┉┛",
+			},
+		},
+		{
+			name:       "quadrant inside",
+			borderType: BorderTypeQuadrantInside,
+			want: []string{
+				"▗▄▄▄▄▄▄▄▄▖",
+				"▐        ▌",
+				"▝▀▀▀▀▀▀▀▀▘",
+			},
+		},
+		{
+			name:       "quadrant outside",
+			borderType: BorderTypeQuadrantOutside,
+			want: []string{
+				"▛▀▀▀▀▀▀▀▀▜",
+				"▌        ▐",
+				"▙▄▄▄▄▄▄▄▄▟",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := buffer.Empty(layout.NewRect(0, 0, 10, 3))
+
+			BorderedBlock().BorderType(tt.borderType).Render(buf.Area, buf)
+
+			assertBlockLines(t, buf, tt.want)
+		})
+	}
+}
+
+func TestBlock_borderTypeOverwritesBorderSet(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 3))
+
+	BorderedBlock().BorderSet(DoubleBorderSet).BorderType(BorderTypeRounded).Render(buf.Area, buf)
+
+	assertBlockLines(t, buf, []string{
+		"╭────────╮",
+		"│        │",
+		"╰────────╯",
+	})
+}
+
 func TestBlock_renderPartialBorders(t *testing.T) {
 	tests := []struct {
 		name    string
