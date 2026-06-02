@@ -1488,6 +1488,139 @@ func TestTableCell_stylize(t *testing.T) {
 		AddModifier(style.ModifierBold|style.ModifierDim|style.ModifierItalic))
 }
 
+func TestTableRow_bottomMargin(t *testing.T) {
+	row := widgets.TableRowFromStrings([]string{"row"}).BottomMargin(2)
+	if got := row.BottomMarginValue(); got != 2 {
+		t.Fatalf("BottomMarginValue() = %d, want 2", got)
+	}
+
+	clamped := widgets.TableRowFromStrings([]string{"row"}).BottomMargin(-1)
+	if got := clamped.BottomMarginValue(); got != 0 {
+		t.Fatalf("BottomMarginValue() after negative margin = %d, want 0", got)
+	}
+
+	buf := buffer.Empty(layout.NewRect(0, 0, 8, 4))
+	table := widgets.NewTable([]widgets.TableRow{
+		row,
+		widgets.TableRowFromStrings([]string{"next"}),
+	}, []layout.Constraint{layout.Length(4)})
+
+	table.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"row     ",
+		"        ",
+		"        ",
+		"next    ",
+	})
+}
+
+func TestTableRow_cells(t *testing.T) {
+	row := widgets.NewTableRow([]widgets.TableCell{
+		widgets.TableCellFromString("one"),
+		widgets.TableCellFromString("two"),
+	})
+
+	got := row.Cells()
+	if len(got) != 2 {
+		t.Fatalf("len(Cells()) = %d, want 2", len(got))
+	}
+	if got[0].Content().String() != "one" || got[1].Content().String() != "two" {
+		t.Fatalf("Cells() content = %q, %q; want one, two", got[0].Content().String(), got[1].Content().String())
+	}
+
+	got[0] = widgets.TableCellFromString("mutated")
+	again := row.Cells()
+	if again[0].Content().String() != "one" {
+		t.Fatalf("Cells() returned internal slice; first cell = %q, want one", again[0].Content().String())
+	}
+}
+
+func TestTableRow_height(t *testing.T) {
+	row := widgets.TableRowFromStrings([]string{"row"}).Height(2)
+	if got := row.HeightValue(); got != 2 {
+		t.Fatalf("HeightValue() = %d, want 2", got)
+	}
+
+	clamped := widgets.TableRowFromStrings([]string{"row"}).Height(-1)
+	if got := clamped.HeightValue(); got != 0 {
+		t.Fatalf("HeightValue() after negative height = %d, want 0", got)
+	}
+
+	buf := buffer.Empty(layout.NewRect(0, 0, 8, 3))
+	table := widgets.NewTable([]widgets.TableRow{row}, []layout.Constraint{layout.Length(4)})
+
+	table.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"row     ",
+		"        ",
+		"        ",
+	})
+}
+
+func TestTableRow_new(t *testing.T) {
+	cells := []widgets.TableCell{widgets.TableCellFromString("original")}
+	row := widgets.NewTableRow(cells)
+	cells[0] = widgets.TableCellFromString("mutated")
+
+	if got := row.HeightValue(); got != 1 {
+		t.Fatalf("HeightValue() = %d, want default 1", got)
+	}
+	if got := row.TopMarginValue(); got != 0 {
+		t.Fatalf("TopMarginValue() = %d, want default 0", got)
+	}
+	if got := row.BottomMarginValue(); got != 0 {
+		t.Fatalf("BottomMarginValue() = %d, want default 0", got)
+	}
+	if got := row.Cells()[0].Content().String(); got != "original" {
+		t.Fatalf("NewTableRow copied cell content = %q, want original", got)
+	}
+}
+
+func TestTableRow_stylize(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 3, 1))
+	row := widgets.NewTableRow([]widgets.TableCell{
+		widgets.TableCellFromString("A"),
+	}).Fg(style.Red).
+		Bg(style.Blue).
+		Bold().
+		Dim().
+		Italic().
+		Cyan()
+	table := widgets.NewTable([]widgets.TableRow{row}, []layout.Constraint{layout.Length(1)})
+
+	table.Render(buf.Area, buf)
+
+	assertCellStyle(t, buf, 0, 0, style.NewStyle().
+		Fg(style.Cyan).
+		Bg(style.Blue).
+		AddModifier(style.ModifierBold|style.ModifierDim|style.ModifierItalic))
+}
+
+func TestTableRow_topMargin(t *testing.T) {
+	row := widgets.TableRowFromStrings([]string{"row"}).TopMargin(2)
+	if got := row.TopMarginValue(); got != 2 {
+		t.Fatalf("TopMarginValue() = %d, want 2", got)
+	}
+
+	clamped := widgets.TableRowFromStrings([]string{"row"}).TopMargin(-1)
+	if got := clamped.TopMarginValue(); got != 0 {
+		t.Fatalf("TopMarginValue() after negative margin = %d, want 0", got)
+	}
+
+	buf := buffer.Empty(layout.NewRect(0, 0, 8, 3))
+	table := widgets.NewTable([]widgets.TableRow{row}, []layout.Constraint{layout.Length(4)})
+
+	table.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"        ",
+		"        ",
+		"row     ",
+	})
+}
+
 func TestTableCell_ColumnSpan_shouldRespectHighlightSymbolSpacing(t *testing.T) {
 	tests := []struct {
 		name     string

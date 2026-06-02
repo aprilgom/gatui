@@ -121,6 +121,51 @@ func (r TableRow) Style(rowStyle style.Style) TableRow {
 	return r
 }
 
+func (r TableRow) Cells() []TableCell {
+	return append([]TableCell(nil), r.cells...)
+}
+
+func (r TableRow) HeightValue() int {
+	return r.height
+}
+
+func (r TableRow) TopMarginValue() int {
+	return r.topMargin
+}
+
+func (r TableRow) BottomMarginValue() int {
+	return r.bottomMargin
+}
+
+func (r TableRow) Fg(color style.Color) TableRow {
+	r.style = r.style.Fg(color)
+	return r
+}
+
+func (r TableRow) Bg(color style.Color) TableRow {
+	r.style = r.style.Bg(color)
+	return r
+}
+
+func (r TableRow) Bold() TableRow {
+	r.style = r.style.AddModifier(style.ModifierBold)
+	return r
+}
+
+func (r TableRow) Dim() TableRow {
+	r.style = r.style.AddModifier(style.ModifierDim)
+	return r
+}
+
+func (r TableRow) Italic() TableRow {
+	r.style = r.style.AddModifier(style.ModifierItalic)
+	return r
+}
+
+func (r TableRow) Cyan() TableRow {
+	return r.Fg(style.Cyan)
+}
+
 type TableState struct {
 	offset         int
 	selected       *int
