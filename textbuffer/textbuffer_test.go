@@ -67,6 +67,82 @@ func TestSetLine_shouldHandleEmptyLine(t *testing.T) {
 	}
 }
 
+func TestSetLine_rawRatatuiCases(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    string
+		wantX   int
+	}{
+		{name: "empty", content: "", want: "     ", wantX: 0},
+		{name: "one", content: "1", want: "1    ", wantX: 1},
+		{name: "full", content: "12345", want: "12345", wantX: 5},
+		{name: "overflow", content: "123456", want: "12345", wantX: 5},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := buffer.Empty(layout.NewRect(0, 0, 5, 1))
+
+			endX, endY := textbuffer.SetLine(buf, 0, 0, text.LineFromString(tt.content), 5)
+
+			if endX != tt.wantX || endY != 0 {
+				t.Fatalf("end = (%d,%d), want (%d,0)", endX, endY, tt.wantX)
+			}
+			if got, want := buf.Lines(), []string{tt.want}; !slices.Equal(got, want) {
+				t.Fatalf("lines = %#v, want %#v", got, want)
+			}
+		})
+	}
+}
+
+func TestSetLine_styledRatatuiCases(t *testing.T) {
+	blue := style.NewStyle().Fg(style.Blue)
+	tests := []struct {
+		name         string
+		content      string
+		want         string
+		styledCells  int
+		defaultCells int
+	}{
+		{name: "empty", content: "", want: "     ", styledCells: 0, defaultCells: 5},
+		{name: "one", content: "1", want: "1    ", styledCells: 1, defaultCells: 4},
+		{name: "full", content: "12345", want: "12345", styledCells: 5, defaultCells: 0},
+		{name: "overflow", content: "123456", want: "12345", styledCells: 5, defaultCells: 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := buffer.Empty(layout.NewRect(0, 0, 5, 1))
+			line := text.StyledLine(tt.content, blue)
+
+			textbuffer.SetLine(buf, 0, 0, line, 5)
+
+			if got, want := buf.Lines(), []string{tt.want}; !slices.Equal(got, want) {
+				t.Fatalf("lines = %#v, want %#v", got, want)
+			}
+			for x := 0; x < tt.styledCells; x++ {
+				cell, ok := buf.CellAt(x, 0)
+				if !ok {
+					t.Fatalf("missing cell at %d,0", x)
+				}
+				if cell.Style != blue {
+					t.Fatalf("cell %d style = %#v, want %#v", x, cell.Style, blue)
+				}
+			}
+			for x := tt.styledCells; x < tt.styledCells+tt.defaultCells; x++ {
+				cell, ok := buf.CellAt(x, 0)
+				if !ok {
+					t.Fatalf("missing cell at %d,0", x)
+				}
+				if want := style.NewStyle(); cell.Style != want {
+					t.Fatalf("cell %d style = %#v, want %#v", x, cell.Style, want)
+				}
+			}
+		})
+	}
+}
+
 func TestSetLine_shouldWritePartialExactAndOverflowWidths(t *testing.T) {
 	tests := []struct {
 		name     string

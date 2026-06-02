@@ -735,6 +735,63 @@ func TestSetStyleHelpers_shouldPatchExistingCells(t *testing.T) {
 	}
 }
 
+func TestBuffer_SetStyle_doesNotPanicWhenOutOfArea(t *testing.T) {
+	red := style.NewStyle().Fg(style.Red)
+	tests := []struct {
+		name string
+		buf  *buffer.Buffer
+		area layout.Rect
+		want []string
+	}{
+		{
+			name: "fully outside",
+			buf:  buffer.WithLines([]string{"aaaaa", "bbbbb", "ccccc"}),
+			area: layout.NewRect(6, 0, 2, 2),
+			want: []string{"aaaaa", "bbbbb", "ccccc"},
+		},
+		{
+			name: "partial intersection",
+			buf:  buffer.WithLines([]string{"aaaaa", "bbbbb", "ccccc"}),
+			area: layout.NewRect(0, 1, 10, 3),
+			want: []string{"aaaaa", "bbbbb", "ccccc"},
+		},
+		{
+			name: "nil buffer",
+			buf:  nil,
+			area: layout.NewRect(0, 1, 10, 3),
+			want: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.buf.SetStyle(tt.area, red)
+
+			if got := tt.buf.Lines(); !slices.Equal(got, tt.want) {
+				t.Fatalf("lines = %#v, want %#v", got, tt.want)
+			}
+			if tt.buf == nil {
+				return
+			}
+			for y := 0; y < tt.buf.Area.Height; y++ {
+				for x := 0; x < tt.buf.Area.Width; x++ {
+					cell, ok := tt.buf.CellAt(x, y)
+					if !ok {
+						t.Fatalf("missing cell at %d,%d", x, y)
+					}
+					wantStyle := style.NewStyle()
+					if tt.area.Intersection(tt.buf.Area).Contains(layout.NewPosition(x, y)) {
+						wantStyle = red
+					}
+					if cell.Style != wantStyle {
+						t.Fatalf("cell %d,%d style = %#v, want %#v", x, y, cell.Style, wantStyle)
+					}
+				}
+			}
+		})
+	}
+}
+
 func TestBuffer_Diff_shouldReturnNoDiffForIdenticalBuffers(t *testing.T) {
 	buf := buffer.WithLines([]string{"hello"})
 
