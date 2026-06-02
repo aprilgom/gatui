@@ -32,6 +32,11 @@ func (s CalendarEventStore) Add(date time.Time, eventStyle style.Style) {
 	s[dateKey(date)] = eventStyle
 }
 
+func (s CalendarEventStore) Today(eventStyle style.Style) {
+	now := time.Now().Local()
+	s.Add(time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC), eventStyle)
+}
+
 func NewMonthly(displayDate time.Time, events CalendarEventStore) Monthly {
 	if events == nil {
 		events = NewCalendarEventStore()
@@ -71,6 +76,28 @@ func (m Monthly) Block(block Block) Monthly {
 	return m
 }
 
+func (m Monthly) Width() int {
+	width := 7 * 3
+	if m.block != nil {
+		width += m.block.horizontalSpace()
+	}
+	return width
+}
+
+func (m Monthly) Height() int {
+	height := calendarWeekRows(m.displayDate)
+	if m.showMonthHeader {
+		height++
+	}
+	if m.showWeekdaysHeader {
+		height++
+	}
+	if m.block != nil {
+		height += m.block.verticalSpace()
+	}
+	return height
+}
+
 func (m Monthly) Render(area layout.Rect, buf *buffer.Buffer) {
 	if area.Width == 0 || area.Height == 0 {
 		return
@@ -103,10 +130,9 @@ func (m Monthly) renderDays(left, top, right, bottom int, buf *buffer.Buffer) {
 		return
 	}
 	month := m.displayDate.Month()
-	nextMonth := monthStart(m.displayDate.AddDate(0, 1, 0))
 	date := firstCalendarDate(m.displayDate)
 	y := top
-	for {
+	for range calendarWeekRows(m.displayDate) {
 		if y >= bottom {
 			return
 		}
@@ -129,9 +155,6 @@ func (m Monthly) renderDays(left, top, right, bottom int, buf *buffer.Buffer) {
 			date = date.AddDate(0, 0, 1)
 		}
 		y++
-		if !date.Before(nextMonth) && date.Weekday() == time.Sunday {
-			return
-		}
 	}
 }
 
@@ -160,6 +183,19 @@ func (m Monthly) writeString(x, y, right int, value string, cellStyle style.Styl
 func firstCalendarDate(date time.Time) time.Time {
 	first := monthStart(date)
 	return first.AddDate(0, 0, -int(first.Weekday()))
+}
+
+func calendarWeekRows(date time.Time) int {
+	nextMonth := monthStart(date).AddDate(0, 1, 0)
+	calendarDate := firstCalendarDate(date)
+	rows := 0
+	for {
+		rows++
+		calendarDate = calendarDate.AddDate(0, 0, 7)
+		if !calendarDate.Before(nextMonth) && calendarDate.Weekday() == time.Sunday {
+			return rows
+		}
+	}
 }
 
 func monthStart(date time.Time) time.Time {

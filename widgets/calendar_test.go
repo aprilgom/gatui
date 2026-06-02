@@ -1,6 +1,7 @@
 package widgets_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -150,6 +151,71 @@ func TestMonthly_shouldRenderInsideBlock(t *testing.T) {
 	})
 }
 
+func TestMonthly_widthReflectsGridLayout(t *testing.T) {
+	monthly := widgets.NewMonthly(utcDate(2015, time.February, 1), nil)
+	if got := monthly.Width(); got != 21 {
+		t.Fatalf("Width() = %d, want 21", got)
+	}
+
+	monthly = monthly.Block(widgets.BorderedBlock().Padding(widgets.NewPadding(2, 3, 1, 2)))
+	if got := monthly.Width(); got != 28 {
+		t.Fatalf("Width() with block = %d, want 28", got)
+	}
+}
+
+func TestMonthly_heightCountsWeeksAndHeaders(t *testing.T) {
+	monthly := widgets.NewMonthly(utcDate(2015, time.February, 1), nil)
+	if got := monthly.Height(); got != 4 {
+		t.Fatalf("Height() = %d, want 4", got)
+	}
+
+	monthly = monthly.
+		ShowMonthHeader(style.NewStyle()).
+		ShowWeekdaysHeader(style.NewStyle())
+	if got := monthly.Height(); got != 6 {
+		t.Fatalf("Height() with headers = %d, want 6", got)
+	}
+}
+
+func TestMonthly_dimensionsExamples(t *testing.T) {
+	monthly := widgets.NewMonthly(utcDate(2015, time.February, 1), nil).
+		ShowMonthHeader(style.NewStyle()).
+		ShowWeekdaysHeader(style.NewStyle()).
+		Block(widgets.BorderedBlock().Padding(widgets.NewPadding(2, 3, 1, 2)))
+
+	if got := monthly.Width(); got != 28 {
+		t.Fatalf("Width() = %d, want 28", got)
+	}
+	if got := monthly.Height(); got != 11 {
+		t.Fatalf("Height() = %d, want 11", got)
+	}
+}
+
+func TestCalendarEventStore_today(t *testing.T) {
+	events := widgets.NewCalendarEventStore()
+	eventStyle := style.NewStyle().Fg(style.Red)
+	before := time.Now()
+
+	events.Today(eventStyle)
+
+	after := time.Now()
+	for _, now := range []time.Time{before, after} {
+		key := localDateKey(now)
+		if got, ok := events[key]; ok {
+			if got != eventStyle {
+				t.Fatalf("Today() style for %s = %#v, want %#v", key, got, eventStyle)
+			}
+			return
+		}
+	}
+	t.Fatalf("Today() did not add local today key; checked %s and %s", localDateKey(before), localDateKey(after))
+}
+
 func utcDate(year int, month time.Month, day int) time.Time {
 	return time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
+}
+
+func localDateKey(date time.Time) string {
+	local := date.Local()
+	return fmt.Sprintf("%04d-%02d-%02d", local.Year(), local.Month(), local.Day())
 }
