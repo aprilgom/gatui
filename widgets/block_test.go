@@ -188,9 +188,109 @@ func TestBlock_titleStyleOverridesBlockTitleStyle(t *testing.T) {
 
 		block.Render(buf.Area, buf)
 
-		for x := 0; x < 4; x++ {
+		for x := range 4 {
 			assertBlockCellStyle(t, buf, x, 0, style.NewStyle().Fg(style.Yellow).Bg(style.Red))
 		}
+	}
+}
+
+func TestBlock_titlePosition(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 4, 2))
+	block := NewBlock().
+		TitlePosition(TitlePositionBottom).
+		Title(text.LineFromString("test"))
+
+	block.Render(buf.Area, buf)
+
+	assertBlockLines(t, buf, []string{
+		"    ",
+		"test",
+	})
+}
+
+func TestBlock_titleTopBottom(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 11, 3))
+	block := BorderedBlock().
+		TitleTop(text.LineFromString("A").Left()).
+		TitleTop(text.LineFromString("B").Center()).
+		TitleTop(text.LineFromString("C").Right()).
+		TitleBottom(text.LineFromString("D").Left()).
+		TitleBottom(text.LineFromString("E").Center()).
+		TitleBottom(text.LineFromString("F").Right())
+
+	block.Render(buf.Area, buf)
+
+	assertBlockLines(t, buf, []string{
+		"┌A───B───C┐",
+		"│         │",
+		"└D───E───F┘",
+	})
+}
+
+func TestBlock_hasTitleAtPosition(t *testing.T) {
+	block := NewBlock()
+	if block.hasTitleAtPosition(TitlePositionTop) {
+		t.Fatalf("empty block has top title")
+	}
+	if block.hasTitleAtPosition(TitlePositionBottom) {
+		t.Fatalf("empty block has bottom title")
+	}
+
+	block = NewBlock().TitleTop(text.LineFromString("test"))
+	if !block.hasTitleAtPosition(TitlePositionTop) {
+		t.Fatalf("TitleTop block missing top title")
+	}
+	if block.hasTitleAtPosition(TitlePositionBottom) {
+		t.Fatalf("TitleTop block has bottom title")
+	}
+
+	block = NewBlock().TitleBottom(text.LineFromString("test"))
+	if block.hasTitleAtPosition(TitlePositionTop) {
+		t.Fatalf("TitleBottom block has top title")
+	}
+	if !block.hasTitleAtPosition(TitlePositionBottom) {
+		t.Fatalf("TitleBottom block missing bottom title")
+	}
+
+	block = NewBlock().
+		TitleTop(text.LineFromString("test")).
+		TitleBottom(text.LineFromString("test"))
+	if !block.hasTitleAtPosition(TitlePositionTop) {
+		t.Fatalf("mixed block missing top title")
+	}
+	if !block.hasTitleAtPosition(TitlePositionBottom) {
+		t.Fatalf("mixed block missing bottom title")
+	}
+
+	block = NewBlock().
+		Title(text.LineFromString("top")).
+		TitlePosition(TitlePositionBottom).
+		Title(text.LineFromString("bottom"))
+	if !block.hasTitleAtPosition(TitlePositionTop) {
+		t.Fatalf("default-position block missing top title")
+	}
+	if !block.hasTitleAtPosition(TitlePositionBottom) {
+		t.Fatalf("default-position block missing bottom title")
+	}
+}
+
+func TestBlock_titlesAreaHandlesEmptyAreaWithoutPanicking(t *testing.T) {
+	block := NewBlock()
+
+	got := block.titlesArea(layout.NewRect(0, 0, 0, 0), TitlePositionBottom)
+
+	if got != layout.NewRect(0, 0, 0, 1) {
+		t.Fatalf("titlesArea = %#v, want %#v", got, layout.NewRect(0, 0, 0, 1))
+	}
+}
+
+func TestBlock_titlesAreaSaturatesWhenLeftBorderOffsetOverflows(t *testing.T) {
+	block := NewBlock().Borders(LeftBorder)
+
+	got := block.titlesArea(layout.NewRect(layout.MaxCoordinate, 0, 1, 1), TitlePositionTop)
+
+	if got != layout.NewRect(layout.MaxCoordinate, 0, 1, 1) {
+		t.Fatalf("titlesArea = %#v, want %#v", got, layout.NewRect(layout.MaxCoordinate, 0, 1, 1))
 	}
 }
 

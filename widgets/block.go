@@ -8,14 +8,27 @@ import (
 )
 
 type Block struct {
-	titles      []text.Line
-	borders     Borders
-	padding     Padding
-	style       style.Style
-	borderStyle style.Style
-	titleStyle  style.Style
-	titleAlign  layout.Alignment
+	titles        []blockTitle
+	titlePosition TitlePosition
+	borders       Borders
+	padding       Padding
+	style         style.Style
+	borderStyle   style.Style
+	titleStyle    style.Style
+	titleAlign    layout.Alignment
 }
+
+type blockTitle struct {
+	position TitlePosition
+	line     text.Line
+}
+
+type TitlePosition uint8
+
+const (
+	TitlePositionTop TitlePosition = iota
+	TitlePositionBottom
+)
 
 type Padding struct {
 	Left   int
@@ -70,9 +83,10 @@ func PaddingBottom(value int) Padding {
 
 func NewBlock() Block {
 	return Block{
-		style:       style.NewStyle(),
-		borderStyle: style.NewStyle(),
-		titleStyle:  style.NewStyle(),
+		titlePosition: TitlePositionTop,
+		style:         style.NewStyle(),
+		borderStyle:   style.NewStyle(),
+		titleStyle:    style.NewStyle(),
 	}
 }
 
@@ -81,7 +95,22 @@ func BorderedBlock() Block {
 }
 
 func (b Block) Title(title text.Line) Block {
-	b.titles = append(append([]text.Line(nil), b.titles...), title)
+	b.titles = append(append([]blockTitle(nil), b.titles...), blockTitle{position: b.titlePosition, line: title})
+	return b
+}
+
+func (b Block) TitleTop(title text.Line) Block {
+	b.titles = append(append([]blockTitle(nil), b.titles...), blockTitle{position: TitlePositionTop, line: title})
+	return b
+}
+
+func (b Block) TitleBottom(title text.Line) Block {
+	b.titles = append(append([]blockTitle(nil), b.titles...), blockTitle{position: TitlePositionBottom, line: title})
+	return b
+}
+
+func (b Block) TitlePosition(position TitlePosition) Block {
+	b.titlePosition = position
 	return b
 }
 
@@ -126,10 +155,10 @@ func (b Block) Inner(area layout.Rect) layout.Rect {
 	if b.borders.Has(RightBorder) {
 		right = 1
 	}
-	if b.borders.Has(TopBorder) {
+	if b.borders.Has(TopBorder) || b.hasTitleAtPosition(TitlePositionTop) {
 		top = 1
 	}
-	if b.borders.Has(BottomBorder) {
+	if b.borders.Has(BottomBorder) || b.hasTitleAtPosition(TitlePositionBottom) {
 		bottom = 1
 	}
 	inner := area
@@ -157,10 +186,10 @@ func (b Block) horizontalSpace() int {
 
 func (b Block) verticalSpace() int {
 	space := saturatingAdd(b.padding.Top, b.padding.Bottom)
-	if b.borders.Has(TopBorder) {
+	if b.borders.Has(TopBorder) || b.hasTitleAtPosition(TitlePositionTop) {
 		space = saturatingAdd(space, 1)
 	}
-	if b.borders.Has(BottomBorder) {
+	if b.borders.Has(BottomBorder) || b.hasTitleAtPosition(TitlePositionBottom) {
 		space = saturatingAdd(space, 1)
 	}
 	return space
@@ -201,30 +230,39 @@ func (b Block) Render(area layout.Rect, buf *buffer.Buffer) {
 }
 
 func (b Block) renderTitle(area layout.Rect, buf *buffer.Buffer) {
-	titleArea := b.titlesArea(area)
+	b.renderTitlePosition(TitlePositionTop, area, buf)
+	b.renderTitlePosition(TitlePositionBottom, area, buf)
+}
+
+func (b Block) renderTitlePosition(position TitlePosition, area layout.Rect, buf *buffer.Buffer) {
+	titleArea := b.titlesArea(area, position)
 	if titleArea.Width == 0 || titleArea.Height == 0 {
 		return
 	}
-	b.renderLeftTitles(titleArea, buf)
-	b.renderCenterTitles(titleArea, buf)
-	b.renderRightTitles(titleArea, buf)
+	b.renderLeftTitles(position, titleArea, buf)
+	b.renderCenterTitles(position, titleArea, buf)
+	b.renderRightTitles(position, titleArea, buf)
 }
 
-func (b Block) titlesArea(area layout.Rect) layout.Rect {
+func (b Block) titlesArea(area layout.Rect, position TitlePosition) layout.Rect {
 	titleX := area.X
 	titleWidth := area.Width
 	if b.borders.Has(LeftBorder) {
-		titleX++
+		titleX = minInt(saturatingAdd(titleX, 1), area.Right())
 		titleWidth = saturatingSub(titleWidth, 1)
 	}
 	if b.borders.Has(RightBorder) {
 		titleWidth = saturatingSub(titleWidth, 1)
 	}
-	return layout.NewRect(titleX, area.Y, titleWidth, 1)
+	titleY := area.Y
+	if position == TitlePositionBottom {
+		titleY = saturatingSub(area.Bottom(), 1)
+	}
+	return layout.NewRect(titleX, titleY, titleWidth, 1)
 }
 
-func (b Block) renderLeftTitles(area layout.Rect, buf *buffer.Buffer) {
-	for _, title := range b.alignedTitles(layout.Left) {
+func (b Block) renderLeftTitles(position TitlePosition, area layout.Rect, buf *buffer.Buffer) {
+	for _, title := range b.alignedTitles(position, layout.Left) {
 		if area.Width == 0 {
 			break
 		}
@@ -238,8 +276,8 @@ func (b Block) renderLeftTitles(area layout.Rect, buf *buffer.Buffer) {
 	}
 }
 
-func (b Block) renderCenterTitles(area layout.Rect, buf *buffer.Buffer) {
-	titles := b.alignedTitles(layout.Center)
+func (b Block) renderCenterTitles(position TitlePosition, area layout.Rect, buf *buffer.Buffer) {
+	titles := b.alignedTitles(position, layout.Center)
 	totalWidth := titlesTotalWidth(titles)
 	if totalWidth <= area.Width {
 		x := area.X + (area.Width-totalWidth)/2
@@ -281,8 +319,8 @@ func (b Block) renderCenterTitles(area layout.Rect, buf *buffer.Buffer) {
 	}
 }
 
-func (b Block) renderRightTitles(area layout.Rect, buf *buffer.Buffer) {
-	titles := b.alignedTitles(layout.Right)
+func (b Block) renderRightTitles(position TitlePosition, area layout.Rect, buf *buffer.Buffer) {
+	titles := b.alignedTitles(position, layout.Right)
 	for i := len(titles) - 1; i >= 0; i-- {
 		if area.Width == 0 {
 			break
@@ -298,18 +336,27 @@ func (b Block) renderRightTitles(area layout.Rect, buf *buffer.Buffer) {
 	}
 }
 
-func (b Block) alignedTitles(alignment layout.Alignment) []text.Line {
+func (b Block) alignedTitles(position TitlePosition, alignment layout.Alignment) []text.Line {
 	titles := make([]text.Line, 0, len(b.titles))
 	for _, title := range b.titles {
 		titleAlignment := b.titleAlign
-		if title.Alignment != nil {
-			titleAlignment = *title.Alignment
+		if title.line.Alignment != nil {
+			titleAlignment = *title.line.Alignment
 		}
-		if titleAlignment == alignment {
-			titles = append(titles, title)
+		if title.position == position && titleAlignment == alignment {
+			titles = append(titles, title.line)
 		}
 	}
 	return titles
+}
+
+func (b Block) hasTitleAtPosition(position TitlePosition) bool {
+	for _, title := range b.titles {
+		if title.position == position {
+			return true
+		}
+	}
+	return false
 }
 
 func titlesTotalWidth(titles []text.Line) int {
