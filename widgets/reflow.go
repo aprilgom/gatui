@@ -45,6 +45,9 @@ func (w wordWrapper) wrap(cells []buffer.Cell, alignment layout.Alignment) []wra
 	}
 
 	cells = append([]buffer.Cell(nil), cells...)
+	if w.trim && len(trimLeftCells(cells)) == 0 {
+		return []wrappedLine{{alignment: alignment}}
+	}
 	var lines []wrappedLine
 	for len(cells) > 0 {
 		if w.trim {

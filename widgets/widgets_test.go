@@ -165,6 +165,179 @@ func TestParagraph_shouldApplyWidgetStyleBehindBlock(t *testing.T) {
 	assertCellStyle(t, buf, 2, 1, style.NewStyle().Bg(style.Green))
 }
 
+func TestParagraph_shouldRenderEmptyParagraph(t *testing.T) {
+	for _, paragraph := range []widgets.Paragraph{
+		widgets.NewParagraph(text.FromString("")),
+		widgets.NewParagraph(text.FromString("")).Wrap(widgets.Wrap{Trim: false}),
+		widgets.NewParagraph(text.FromString("")).Wrap(widgets.Wrap{Trim: true}),
+	} {
+		buf := buffer.Empty(layout.NewRect(0, 0, 10, 2))
+
+		paragraph.Render(buf.Area, buf)
+
+		assertLines(t, buf, []string{
+			"          ",
+			"          ",
+		})
+	}
+}
+
+func TestParagraph_shouldRenderPartialOutOfBounds(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 15, 3))
+
+	widgets.NewParagraph(text.FromString("Hello World")).
+		Render(layout.NewRect(10, 0, 10, 3), buf)
+
+	assertLines(t, buf, []string{
+		"          Hello",
+		"               ",
+		"               ",
+	})
+}
+
+func TestParagraph_shouldRenderOutOfBoundsAsNoOp(t *testing.T) {
+	for _, area := range []layout.Rect{
+		layout.NewRect(0, 5, 15, 1),
+		layout.NewRect(20, 0, 15, 1),
+		layout.NewRect(20, 5, 15, 1),
+	} {
+		buf := buffer.Empty(layout.NewRect(0, 0, 10, 3))
+
+		widgets.NewParagraph(text.FromString("Beyond the pale")).Render(area, buf)
+
+		assertLines(t, buf, []string{
+			"          ",
+			"          ",
+			"          ",
+		})
+	}
+}
+
+func TestParagraph_shouldRenderInMinimalBuffer(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 1, 1))
+
+	widgets.NewParagraph(text.FromString("Lorem ipsum")).Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"L"})
+}
+
+func TestParagraph_shouldRenderInZeroSizeBuffer(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 0, 0))
+
+	widgets.NewParagraph(text.FromString("Lorem ipsum")).Render(buf.Area, buf)
+
+	assertLines(t, buf, nil)
+}
+
+func TestParagraph_shouldRenderWithZeroWidthArea(t *testing.T) {
+	for _, paragraph := range []widgets.Paragraph{
+		widgets.NewParagraph(text.FromString("Hello, world!")),
+		widgets.NewParagraph(text.FromString("Hello, world!")).Wrap(widgets.Wrap{Trim: false}),
+		widgets.NewParagraph(text.FromString("Hello, world!")).Wrap(widgets.Wrap{Trim: true}),
+		widgets.NewParagraph(text.FromString("Hello, world!")).Scroll(2, 4),
+		widgets.NewParagraph(text.FromString("Hello, world!")).Wrap(widgets.Wrap{Trim: false}).Scroll(2, 4),
+		widgets.NewParagraph(text.FromString("Hello, world!")).Wrap(widgets.Wrap{Trim: true}).Scroll(2, 4),
+	} {
+		buf := buffer.Empty(layout.NewRect(0, 0, 0, 3))
+
+		paragraph.Render(buf.Area, buf)
+
+		assertLines(t, buf, []string{"", "", ""})
+	}
+}
+
+func TestParagraph_shouldRenderWithZeroHeightArea(t *testing.T) {
+	for _, paragraph := range []widgets.Paragraph{
+		widgets.NewParagraph(text.FromString("Hello, world!")),
+		widgets.NewParagraph(text.FromString("Hello, world!")).Wrap(widgets.Wrap{Trim: false}),
+		widgets.NewParagraph(text.FromString("Hello, world!")).Wrap(widgets.Wrap{Trim: true}),
+		widgets.NewParagraph(text.FromString("Hello, world!")).Scroll(2, 4),
+		widgets.NewParagraph(text.FromString("Hello, world!")).Wrap(widgets.Wrap{Trim: false}).Scroll(2, 4),
+		widgets.NewParagraph(text.FromString("Hello, world!")).Wrap(widgets.Wrap{Trim: true}).Scroll(2, 4),
+	} {
+		buf := buffer.Empty(layout.NewRect(0, 0, 10, 0))
+
+		paragraph.Render(buf.Area, buf)
+
+		assertLines(t, buf, nil)
+	}
+}
+
+func TestParagraph_shouldRenderWithBlockWithBottomTitleAndBorder(t *testing.T) {
+	block := widgets.NewBlock().
+		Borders(widgets.BottomBorder).
+		TitlePosition(widgets.TitlePositionBottom).
+		Title(text.LineFromString("Title"))
+	paragraph := widgets.NewParagraph(text.FromString("Hello, world!")).Block(block)
+	buf := buffer.Empty(layout.NewRect(0, 0, 15, 2))
+
+	paragraph.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"Hello, world!  ",
+		"Title──────────",
+	})
+}
+
+func TestParagraph_shouldRenderWithLineTruncation(t *testing.T) {
+	paragraph := widgets.NewParagraph(text.FromString("This is a long line of text that should be truncated."))
+	tests := []struct {
+		name   string
+		width  int
+		scroll int
+		want   string
+	}{
+		{name: "twenty two columns", width: 22, want: "This is a long line of"},
+		{name: "twenty five columns", width: 25, want: "This is a long line of te"},
+		{name: "twenty three columns", width: 23, want: "This is a long line of "},
+		{name: "scrolled", width: 23, scroll: 2, want: "is is a long line of te"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := buffer.Empty(layout.NewRect(0, 0, tt.width, 1))
+			rendered := paragraph.Scroll(0, tt.scroll)
+
+			rendered.Render(buf.Area, buf)
+
+			assertLines(t, buf, []string{tt.want})
+		})
+	}
+}
+
+func TestParagraph_shouldRenderWrappedWhitespaceOnlyLine(t *testing.T) {
+	content := text.NewText(
+		text.LineFromString("A"),
+		text.LineFromString("  "),
+		text.LineFromString("B"),
+		text.LineFromString("  a"),
+		text.LineFromString("C"),
+	)
+
+	buf := buffer.Empty(layout.NewRect(0, 0, 3, 5))
+	widgets.NewParagraph(content).
+		Wrap(widgets.Wrap{Trim: false}).
+		Render(buf.Area, buf)
+	assertLines(t, buf, []string{
+		"A  ",
+		"   ",
+		"B  ",
+		"  a",
+		"C  ",
+	})
+
+	trimmedBuf := buffer.Empty(layout.NewRect(0, 0, 1, 5))
+	widgets.NewParagraph(content).
+		Wrap(widgets.Wrap{Trim: true}).
+		Render(trimmedBuf.Area, trimmedBuf)
+	assertLines(t, trimmedBuf, []string{
+		"A",
+		" ",
+		"B",
+		"a",
+		"C",
+	})
+}
+
 func TestParagraphStylize_shouldUpdateWidgetStyle(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 5, 2))
 	paragraph := widgets.NewParagraph(text.FromString("hi")).Cyan().Bold()
