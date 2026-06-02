@@ -686,6 +686,69 @@ func TestBlock_titleTopBottom(t *testing.T) {
 	})
 }
 
+func TestWidgetsBlock_rendersOnSmallAreas(t *testing.T) {
+	block := BorderedBlock().
+		Padding(PaddingUniform(1)).
+		TitleTop(text.LineFromString("Top")).
+		TitleBottom(text.LineFromString("Bottom")).
+		Shadow(NewShadowBlock())
+
+	tests := []struct {
+		name string
+		area layout.Rect
+		want []string
+	}{
+		{name: "0x0", area: layout.NewRect(0, 0, 0, 0), want: nil},
+		{name: "1x0", area: layout.NewRect(0, 0, 1, 0), want: nil},
+		{name: "0x1", area: layout.NewRect(0, 0, 0, 1), want: []string{""}},
+		{name: "1x1", area: layout.NewRect(0, 0, 1, 1), want: []string{"┌"}},
+		{name: "2x1", area: layout.NewRect(0, 0, 2, 1), want: []string{"┌┐"}},
+		{name: "1x2", area: layout.NewRect(0, 0, 1, 2), want: []string{"┌", "└"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := buffer.Empty(tt.area)
+
+			block.Render(buf.Area, buf)
+
+			assertBlockLines(t, buf, tt.want)
+		})
+	}
+
+	t.Run("shadow clipped in larger buffer", func(t *testing.T) {
+		buf := buffer.Empty(layout.NewRect(0, 0, 3, 3))
+
+		block.Render(layout.NewRect(0, 0, 1, 1), buf)
+
+		assertBlockLines(t, buf, []string{
+			"┌  ",
+			" █ ",
+			"   ",
+		})
+	})
+}
+
+func TestWidgetsBlock_titlesOverlap(t *testing.T) {
+	block := NewBlock().
+		TitleTop(text.LineFromString("left").Left()).
+		TitleTop(text.LineFromString("CENTER").Center()).
+		TitleTop(text.LineFromString("right").Right()).
+		TitleBottom(text.LineFromString("bottom-left").Left()).
+		TitleBottom(text.LineFromString("BOTTOM").Center()).
+		TitleBottom(text.LineFromString("bottom-right").Right())
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 2))
+
+	block.Render(buf.Area, buf)
+
+	assertBlockLines(t, buf, []string{
+		"leCENright",
+		"ttom-right",
+	})
+	assertBlockCellStyle(t, buf, 2, 0, style.NewStyle())
+	assertBlockCellStyle(t, buf, 6, 0, style.NewStyle())
+}
+
 func TestBlock_hasTitleAtPosition(t *testing.T) {
 	block := NewBlock()
 	if block.hasTitleAtPosition(TitlePositionTop) {
