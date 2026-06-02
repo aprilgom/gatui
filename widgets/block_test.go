@@ -2,6 +2,7 @@ package widgets
 
 import (
 	"math"
+	"strings"
 	"testing"
 
 	"gatui/buffer"
@@ -616,6 +617,64 @@ func TestBlock_renderRightAlignedEmptyTitle(t *testing.T) {
 		"               ",
 		"               ",
 	})
+}
+
+func TestBlock_renderCenterTitlesHandlesTitleWidthIncrementOverflow(t *testing.T) {
+	block := NewBlock().Title(text.LineFromString(strings.Repeat("a", layout.MaxCoordinate)).Center())
+	buf := buffer.Empty(layout.NewRect(0, 0, 1, 1))
+
+	block.renderCenterTitles(TitlePositionTop, layout.NewRect(0, 0, 1, 1), buf)
+
+	assertBlockLines(t, buf, []string{" "})
+}
+
+func TestBlock_renderCenterTitlesHandlesTotalWidthOverflow(t *testing.T) {
+	block := NewBlock().
+		Title(text.LineFromString(strings.Repeat("a", 40_000)).Center()).
+		Title(text.LineFromString(strings.Repeat("b", 30_000)).Center())
+	buf := buffer.Empty(layout.NewRect(0, 0, 1, 1))
+
+	block.renderCenterTitles(TitlePositionTop, layout.NewRect(0, 0, 1, 1), buf)
+
+	assertBlockLines(t, buf, []string{" "})
+}
+
+func TestBlock_renderCenteredTitlesWithTruncationHandlesTitleAdvanceOverflow(t *testing.T) {
+	block := NewBlock().
+		Title(text.LineFromString(strings.Repeat("a", layout.MaxCoordinate)).Center()).
+		Title(text.LineFromString("b").Center())
+	buf := buffer.Empty(layout.NewRect(0, 0, 1, 1))
+
+	block.renderCenterTitles(TitlePositionTop, layout.NewRect(0, 0, layout.MaxCoordinate, 1), buf)
+
+	assertBlockLines(t, buf, []string{"a"})
+}
+
+func TestBlock_renderCenteredTitlesWithoutTruncationHandlesMaximumX(t *testing.T) {
+	block := NewBlock()
+	buf := buffer.Empty(layout.NewRect(0, 0, 1, 1))
+
+	block.renderCenterTitles(TitlePositionTop, layout.NewRect(layout.MaxCoordinate-1, 0, 1, 1), buf)
+
+	assertBlockLines(t, buf, []string{" "})
+}
+
+func TestBlock_renderCenteredTitlesWithoutTruncationHandlesTitleAdvanceOverflow(t *testing.T) {
+	block := NewBlock().Title(text.LineFromString(strings.Repeat("a", layout.MaxCoordinate)).Center())
+	buf := buffer.Empty(layout.NewRect(0, 0, 1, 1))
+
+	block.renderCenterTitles(TitlePositionTop, layout.NewRect(0, 0, layout.MaxCoordinate, 1), buf)
+
+	assertBlockLines(t, buf, []string{"a"})
+}
+
+func TestBlock_renderLeftTitlesHandlesTitleAdvanceOverflow(t *testing.T) {
+	block := NewBlock().Title(text.LineFromString(strings.Repeat("a", layout.MaxCoordinate)))
+	buf := buffer.Empty(layout.NewRect(0, 0, 1, 1))
+
+	block.renderLeftTitles(TitlePositionTop, layout.NewRect(0, 0, 1, 1), buf)
+
+	assertBlockLines(t, buf, []string{"a"})
 }
 
 func TestBlock_renderInMinimalBuffer(t *testing.T) {
