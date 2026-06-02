@@ -536,6 +536,100 @@ func TestTable_new(t *testing.T) {
 	assertLines(t, buf, []string{"A  "})
 }
 
+func TestTable_rows(t *testing.T) {
+	rows := []widgets.TableRow{
+		widgets.TableRowFromStrings([]string{"A"}),
+	}
+	table := widgets.NewTable(nil, []layout.Constraint{layout.Length(1)}).Rows(rows)
+	rows[0] = widgets.TableRowFromStrings([]string{"B"})
+
+	buf := buffer.Empty(layout.NewRect(0, 0, 3, 1))
+	table.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"A  "})
+}
+
+func TestTable_stylize(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 3, 1))
+	table := widgets.NewTable([]widgets.TableRow{
+		widgets.TableRowFromStrings([]string{"A"}),
+	}, []layout.Constraint{layout.Length(1)}).
+		Fg(style.Red).
+		Bg(style.Blue).
+		Bold().
+		Dim().
+		Italic().
+		Cyan()
+
+	table.Render(buf.Area, buf)
+
+	assertCellStyle(t, buf, 0, 0, style.NewStyle().
+		Fg(style.Cyan).
+		Bg(style.Blue).
+		AddModifier(style.ModifierBold|style.ModifierDim|style.ModifierItalic))
+}
+
+func TestTable_listStateEmptyList(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 10))
+	state := widgets.NewTableState()
+	state.SelectFirst()
+	state.SelectColumn(0)
+	state.SelectCell(0, 0)
+	state.SetOffset(4)
+
+	widgets.NewTable(nil, []layout.Constraint{layout.Percentage(100)}).RenderStateful(buf.Area, buf, &state)
+
+	if selected, ok := state.Selected(); ok {
+		t.Fatalf("Selected() = %d, true, want false", selected)
+	}
+	if selectedColumn, ok := state.SelectedColumn(); ok {
+		t.Fatalf("SelectedColumn() = %d, true, want false", selectedColumn)
+	}
+	if row, column, ok := state.SelectedCell(); ok {
+		t.Fatalf("SelectedCell() = %d,%d,true, want false", row, column)
+	}
+	if got := state.Offset(); got != 0 {
+		t.Fatalf("Offset() = %d, want 0", got)
+	}
+}
+
+func TestTable_listStateSingleItem(t *testing.T) {
+	table := widgets.NewTable([]widgets.TableRow{
+		widgets.TableRowFromStrings([]string{"Item 1"}),
+	}, []layout.Constraint{layout.Percentage(100)}).
+		RowHighlightStyle(style.NewStyle().Fg(style.Red))
+	state := widgets.NewTableState()
+
+	state.SelectFirst()
+	table.RenderStateful(layout.NewRect(0, 0, 10, 10), buffer.Empty(layout.NewRect(0, 0, 10, 10)), &state)
+	if selected, ok := state.Selected(); !ok || selected != 0 {
+		t.Fatalf("Selected() after first = %d, %v; want 0, true", selected, ok)
+	}
+	if got := state.Offset(); got != 0 {
+		t.Fatalf("Offset() after first = %d, want 0", got)
+	}
+
+	state.SelectLast()
+	table.RenderStateful(layout.NewRect(0, 0, 10, 10), buffer.Empty(layout.NewRect(0, 0, 10, 10)), &state)
+	if selected, ok := state.Selected(); !ok || selected != 0 {
+		t.Fatalf("Selected() after last = %d, %v; want 0, true", selected, ok)
+	}
+
+	state.SelectPrevious()
+	table.RenderStateful(layout.NewRect(0, 0, 10, 10), buffer.Empty(layout.NewRect(0, 0, 10, 10)), &state)
+	if selected, ok := state.Selected(); !ok || selected != 0 {
+		t.Fatalf("Selected() after previous = %d, %v; want 0, true", selected, ok)
+	}
+
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 1))
+	state.SelectNext()
+	table.RenderStateful(buf.Area, buf, &state)
+	if selected, ok := state.Selected(); !ok || selected != 0 {
+		t.Fatalf("Selected() after next = %d, %v; want 0, true", selected, ok)
+	}
+	assertCellStyle(t, buf, 0, 0, style.NewStyle().Fg(style.Red))
+}
+
 func TestTable_renderEmptyArea(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 15, 3))
 	table := widgets.NewTable([]widgets.TableRow{
@@ -1341,6 +1435,57 @@ func TestTableCell_ColumnSpan_shouldRenderAcrossPhysicalColumns(t *testing.T) {
 			assertLines(t, buf, tt.expected)
 		})
 	}
+}
+
+func TestTableCell_content(t *testing.T) {
+	content := text.FromString("cell\ncontent").Cyan()
+	cell := widgets.NewTableCell(content)
+
+	got := cell.Content()
+	if got.String() != content.String() {
+		t.Fatalf("Content().String() = %q, want %q", got.String(), content.String())
+	}
+	if got.Style != content.Style {
+		t.Fatalf("Content().Style = %#v, want %#v", got.Style, content.Style)
+	}
+	if got.Alignment != nil || content.Alignment != nil {
+		t.Fatalf("Content().Alignment = %#v, want %#v", got.Alignment, content.Alignment)
+	}
+	if len(got.Lines) != len(content.Lines) {
+		t.Fatalf("len(Content().Lines) = %d, want %d", len(got.Lines), len(content.Lines))
+	}
+}
+
+func TestTableCell_new(t *testing.T) {
+	cell := widgets.NewTableCell(text.FromString("simple string"))
+	row := widgets.NewTableRow([]widgets.TableCell{cell})
+	table := widgets.NewTable([]widgets.TableRow{row}, []layout.Constraint{layout.Length(13)})
+	buf := buffer.Empty(layout.NewRect(0, 0, 15, 1))
+
+	table.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"simple string  "})
+}
+
+func TestTableCell_stylize(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 3, 1))
+	cell := widgets.TableCellFromString("A").
+		Fg(style.Red).
+		Bg(style.Blue).
+		Bold().
+		Dim().
+		Italic().
+		Cyan()
+	table := widgets.NewTable([]widgets.TableRow{
+		widgets.NewTableRow([]widgets.TableCell{cell}),
+	}, []layout.Constraint{layout.Length(1)})
+
+	table.Render(buf.Area, buf)
+
+	assertCellStyle(t, buf, 0, 0, style.NewStyle().
+		Fg(style.Cyan).
+		Bg(style.Blue).
+		AddModifier(style.ModifierBold|style.ModifierDim|style.ModifierItalic))
 }
 
 func TestTableCell_ColumnSpan_shouldRespectHighlightSymbolSpacing(t *testing.T) {

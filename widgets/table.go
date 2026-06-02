@@ -51,6 +51,39 @@ func (c TableCell) Style(cellStyle style.Style) TableCell {
 	return c
 }
 
+func (c TableCell) Content() text.Text {
+	return c.content
+}
+
+func (c TableCell) Fg(color style.Color) TableCell {
+	c.style = c.style.Fg(color)
+	return c
+}
+
+func (c TableCell) Bg(color style.Color) TableCell {
+	c.style = c.style.Bg(color)
+	return c
+}
+
+func (c TableCell) Bold() TableCell {
+	c.style = c.style.AddModifier(style.ModifierBold)
+	return c
+}
+
+func (c TableCell) Dim() TableCell {
+	c.style = c.style.AddModifier(style.ModifierDim)
+	return c
+}
+
+func (c TableCell) Italic() TableCell {
+	c.style = c.style.AddModifier(style.ModifierItalic)
+	return c
+}
+
+func (c TableCell) Cyan() TableCell {
+	return c.Fg(style.Cyan)
+}
+
 func (c TableCell) ColumnSpan(span int) TableCell {
 	c.columnSpan = span
 	return c
@@ -310,9 +343,43 @@ func (t Table) ColumnSpacing(spacing int) Table {
 	return t
 }
 
+func (t Table) Rows(rows []TableRow) Table {
+	t.rows = append([]TableRow(nil), rows...)
+	return t
+}
+
 func (t Table) Style(tableStyle style.Style) Table {
 	t.style = tableStyle
 	return t
+}
+
+func (t Table) Fg(color style.Color) Table {
+	t.style = t.style.Fg(color)
+	return t
+}
+
+func (t Table) Bg(color style.Color) Table {
+	t.style = t.style.Bg(color)
+	return t
+}
+
+func (t Table) Bold() Table {
+	t.style = t.style.AddModifier(style.ModifierBold)
+	return t
+}
+
+func (t Table) Dim() Table {
+	t.style = t.style.AddModifier(style.ModifierDim)
+	return t
+}
+
+func (t Table) Italic() Table {
+	t.style = t.style.AddModifier(style.ModifierItalic)
+	return t
+}
+
+func (t Table) Cyan() Table {
+	return t.Fg(style.Cyan)
 }
 
 func (t Table) HighlightSymbol(symbol string) Table {
