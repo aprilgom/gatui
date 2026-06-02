@@ -59,6 +59,35 @@ func (t Tabs) Style(tabStyle style.Style) Tabs {
 	return t
 }
 
+func (t Tabs) Fg(color style.Color) Tabs {
+	t.style = t.style.Fg(color)
+	return t
+}
+
+func (t Tabs) Bg(color style.Color) Tabs {
+	t.style = t.style.Bg(color)
+	return t
+}
+
+func (t Tabs) Bold() Tabs {
+	t.style = t.style.AddModifier(style.ModifierBold)
+	return t
+}
+
+func (t Tabs) Dim() Tabs {
+	t.style = t.style.AddModifier(style.ModifierDim)
+	return t
+}
+
+func (t Tabs) Italic() Tabs {
+	t.style = t.style.AddModifier(style.ModifierItalic)
+	return t
+}
+
+func (t Tabs) Cyan() Tabs {
+	return t.Fg(style.Cyan)
+}
+
 func (t Tabs) HighlightStyle(highlightStyle style.Style) Tabs {
 	t.highlightStyle = highlightStyle
 	return t
@@ -115,18 +144,24 @@ func (t Tabs) Render(area layout.Rect, buf *buffer.Buffer) {
 }
 
 func (t Tabs) renderTitle(buf *buffer.Buffer, title text.Line, x, y, right int, selected bool) int {
-	for _, span := range title.Spans {
-		cellStyle := t.style.Patch(span.Style)
+	for _, grapheme := range title.StyledGraphemes(t.style) {
+		width := buffer.CellWidth(grapheme.Symbol)
+		if width == 0 {
+			continue
+		}
+		if x+width > right {
+			return x
+		}
+
+		cellStyle := grapheme.Style
 		if selected {
 			cellStyle = cellStyle.Patch(t.highlightStyle)
 		}
-		for _, r := range span.Content {
-			if x >= right {
-				return x
-			}
-			buf.SetCell(x, y, buffer.Cell{Symbol: string(r), Style: cellStyle})
-			x++
+		buf.SetCell(x, y, buffer.Cell{Symbol: grapheme.Symbol, Style: cellStyle})
+		for trailing := 1; trailing < width; trailing++ {
+			buf.SetCell(x+trailing, y, buffer.Cell{Symbol: " ", Style: style.NewStyle()})
 		}
+		x += width
 	}
 	return x
 }

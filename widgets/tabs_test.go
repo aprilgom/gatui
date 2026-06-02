@@ -10,6 +10,144 @@ import (
 	"gatui/widgets"
 )
 
+func TestTabs_canBeStylized(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 6, 1))
+	tabs := widgets.TabsFromStrings([]string{"Tab"}).
+		Fg(style.Red).
+		Bg(style.White).
+		Bold().
+		Dim().
+		Italic().
+		Cyan()
+
+	tabs.Render(buf.Area, buf)
+
+	want := style.NewStyle().
+		Fg(style.Cyan).
+		Bg(style.White).
+		AddModifier(style.ModifierBold | style.ModifierDim | style.ModifierItalic)
+	for x := range 6 {
+		if x >= 1 && x <= 3 {
+			assertCellStyle(t, buf, x, 0, want.AddModifier(style.ModifierReversed))
+			continue
+		}
+		assertCellStyle(t, buf, x, 0, want)
+	}
+}
+
+func TestTabs_new(t *testing.T) {
+	titles := []text.Line{text.LineFromString("One")}
+	tabs := widgets.NewTabs(titles)
+	titles[0] = text.LineFromString("Changed")
+	buf := buffer.Empty(layout.NewRect(0, 0, 6, 1))
+
+	tabs.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{" One  "})
+	assertCellStyle(t, buf, 1, 0, style.NewStyle().AddModifier(style.ModifierReversed))
+}
+
+func TestTabs_newFromVecOfStr(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 13, 1))
+	tabs := widgets.TabsFromStrings([]string{"Tab1", "Tab2"})
+
+	tabs.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{" Tab1 │ Tab2 "})
+	for x := 1; x <= 4; x++ {
+		assertCellStyle(t, buf, x, 0, style.NewStyle().AddModifier(style.ModifierReversed))
+	}
+}
+
+func TestTabs_renderNew(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 19, 1))
+	tabs := widgets.NewTabs([]text.Line{
+		text.LineFromString("Tab0"),
+		text.LineFromString("Tab1"),
+		text.LineFromString("Tab2"),
+	})
+
+	tabs.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{" Tab0 │ Tab1 │ Tab2"})
+}
+
+func TestTabs_renderNoPadding(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 12, 1))
+	tabs := widgets.TabsFromStrings([]string{"Tab0", "Tab1", "Tab2"}).Padding("", "")
+
+	tabs.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"Tab0│Tab1│Ta"})
+}
+
+func TestTabs_selectBeforeTitles(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 13, 1))
+	tabs := widgets.TabsFromStrings([]string{"Tab1", "Tab2"}).Select(4)
+
+	tabs.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{" Tab1 │ Tab2 "})
+	for x := range 13 {
+		assertCellStyle(t, buf, x, 0, style.NewStyle())
+	}
+}
+
+func TestTabs_unicodeWidthCJK(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 13, 1))
+	tabs := widgets.TabsFromStrings([]string{"コン", "Tab"})
+
+	tabs.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{" コン │ Tab  "})
+	assertCellSymbol(t, buf, 1, 0, "コ")
+	assertCellSymbol(t, buf, 2, 0, " ")
+	assertCellSymbol(t, buf, 3, 0, "ン")
+	assertCellSymbol(t, buf, 4, 0, " ")
+	assertCellSymbol(t, buf, 6, 0, "│")
+	assertCellStyle(t, buf, 1, 0, style.NewStyle().AddModifier(style.ModifierReversed))
+	assertCellStyle(t, buf, 3, 0, style.NewStyle().AddModifier(style.ModifierReversed))
+}
+
+func TestTabs_unicodeWidthCJKCustomPaddingAndDivider(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 14, 1))
+	tabs := widgets.TabsFromStrings([]string{"コ", "ン"}).Padding("[]", "[]").Divider("界")
+
+	tabs.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"[]コ[]界[]ン[]"})
+	assertCellSymbol(t, buf, 2, 0, "コ")
+	assertCellSymbol(t, buf, 3, 0, " ")
+	assertCellSymbol(t, buf, 6, 0, "界")
+	assertCellSymbol(t, buf, 7, 0, " ")
+	assertCellSymbol(t, buf, 10, 0, "ン")
+	assertCellSymbol(t, buf, 11, 0, " ")
+}
+
+func TestTabs_unicodeWidthEmptyTitles(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 5, 1))
+	tabs := widgets.TabsFromStrings([]string{"", ""})
+
+	tabs.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"  │  "})
+}
+
+func TestTabs_unicodeWidthNoPadding(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 7, 1))
+	tabs := widgets.TabsFromStrings([]string{"コ", "ン", "A"}).Padding("", "")
+
+	tabs.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"コ│ン│A"})
+	assertCellSymbol(t, buf, 0, 0, "コ")
+	assertCellSymbol(t, buf, 1, 0, " ")
+	assertCellSymbol(t, buf, 2, 0, "│")
+	assertCellSymbol(t, buf, 3, 0, "ン")
+	assertCellSymbol(t, buf, 4, 0, " ")
+	assertCellSymbol(t, buf, 5, 0, "│")
+}
+
 func TestTabs_shouldNotPanic_whenAreaIsNarrow(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 1, 1))
 	tabs := widgets.TabsFromStrings([]string{"Tab1", "Tab2"})
