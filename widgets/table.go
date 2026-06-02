@@ -460,7 +460,7 @@ func (t Table) clampState(state *TableState) {
 		}
 		state.selected = &selected
 	}
-	columnCount := len(t.widths)
+	columnCount := t.columnCount()
 	if columnCount == 0 {
 		state.ClearColumnSelection()
 		state.ClearCellSelection()
@@ -489,6 +489,38 @@ func (t Table) clampState(state *TableState) {
 		}
 		state.selectedCell = &selectedCell
 	}
+}
+
+func (t Table) columnCount() int {
+	columnCount := len(t.widths)
+	for _, row := range t.rows {
+		rowColumns := 0
+		for _, cell := range row.cells {
+			if cell.columnSpan <= 0 {
+				continue
+			}
+			rowColumns += cell.columnSpan
+		}
+		columnCount = maxInt(columnCount, rowColumns)
+	}
+	if t.header != nil {
+		columnCount = maxInt(columnCount, rowColumnCount(*t.header))
+	}
+	if t.footer != nil {
+		columnCount = maxInt(columnCount, rowColumnCount(*t.footer))
+	}
+	return columnCount
+}
+
+func rowColumnCount(row TableRow) int {
+	columnCount := 0
+	for _, cell := range row.cells {
+		if cell.columnSpan <= 0 {
+			continue
+		}
+		columnCount += cell.columnSpan
+	}
+	return columnCount
 }
 
 func (t Table) visibleBounds(state *TableState, height int) (int, int) {
@@ -780,8 +812,10 @@ func (t Table) renderCell(cell TableCell, rowStyle, highlightStyle style.Style, 
 	}
 	cellStyle := t.style.Patch(rowStyle).Patch(cell.style).Patch(highlightStyle)
 	line := text.LineFromString("")
+	var alignment *layout.Alignment
 	if len(cell.content.Lines) > 0 {
 		line = cell.content.Lines[0]
+		alignment = cell.content.Alignment
 	}
-	renderLine(layout.NewRect(x, y, minInt(width, right-x), 1), buf, line, cellStyle)
+	renderLineAligned(layout.NewRect(x, y, minInt(width, right-x), 1), buf, line, cellStyle, alignment)
 }

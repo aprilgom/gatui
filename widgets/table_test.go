@@ -407,6 +407,178 @@ func TestTable_shouldResolveFixedPercentageMixedAndRatioWidths(t *testing.T) {
 	}
 }
 
+func TestTable_excessAreaHighlightSymbolAndColumnSpacingAllocation(t *testing.T) {
+	assertTableWithSelection(t, widgets.HighlightSpacingNever, 15, 0, nil, []string{
+		"ABCDE12345     ",
+		"               ",
+		"               ",
+	})
+	assertTableWithSelection(t, widgets.HighlightSpacingNever, 15, 0, new(0), []string{
+		"ABCDE12345     ",
+		"               ",
+		"               ",
+	})
+	assertTableWithSelection(t, widgets.HighlightSpacingWhenSelected, 15, 0, nil, []string{
+		"ABCDE12345     ",
+		"               ",
+		"               ",
+	})
+	assertTableWithSelection(t, widgets.HighlightSpacingWhenSelected, 15, 0, new(0), []string{
+		">>>ABCDE12345  ",
+		"               ",
+		"               ",
+	})
+	assertTableWithSelection(t, widgets.HighlightSpacingAlways, 15, 0, nil, []string{
+		"   ABCDE12345  ",
+		"               ",
+		"               ",
+	})
+	assertTableWithSelection(t, widgets.HighlightSpacingAlways, 15, 0, new(0), []string{
+		">>>ABCDE12345  ",
+		"               ",
+		"               ",
+	})
+}
+
+func TestTable_insufficientAreaHighlightSymbolAllocationWithNoColumnSpacing(t *testing.T) {
+	assertTableWithSelection(t, widgets.HighlightSpacingNever, 10, 0, nil, []string{
+		"ABCDE12345",
+		"          ",
+		"          ",
+	})
+	assertTableWithSelection(t, widgets.HighlightSpacingWhenSelected, 10, 0, nil, []string{
+		"ABCDE12345",
+		"          ",
+		"          ",
+	})
+	assertTableWithSelection(t, widgets.HighlightSpacingAlways, 10, 0, nil, []string{
+		"   ABCD123",
+		"          ",
+		"          ",
+	})
+	assertTableWithSelection(t, widgets.HighlightSpacingNever, 10, 0, new(0), []string{
+		"ABCDE12345",
+		"          ",
+		"          ",
+	})
+	assertTableWithSelection(t, widgets.HighlightSpacingWhenSelected, 10, 0, new(0), []string{
+		">>>ABCD123",
+		"          ",
+		"          ",
+	})
+	assertTableWithSelection(t, widgets.HighlightSpacingAlways, 10, 0, new(0), []string{
+		">>>ABCD123",
+		"          ",
+		"          ",
+	})
+}
+
+func TestTable_insufficientAreaHighlightSymbolAndColumnSpacingAllocation(t *testing.T) {
+	assertTableWithSelection(t, widgets.HighlightSpacingNever, 10, 1, nil, []string{
+		"ABCDE 1234",
+		"          ",
+		"          ",
+	})
+	assertTableWithSelection(t, widgets.HighlightSpacingWhenSelected, 10, 1, nil, []string{
+		"ABCDE 1234",
+		"          ",
+		"          ",
+	})
+	assertTableWithSelection(t, widgets.HighlightSpacingAlways, 10, 1, nil, []string{
+		"   ABC 123",
+		"          ",
+		"          ",
+	})
+	assertTableWithSelection(t, widgets.HighlightSpacingAlways, 9, 1, nil, []string{
+		"   ABC 12",
+		"         ",
+		"         ",
+	})
+	assertTableWithSelection(t, widgets.HighlightSpacingAlways, 8, 1, nil, []string{
+		"   AB 12",
+		"        ",
+		"        ",
+	})
+	assertTableWithSelection(t, widgets.HighlightSpacingAlways, 7, 1, nil, []string{
+		"   AB 1",
+		"       ",
+		"       ",
+	})
+	assertTableWithSelection(t, widgets.HighlightSpacingNever, 10, 1, new(0), []string{
+		"ABCDE 1234",
+		"          ",
+		"          ",
+	})
+	assertTableWithSelection(t, widgets.HighlightSpacingWhenSelected, 10, 1, new(0), []string{
+		">>>ABC 123",
+		"          ",
+		"          ",
+	})
+	assertTableWithSelection(t, widgets.HighlightSpacingAlways, 10, 1, new(0), []string{
+		">>>ABC 123",
+		"          ",
+		"          ",
+	})
+}
+
+func TestTable_new(t *testing.T) {
+	rows := []widgets.TableRow{
+		widgets.NewTableRow([]widgets.TableCell{widgets.TableCellFromString("A")}),
+	}
+	widths := []layout.Constraint{layout.Percentage(100)}
+	table := widgets.NewTable(rows, widths)
+	rows[0] = widgets.NewTableRow([]widgets.TableCell{widgets.TableCellFromString("B")})
+	widths[0] = layout.Length(1)
+
+	buf := buffer.Empty(layout.NewRect(0, 0, 3, 1))
+	table.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"A  "})
+}
+
+func TestTable_renderEmptyArea(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 15, 3))
+	table := widgets.NewTable([]widgets.TableRow{
+		widgets.TableRowFromStrings([]string{"Cell1", "Cell2"}),
+	}, []layout.Constraint{layout.Length(5), layout.Length(5)})
+
+	table.Render(layout.NewRect(0, 0, 0, 0), buf)
+
+	assertLines(t, buf, []string{
+		"               ",
+		"               ",
+		"               ",
+	})
+}
+
+func TestTable_renderInMinimalBuffer(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 1, 1))
+	table := widgets.NewTable([]widgets.TableRow{
+		widgets.TableRowFromStrings([]string{"Cell1", "Cell2", "Cell3"}),
+		widgets.TableRowFromStrings([]string{"Cell4", "Cell5", "Cell6"}),
+	}, []layout.Constraint{layout.Length(10), layout.Length(10), layout.Length(10)}).
+		Header(widgets.TableRowFromStrings([]string{"Header1", "Header2", "Header3"})).
+		Footer(widgets.TableRowFromStrings([]string{"Footer1", "Footer2", "Footer3"}))
+
+	table.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{" "})
+}
+
+func TestTable_renderInZeroSizeBuffer(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 0, 0))
+	table := widgets.NewTable([]widgets.TableRow{
+		widgets.TableRowFromStrings([]string{"Cell1", "Cell2", "Cell3"}),
+		widgets.TableRowFromStrings([]string{"Cell4", "Cell5", "Cell6"}),
+	}, []layout.Constraint{layout.Length(10), layout.Length(10), layout.Length(10)}).
+		Header(widgets.TableRowFromStrings([]string{"Header1", "Header2", "Header3"})).
+		Footer(widgets.TableRowFromStrings([]string{"Footer1", "Footer2", "Footer3"}))
+
+	assertNotPanics(t, func() {
+		table.Render(buf.Area, buf)
+	})
+}
+
 func TestTable_shouldPatchRowAndCellStyles(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 8, 1))
 	row := widgets.NewTableRow([]widgets.TableCell{
@@ -445,6 +617,36 @@ func TestTable_shouldPatchCellLineAndSpanStylesInOrder(t *testing.T) {
 
 	assertLines(t, buf, []string{"A   "})
 	assertCellStyle(t, buf, 0, 0, style.NewStyle().Fg(style.Red).Bg(style.Green).AddModifier(style.ModifierBold|style.ModifierItalic|style.ModifierDim))
+}
+
+func TestTable_renderWithAlignment(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 28, 4))
+	rows := []widgets.TableRow{
+		widgets.NewTableRow([]widgets.TableCell{
+			widgets.NewTableCell(text.FromString("left")),
+			widgets.NewTableCell(text.FromString("text").Center()),
+			widgets.NewTableCell(text.NewText(text.LineFromString("line").Right()).Center()),
+		}),
+		widgets.NewTableRow([]widgets.TableCell{
+			widgets.NewTableCell(text.NewText(text.LineFromString("wide line").Right())),
+			widgets.NewTableCell(text.FromString("wide text").Center()),
+			widgets.TableCellFromString("default"),
+		}),
+	}
+	table := widgets.NewTable(rows, []layout.Constraint{
+		layout.Length(8),
+		layout.Length(8),
+		layout.Length(8),
+	}).ColumnSpacing(1)
+
+	table.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"left       text       line  ",
+		"ide line wide tex default   ",
+		"                            ",
+		"                            ",
+	})
 }
 
 func TestTable_shouldClearHiddenCellWhenWideGraphemeFits(t *testing.T) {
@@ -1229,6 +1431,95 @@ func TestTable_shouldRenderFooter(t *testing.T) {
 	})
 }
 
+func TestTable_renderWithHeaderMargin(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 12, 5))
+	table := widgets.NewTable([]widgets.TableRow{
+		widgets.TableRowFromStrings([]string{"row"}),
+	}, []layout.Constraint{layout.Length(4)}).
+		Style(style.NewStyle().Bg(style.Blue)).
+		Header(widgets.TableRowFromStrings([]string{"head"}).TopMargin(1).BottomMargin(1))
+
+	table.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"            ",
+		"head        ",
+		"            ",
+		"row         ",
+		"            ",
+	})
+	assertCellStyle(t, buf, 0, 0, style.NewStyle().Bg(style.Blue))
+	assertCellStyle(t, buf, 0, 2, style.NewStyle().Bg(style.Blue))
+}
+
+func TestTable_renderWithOverflowDoesNotPanic(t *testing.T) {
+	rowWithMoreCells := widgets.TableRowFromStrings([]string{"a", "b", "c"})
+	rowWithLargeMargin := widgets.TableRowFromStrings([]string{"margin"}).TopMargin(5).BottomMargin(5)
+	rowWithLargeSpan := widgets.NewTableRow([]widgets.TableCell{
+		widgets.TableCellFromString("span").ColumnSpan(10),
+	})
+	table := widgets.NewTable([]widgets.TableRow{
+		rowWithMoreCells,
+		widgets.NewTableRow(nil),
+		rowWithLargeMargin,
+		rowWithLargeSpan,
+	}, []layout.Constraint{layout.Length(1)}).
+		Header(widgets.TableRowFromStrings([]string{"h1", "h2"}).TopMargin(3).BottomMargin(3)).
+		ColumnSpacing(4)
+
+	assertNotPanics(t, func() {
+		table.Render(layout.NewRect(0, 0, 2, 2), buffer.Empty(layout.NewRect(0, 0, 2, 2)))
+		table.Render(layout.NewRect(0, 0, 0, 2), buffer.Empty(layout.NewRect(0, 0, 2, 2)))
+		table.Render(layout.NewRect(0, 0, 2, 0), buffer.Empty(layout.NewRect(0, 0, 2, 2)))
+	})
+}
+
+func TestTable_renderWithRowMargin(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 12, 6))
+	rows := []widgets.TableRow{
+		widgets.TableRowFromStrings([]string{"one"}).TopMargin(1).BottomMargin(1),
+		widgets.TableRowFromStrings([]string{"two"}),
+	}
+	table := widgets.NewTable(rows, []layout.Constraint{layout.Length(4)}).
+		Style(style.NewStyle().Bg(style.Blue))
+
+	table.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"            ",
+		"one         ",
+		"            ",
+		"two         ",
+		"            ",
+		"            ",
+	})
+	assertCellStyle(t, buf, 0, 0, style.NewStyle().Bg(style.Blue))
+	assertCellStyle(t, buf, 0, 2, style.NewStyle().Bg(style.Blue))
+}
+
+func TestTable_renderWithSelectedColumnAndIncorrectWidthCountDoesNotPanic(t *testing.T) {
+	table := widgets.NewTable([]widgets.TableRow{
+		widgets.TableRowFromStrings([]string{"a", "b", "c"}),
+		widgets.TableRowFromStrings([]string{"d"}),
+	}, []layout.Constraint{layout.Length(1)}).
+		ColumnHighlightStyle(style.NewStyle().Bg(style.Red)).
+		CellHighlightStyle(style.NewStyle().Bg(style.Blue))
+	state := widgets.NewTableState()
+	state.Select(0)
+	state.SelectColumn(2)
+	state.SelectCell(0, 2)
+
+	buf := buffer.Empty(layout.NewRect(0, 0, 4, 2))
+	assertNotPanics(t, func() {
+		table.RenderStateful(buf.Area, buf, &state)
+	})
+	assertLines(t, buf, []string{
+		"a   ",
+		"d   ",
+	})
+	assertCellStyle(t, buf, 0, 0, style.NewStyle())
+}
+
 func TestTable_shouldRenderFooterWithTopMargin(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 15, 3))
 	rows := []widgets.TableRow{
@@ -1291,6 +1582,28 @@ func TestTable_shouldRenderHeaderAndFooterOnEmptyTable(t *testing.T) {
 		"│Foot1  Foot2  Foot3         │",
 		"└────────────────────────────┘",
 	})
+}
+
+func assertTableWithSelection(t *testing.T, highlightSpacing widgets.HighlightSpacing, width, columnSpacing int, selected *int, expected []string) {
+	t.Helper()
+	buf := buffer.Empty(layout.NewRect(0, 0, width, 3))
+	state := widgets.NewTableState()
+	if selected != nil {
+		state.Select(*selected)
+	}
+	table := widgets.NewTable([]widgets.TableRow{
+		widgets.TableRowFromStrings([]string{"ABCDE", "12345"}),
+	}, []layout.Constraint{
+		layout.Length(5),
+		layout.Length(5),
+	}).
+		HighlightSpacing(highlightSpacing).
+		HighlightSymbol(">>>").
+		ColumnSpacing(columnSpacing)
+
+	table.RenderStateful(buf.Area, buf, &state)
+
+	assertLines(t, buf, expected)
 }
 
 func tableFixture(widths []layout.Constraint) widgets.Table {
