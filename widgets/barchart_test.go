@@ -383,3 +383,160 @@ func TestBarChart_shouldKeepIntegerPrecisionForLargeValues(t *testing.T) {
 		"A B  ",
 	})
 }
+
+func TestBarChart_shouldRenderHorizontalBars(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 5, 8))
+	barchart := buildHorizontalTestBarChart()
+
+	barchart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"2█   ",
+		"3██  ",
+		"4███ ",
+		"G1   ",
+		"3██  ",
+		"4███ ",
+		"5████",
+		"G2   ",
+	})
+}
+
+func TestBarChart_shouldRenderHorizontalBarsWithoutGroupLabel_whenHeightIsShort(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 5, 7))
+	barchart := buildHorizontalTestBarChart()
+
+	barchart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"2█   ",
+		"3██  ",
+		"4███ ",
+		"G1   ",
+		"3██  ",
+		"4███ ",
+		"5████",
+	})
+}
+
+func TestBarChart_shouldRenderOnlyVisibleHorizontalBars_whenHeightIsVeryShort(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 5, 5))
+	barchart := buildHorizontalTestBarChart()
+
+	barchart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"2█   ",
+		"3██  ",
+		"4███ ",
+		"G1   ",
+		"3██  ",
+	})
+}
+
+func TestBarChart_shouldKeepHorizontalValueStyleWithinActualBar_whenValueTextExceedsBarWithoutBarStyle(t *testing.T) {
+	assertHorizontalValueTextExceedsBar(t, style.Default, false)
+}
+
+func TestBarChart_shouldKeepHorizontalValueStyleWithinActualBar_whenValueTextExceedsBarWithBarStyle(t *testing.T) {
+	assertHorizontalValueTextExceedsBar(t, style.White, true)
+}
+
+func TestBarChart_shouldRenderHorizontalBarLabels(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 3))
+	barchart := widgets.NewBarChart().
+		Direction(layout.Horizontal).
+		BarGap(0).
+		DataPairs([]widgets.BarData{
+			{Label: "Jan", Value: 10},
+			{Label: "Feb", Value: 20},
+			{Label: "Mar", Value: 5},
+		})
+
+	barchart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"Jan 10█   ",
+		"Feb 20████",
+		"Mar 5     ",
+	})
+}
+
+func TestBarChart_shouldRenderHorizontalMultibyteValueTextWithoutPanic(t *testing.T) {
+	textValue := "\u202f"
+	buf := buffer.Empty(layout.NewRect(0, 0, 4, 5))
+	barchart := widgets.NewBarChart().
+		Data(widgets.NewBarGroup([]widgets.Bar{
+			widgets.NewBar(0).TextValue(textValue),
+			widgets.NewBar(1).TextValue(textValue),
+			widgets.NewBar(2).TextValue(textValue),
+			widgets.NewBar(3).TextValue(textValue),
+			widgets.NewBar(4).TextValue(textValue),
+		})).
+		BarGap(0).
+		Direction(layout.Horizontal)
+
+	barchart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"\u202f   ",
+		"\u202f   ",
+		"\u202f█  ",
+		"\u202f██ ",
+		"\u202f███",
+	})
+}
+
+func buildHorizontalTestBarChart() widgets.BarChart {
+	return widgets.NewBarChart().
+		Data(widgets.NewBarGroup([]widgets.Bar{
+			widgets.NewBar(2),
+			widgets.NewBar(3),
+			widgets.NewBar(4),
+		}).Label("G1")).
+		Data(widgets.NewBarGroup([]widgets.Bar{
+			widgets.NewBar(3),
+			widgets.NewBar(4),
+			widgets.NewBar(5),
+		}).Label("G2")).
+		GroupGap(1).
+		Direction(layout.Horizontal).
+		BarGap(0)
+}
+
+func assertHorizontalValueTextExceedsBar(t *testing.T, barColor style.Color, hasBarColor bool) {
+	t.Helper()
+	bar := widgets.NewBar(2).
+		TextValue("label").
+		ValueStyle(style.NewStyle().Fg(style.Red))
+	if hasBarColor {
+		bar = bar.Style(style.NewStyle().Fg(barColor))
+	}
+	buf := buffer.Empty(layout.NewRect(0, 0, 5, 2))
+	barchart := widgets.NewBarChart().
+		Data(widgets.NewBarGroup([]widgets.Bar{
+			bar,
+			widgets.NewBar(5),
+		})).
+		Direction(layout.Horizontal).
+		BarStyle(style.NewStyle().Fg(style.Yellow)).
+		ValueStyle(style.NewStyle().AddModifier(style.ModifierItalic)).
+		BarGap(0)
+
+	barchart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"label", "5████"})
+	expectedBarColor := style.Yellow
+	if hasBarColor {
+		expectedBarColor = barColor
+	}
+	assertCellStyle(t, buf, 0, 0, style.NewStyle().Fg(style.Red).AddModifier(style.ModifierItalic))
+	assertCellStyle(t, buf, 1, 0, style.NewStyle().Fg(style.Red).AddModifier(style.ModifierItalic))
+	for x := 2; x < 5; x++ {
+		assertCellStyle(t, buf, x, 0, style.NewStyle().Fg(expectedBarColor))
+	}
+	assertCellStyle(t, buf, 0, 1, style.NewStyle().Fg(style.Yellow).AddModifier(style.ModifierItalic))
+	for x := 1; x < 5; x++ {
+		assertCellStyle(t, buf, x, 1, style.NewStyle().Fg(style.Yellow))
+	}
+}

@@ -20,14 +20,11 @@ func writeString(buf *buffer.Buffer, x, y int, value string, width int, cellStyl
 }
 
 func writeStringWithin(buf *buffer.Buffer, x, y, right int, value string, cellStyle style.Style) int {
-	for _, r := range value {
-		if x >= right {
-			return x
-		}
-		buf.SetCell(x, y, buffer.Cell{Symbol: string(r), Style: cellStyle})
-		x++
+	if right <= x {
+		return x
 	}
-	return x
+	endX, _ := buf.SetStringN(x, y, value, right-x, cellStyle)
+	return endX
 }
 
 func lineWidth(line text.Line) int {

@@ -2,6 +2,7 @@ package widgets
 
 import (
 	"strconv"
+	"unicode/utf8"
 
 	"gatui/buffer"
 	"gatui/layout"
@@ -113,6 +114,7 @@ var ThreeLevelBarSet = BarSet{
 type BarChart struct {
 	groups     []BarGroup
 	block      *Block
+	direction  layout.Direction
 	max        uint64
 	barWidth   int
 	barGap     int
@@ -126,6 +128,7 @@ type BarChart struct {
 
 func NewBarChart() BarChart {
 	return BarChart{
+		direction:  layout.Vertical,
 		barWidth:   1,
 		barGap:     1,
 		groupGap:   1,
@@ -155,6 +158,11 @@ func (c BarChart) DataPairs(data []BarData) BarChart {
 
 func (c BarChart) Block(block Block) BarChart {
 	c.block = &block
+	return c
+}
+
+func (c BarChart) Direction(direction layout.Direction) BarChart {
+	c.direction = direction
 	return c
 }
 
@@ -216,6 +224,14 @@ func (c BarChart) Render(area layout.Rect, buf *buffer.Buffer) {
 		return
 	}
 	buf.SetStyle(chartArea, c.style)
+	if c.direction == layout.Horizontal {
+		c.renderHorizontal(chartArea, buf)
+		return
+	}
+	c.renderVertical(chartArea, buf)
+}
+
+func (c BarChart) renderVertical(chartArea layout.Rect, buf *buffer.Buffer) {
 	labelRows := 0
 	if chartArea.Height >= 2 {
 		labelRows = 1
@@ -258,6 +274,115 @@ func (c BarChart) Render(area layout.Rect, buf *buffer.Buffer) {
 			writeStringWithin(buf, groupStart, groupLabelY, right, group.label, c.style.Patch(c.labelStyle))
 		}
 	}
+}
+
+func (c BarChart) renderHorizontal(chartArea layout.Rect, buf *buffer.Buffer) {
+	max := c.effectiveMax()
+	labelWidth := c.horizontalLabelWidth(chartArea)
+	barAreaWidth := chartArea.Width - labelWidth
+	if barAreaWidth <= 0 {
+		return
+	}
+	y := chartArea.Y
+	bottom := chartArea.Y + chartArea.Height
+	for groupIndex, group := range c.groups {
+		if groupIndex > 0 {
+			y += nonNegative(c.groupGap)
+		}
+		for barIndex, bar := range group.bars {
+			if barIndex > 0 {
+				y += nonNegative(c.barGap)
+			}
+			if y >= bottom {
+				return
+			}
+			height := c.barWidth
+			if y+height > bottom {
+				height = bottom - y
+			}
+			if labelWidth > 0 && bar.label != "" {
+				writeStringWithin(buf, chartArea.X, y+height/2, chartArea.X+labelWidth-1, bar.label, c.style.Patch(c.labelStyle).Patch(bar.labelStyle))
+			}
+			c.renderHorizontalBar(buf, chartArea.X+labelWidth, y, barAreaWidth, height, max, bar)
+			y += c.barWidth
+		}
+		if c.groupGap > 0 && group.label != "" && y < bottom {
+			writeStringWithin(buf, chartArea.X, y, chartArea.X+chartArea.Width, group.label, c.style.Patch(c.labelStyle))
+		}
+	}
+}
+
+func (c BarChart) horizontalLabelWidth(area layout.Rect) int {
+	maxLabelWidth := 0
+	for _, group := range c.groups {
+		for _, bar := range group.bars {
+			if width := buffer.CellWidth(bar.label); width > maxLabelWidth {
+				maxLabelWidth = width
+			}
+		}
+	}
+	if maxLabelWidth == 0 {
+		return 0
+	}
+	width := maxLabelWidth + 1
+	if width > area.Width {
+		return area.Width
+	}
+	return width
+}
+
+func (c BarChart) renderHorizontalBar(buf *buffer.Buffer, x, y, width, height int, max uint64, bar Bar) {
+	if width <= 0 || height <= 0 {
+		return
+	}
+	barLength := scaledTicks(bar.value, max, width)
+	barStyle := c.style.Patch(c.barStyle).Patch(bar.style)
+	if barLength > 0 {
+		buf.SetStyle(layout.NewRect(x, y, barLength, height), barStyle)
+		for dy := range height {
+			for dx := range barLength {
+				buf.SetCell(x+dx, y+dy, buffer.Cell{Symbol: c.barSet.Full, Style: barStyle})
+			}
+		}
+	}
+	value := bar.textValue
+	if value == "" {
+		value = uintToString(bar.value)
+	}
+	valueY := y + height/2
+	c.renderHorizontalValue(buf, x, valueY, width, barLength, value, barStyle.Patch(c.valueStyle).Patch(bar.valueStyle), barStyle)
+}
+
+func (c BarChart) renderHorizontalValue(buf *buffer.Buffer, x, y, width, barLength int, value string, valueStyle, overflowStyle style.Style) {
+	if width <= 0 || value == "" {
+		return
+	}
+	if barLength > 0 {
+		endX, _ := buf.SetStringN(x, y, value, minInt(width, barLength), valueStyle)
+		remaining := width - (endX - x)
+		if remaining > 0 {
+			buf.SetStringN(endX, y, valueDisplaySuffix(value, endX-x), remaining, overflowStyle)
+		}
+		return
+	}
+	buf.SetStringN(x, y, value, width, overflowStyle)
+}
+
+func valueDisplaySuffix(value string, skippedWidth int) string {
+	if skippedWidth <= 0 {
+		return value
+	}
+	for index, r := range value {
+		width := buffer.CellWidth(string(r))
+		if width > skippedWidth {
+			return value[index:]
+		}
+		skippedWidth -= width
+		if skippedWidth == 0 {
+			return value[index+utf8.RuneLen(r):]
+		}
+	}
+	return ""
 }
 
 func (c BarChart) renderBar(buf *buffer.Buffer, x, y, width, height int, max uint64, bar Bar) {
