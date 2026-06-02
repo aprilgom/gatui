@@ -35,7 +35,7 @@ func TestGauge_shouldRenderPercentAndRatioWithUnicode(t *testing.T) {
 		"  │███████████████51%                │  ",
 		"  └──────────────────────────────────┘  ",
 	})
-	for x := 3; x < 37; x++ {
+	for x := 3; x < 18; x++ {
 		assertCellStyle(t, buf, x, 1, gaugeStyle)
 	}
 	for x := 3; x < 18; x++ {
@@ -43,9 +43,6 @@ func TestGauge_shouldRenderPercentAndRatioWithUnicode(t *testing.T) {
 	}
 	for x := 18; x < 20; x++ {
 		assertCellStyle(t, buf, x, 4, style.NewStyle().Fg(style.Blue).Bg(style.Red))
-	}
-	for x := 20; x < 37; x++ {
-		assertCellStyle(t, buf, x, 4, gaugeStyle)
 	}
 }
 
@@ -95,7 +92,7 @@ func TestGauge_shouldApplyStyles(t *testing.T) {
 		assertCellStyle(t, buf, x, 0, style.NewStyle().Fg(style.Red))
 	}
 	for y := 1; y <= 3; y++ {
-		for x := 1; x <= 10; x++ {
+		for x := 1; x < 5; x++ {
 			if y == 2 && x >= 4 && x <= 6 {
 				continue
 			}
@@ -104,8 +101,50 @@ func TestGauge_shouldApplyStyles(t *testing.T) {
 	}
 	assertCellStyle(t, buf, 4, 2, style.NewStyle().Fg(style.Green).Bg(style.Blue).AddModifier(style.ModifierBold))
 	for x := 5; x <= 6; x++ {
-		assertCellStyle(t, buf, x, 2, style.NewStyle().Fg(style.Green).Bg(style.Red).AddModifier(style.ModifierBold))
+		assertCellStyle(t, buf, x, 2, style.NewStyle().Fg(style.Green).AddModifier(style.ModifierBold))
 	}
+}
+
+func TestGauge_canBeStylized(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 12, 3))
+	baseStyle := style.NewStyle().
+		Fg(style.Black).
+		Bg(style.White).
+		AddModifier(style.ModifierBold | style.ModifierDim | style.ModifierItalic)
+	gaugeStyle := style.NewStyle().Fg(style.Blue).Bg(style.Red)
+
+	widgets.NewGauge().
+		Fg(style.Black).
+		Bg(style.White).
+		Bold().
+		Dim().
+		Italic().
+		GaugeStyle(gaugeStyle).
+		Percent(50).
+		Label(text.StyledSpan("50%", style.NewStyle().Fg(style.Green))).
+		Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"██████      ",
+		"████50%     ",
+		"██████      ",
+	})
+	for y := 0; y < 3; y++ {
+		for x := 0; x < 12; x++ {
+			switch {
+			case y == 1 && x >= 4 && x <= 6:
+				continue
+			case x < 6:
+				assertCellStyle(t, buf, x, y, gaugeStyle)
+			default:
+				assertCellStyle(t, buf, x, y, baseStyle)
+			}
+		}
+	}
+	for x := 4; x <= 5; x++ {
+		assertCellStyle(t, buf, x, 1, style.NewStyle().Fg(style.Green).Bg(style.Blue))
+	}
+	assertCellStyle(t, buf, 6, 1, style.NewStyle().Fg(style.Green).Bg(style.White).AddModifier(style.ModifierBold|style.ModifierDim|style.ModifierItalic))
 }
 
 func TestGauge_shouldSupportLargeLabels(t *testing.T) {

@@ -59,6 +59,35 @@ func (g LineGauge) Style(lineGaugeStyle style.Style) LineGauge {
 	return g
 }
 
+func (g LineGauge) Fg(color style.Color) LineGauge {
+	g.style = g.style.Fg(color)
+	return g
+}
+
+func (g LineGauge) Bg(color style.Color) LineGauge {
+	g.style = g.style.Bg(color)
+	return g
+}
+
+func (g LineGauge) Bold() LineGauge {
+	g.style = g.style.AddModifier(style.ModifierBold)
+	return g
+}
+
+func (g LineGauge) Dim() LineGauge {
+	g.style = g.style.AddModifier(style.ModifierDim)
+	return g
+}
+
+func (g LineGauge) Italic() LineGauge {
+	g.style = g.style.AddModifier(style.ModifierItalic)
+	return g
+}
+
+func (g LineGauge) Cyan() LineGauge {
+	return g.Fg(style.Cyan)
+}
+
 func (g LineGauge) FilledStyle(filledStyle style.Style) LineGauge {
 	g.filledStyle = filledStyle
 	return g

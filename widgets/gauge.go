@@ -58,6 +58,35 @@ func (g Gauge) Style(gaugeStyle style.Style) Gauge {
 	return g
 }
 
+func (g Gauge) Fg(color style.Color) Gauge {
+	g.style = g.style.Fg(color)
+	return g
+}
+
+func (g Gauge) Bg(color style.Color) Gauge {
+	g.style = g.style.Bg(color)
+	return g
+}
+
+func (g Gauge) Bold() Gauge {
+	g.style = g.style.AddModifier(style.ModifierBold)
+	return g
+}
+
+func (g Gauge) Dim() Gauge {
+	g.style = g.style.AddModifier(style.ModifierDim)
+	return g
+}
+
+func (g Gauge) Italic() Gauge {
+	g.style = g.style.AddModifier(style.ModifierItalic)
+	return g
+}
+
+func (g Gauge) Cyan() Gauge {
+	return g.Fg(style.Cyan)
+}
+
 func (g Gauge) GaugeStyle(gaugeStyle style.Style) Gauge {
 	g.gaugeStyle = gaugeStyle
 	return g
@@ -85,8 +114,6 @@ func (g Gauge) renderGauge(area layout.Rect, buf *buffer.Buffer) {
 	if area.Width == 0 || area.Height == 0 {
 		return
 	}
-	buf.SetStyle(area, g.gaugeStyle)
-
 	label := g.effectiveLabel()
 	labelRunes := []rune(label.Content)
 	if len(labelRunes) > area.Width {
@@ -119,7 +146,7 @@ func (g Gauge) renderGauge(area layout.Rect, buf *buffer.Buffer) {
 
 	for i, r := range labelRunes {
 		x := labelX + i
-		cellStyle := g.gaugeStyle.Patch(label.Style)
+		cellStyle := g.style.Patch(label.Style)
 		if x < end {
 			cellStyle = g.swappedGaugeStyle().Patch(label.Style)
 		}

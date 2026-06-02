@@ -97,3 +97,41 @@ func TestLineGauge_shouldPreserveStyledMultiSpanLabel(t *testing.T) {
 	assertCellStyle(t, buf, 2, 0, style.NewStyle().Fg(style.Green).Bg(style.Blue))
 	assertCellStyle(t, buf, 3, 0, style.NewStyle().Fg(style.Green).Bg(style.Blue))
 }
+
+func TestLineGauge_canBeStylized(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 16, 1))
+	baseStyle := style.NewStyle().
+		Fg(style.Black).
+		Bg(style.White).
+		AddModifier(style.ModifierBold | style.ModifierDim | style.ModifierItalic)
+	filledStyle := style.NewStyle().Fg(style.Green)
+	unfilledStyle := style.NewStyle().Fg(style.Red)
+
+	widgets.NewLineGauge().
+		Fg(style.Black).
+		Bg(style.White).
+		Bold().
+		Dim().
+		Italic().
+		FilledStyle(filledStyle).
+		UnfilledStyle(unfilledStyle).
+		Label(text.NewLine(
+			text.StyledSpan("ab", style.NewStyle().Fg(style.Blue)),
+			text.NewSpan("cd"),
+		).Style(style.NewStyle().Bg(style.Cyan))).
+		Ratio(0.50).
+		Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"abcd ───────────"})
+	assertCellStyle(t, buf, 0, 0, style.NewStyle().Fg(style.Blue).Bg(style.Cyan).AddModifier(style.ModifierBold|style.ModifierDim|style.ModifierItalic))
+	assertCellStyle(t, buf, 1, 0, style.NewStyle().Fg(style.Blue).Bg(style.Cyan).AddModifier(style.ModifierBold|style.ModifierDim|style.ModifierItalic))
+	assertCellStyle(t, buf, 2, 0, style.NewStyle().Fg(style.Black).Bg(style.Cyan).AddModifier(style.ModifierBold|style.ModifierDim|style.ModifierItalic))
+	assertCellStyle(t, buf, 3, 0, style.NewStyle().Fg(style.Black).Bg(style.Cyan).AddModifier(style.ModifierBold|style.ModifierDim|style.ModifierItalic))
+	assertCellStyle(t, buf, 4, 0, baseStyle)
+	for x := 5; x < 10; x++ {
+		assertCellStyle(t, buf, x, 0, filledStyle)
+	}
+	for x := 10; x < 16; x++ {
+		assertCellStyle(t, buf, x, 0, unfilledStyle)
+	}
+}
