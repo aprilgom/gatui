@@ -817,6 +817,134 @@ func TestTableState_ClearSelection_shouldResetOffset(t *testing.T) {
 	}
 }
 
+func TestTableState_new(t *testing.T) {
+	state := widgets.NewTableState()
+
+	if got := state.Offset(); got != 0 {
+		t.Fatalf("Offset() = %d, want 0", got)
+	}
+	if selected, ok := state.Selected(); ok {
+		t.Fatalf("Selected() = %d, true, want false", selected)
+	}
+	if selectedColumn, ok := state.SelectedColumn(); ok {
+		t.Fatalf("SelectedColumn() = %d, true, want false", selectedColumn)
+	}
+	if row, column, ok := state.SelectedCell(); ok {
+		t.Fatalf("SelectedCell() = %d,%d,true, want false", row, column)
+	}
+}
+
+func TestTableState_offset(t *testing.T) {
+	state := widgets.NewTableState()
+	state.SetOffset(3)
+
+	if got := state.Offset(); got != 3 {
+		t.Fatalf("Offset() = %d, want 3", got)
+	}
+}
+
+func TestTableState_offsetMut(t *testing.T) {
+	state := widgets.NewTableState()
+
+	state.SetOffset(3)
+	if got := state.Offset(); got != 3 {
+		t.Fatalf("Offset() after SetOffset(3) = %d, want 3", got)
+	}
+
+	state.SetOffset(-1)
+	if got := state.Offset(); got != 0 {
+		t.Fatalf("Offset() after SetOffset(-1) = %d, want 0", got)
+	}
+
+	state = widgets.NewTableState().WithOffset(4)
+	if got := state.Offset(); got != 4 {
+		t.Fatalf("Offset() after WithOffset(4) = %d, want 4", got)
+	}
+}
+
+func TestTableState_selected(t *testing.T) {
+	state := widgets.NewTableState()
+
+	if selected, ok := state.Selected(); ok {
+		t.Fatalf("Selected() before Select = %d, true, want false", selected)
+	}
+
+	state.Select(2)
+	if selected, ok := state.Selected(); !ok || selected != 2 {
+		t.Fatalf("Selected() after Select(2) = %d, %v; want 2, true", selected, ok)
+	}
+}
+
+func TestTableState_selectedCell(t *testing.T) {
+	state := widgets.NewTableState()
+
+	if row, column, ok := state.SelectedCell(); ok {
+		t.Fatalf("SelectedCell() before SelectCell = %d,%d,true, want false", row, column)
+	}
+
+	state.SelectCell(2, 4)
+	if row, column, ok := state.SelectedCell(); !ok || row != 2 || column != 4 {
+		t.Fatalf("SelectedCell() after SelectCell(2,4) = %d,%d,%v; want 2,4,true", row, column, ok)
+	}
+	if selected, ok := state.Selected(); !ok || selected != 2 {
+		t.Fatalf("Selected() after SelectCell(2,4) = %d, %v; want 2, true", selected, ok)
+	}
+	if selectedColumn, ok := state.SelectedColumn(); !ok || selectedColumn != 4 {
+		t.Fatalf("SelectedColumn() after SelectCell(2,4) = %d, %v; want 4, true", selectedColumn, ok)
+	}
+}
+
+func TestTableState_selectedColumn(t *testing.T) {
+	state := widgets.NewTableState()
+
+	if selectedColumn, ok := state.SelectedColumn(); ok {
+		t.Fatalf("SelectedColumn() before SelectColumn = %d, true, want false", selectedColumn)
+	}
+
+	state.SelectColumn(3)
+	if selectedColumn, ok := state.SelectedColumn(); !ok || selectedColumn != 3 {
+		t.Fatalf("SelectedColumn() after SelectColumn(3) = %d, %v; want 3, true", selectedColumn, ok)
+	}
+}
+
+func TestTableState_selectedColumnMut(t *testing.T) {
+	state := widgets.NewTableState()
+
+	state.SelectColumn(3)
+	if selectedColumn, ok := state.SelectedColumn(); !ok || selectedColumn != 3 {
+		t.Fatalf("SelectedColumn() after SelectColumn(3) = %d, %v; want 3, true", selectedColumn, ok)
+	}
+
+	state.ClearColumnSelection()
+	if selectedColumn, ok := state.SelectedColumn(); ok {
+		t.Fatalf("SelectedColumn() after ClearColumnSelection() = %d, true, want false", selectedColumn)
+	}
+
+	state = widgets.NewTableState().WithSelectedColumn(4)
+	if selectedColumn, ok := state.SelectedColumn(); !ok || selectedColumn != 4 {
+		t.Fatalf("SelectedColumn() after WithSelectedColumn(4) = %d, %v; want 4, true", selectedColumn, ok)
+	}
+}
+
+func TestTableState_selectedMut(t *testing.T) {
+	state := widgets.NewTableState()
+
+	state.Select(2)
+	if selected, ok := state.Selected(); !ok || selected != 2 {
+		t.Fatalf("Selected() after Select(2) = %d, %v; want 2, true", selected, ok)
+	}
+
+	state.ClearSelection()
+	if selected, ok := state.Selected(); ok {
+		t.Fatalf("Selected() after ClearSelection() = %d, true, want false", selected)
+	}
+
+	state = widgets.NewTableState().WithSelected(3)
+	if selected, ok := state.Selected(); !ok || selected != 3 {
+		t.Fatalf("Selected() after WithSelected(3) = %d, %v; want 3, true", selected, ok)
+	}
+}
+
 func TestTableState_shouldSupportFluentSetters(t *testing.T) {
 	state := widgets.NewTableState().
 		WithOffset(4).
