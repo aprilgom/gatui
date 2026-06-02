@@ -1,5 +1,7 @@
 package buffer
 
+const variationSelector16 = '\ufe0f'
+
 type CellDiff struct {
 	X    int
 	Y    int
@@ -32,6 +34,21 @@ func (b *Buffer) Diff(next *Buffer) []CellDiff {
 					Y:    next.Area.Y + y,
 					Cell: current,
 				})
+				if width > 1 && containsRune(current.Symbol, variationSelector16) {
+					trailingEnd := minInt(x+width, b.Area.Width)
+					for trailingX := x + 1; trailingX < trailingEnd; trailingX++ {
+						trailingIndex := y*b.Area.Width + trailingX
+						trailingPrevious := b.Cells[trailingIndex]
+						trailingCurrent := next.Cells[trailingIndex]
+						if trailingCurrent.DiffOption != CellDiffSkip && trailingPrevious.Symbol != trailingCurrent.Symbol {
+							diffs = append(diffs, CellDiff{
+								X:    next.Area.X + trailingX,
+								Y:    next.Area.Y + y,
+								Cell: trailingCurrent,
+							})
+						}
+					}
+				}
 			}
 			if current.DiffOption == CellDiffForcedWidth || current.ForcedWidth > 0 || width > 1 {
 				x += width - 1
@@ -39,4 +56,13 @@ func (b *Buffer) Diff(next *Buffer) []CellDiff {
 		}
 	}
 	return diffs
+}
+
+func containsRune(value string, target rune) bool {
+	for _, r := range value {
+		if r == target {
+			return true
+		}
+	}
+	return false
 }

@@ -681,6 +681,59 @@ func TestBuffer_Diff_shouldHandleMultiWidthOffset(t *testing.T) {
 	}
 }
 
+func TestBuffer_Diff_clearsTrailingCellForWideGrapheme(t *testing.T) {
+	prev := buffer.WithLines([]string{"ab"})
+	next := buffer.WithLines([]string{"  "})
+	next.SetString(0, 0, "⌨️", style.NewStyle())
+
+	diff := prev.Diff(next)
+
+	want := []buffer.CellDiff{
+		{X: 0, Y: 0, Cell: buffer.NewCell("⌨️")},
+		{X: 1, Y: 0, Cell: buffer.NewCell(" ")},
+	}
+	if !slices.Equal(diff, want) {
+		t.Fatalf("diff = %#v, want %#v", diff, want)
+	}
+}
+
+func TestBuffer_Diff_ignoresStyleOnlyChangesInTrailingCells(t *testing.T) {
+	prev := buffer.Empty(layout.NewRect(0, 0, 3, 1))
+	prev.SetString(0, 0, "  ", style.NewStyle().Fg(style.LightBlue))
+	prev.SetString(2, 0, "x", style.NewStyle())
+
+	next := buffer.Empty(layout.NewRect(0, 0, 3, 1))
+	next.SetString(0, 0, "⚠️", style.NewStyle().Fg(style.Reset))
+	next.SetString(2, 0, "x", style.NewStyle())
+
+	diff := prev.Diff(next)
+
+	want := []buffer.CellDiff{{X: 0, Y: 0, Cell: buffer.NewCell("⚠️")}}
+	want[0].Cell.SetStyle(style.NewStyle().Fg(style.Reset))
+	if !slices.Equal(diff, want) {
+		t.Fatalf("diff = %#v, want %#v", diff, want)
+	}
+}
+
+func TestBuffer_Diff_vs16TrailingCellUnchanged(t *testing.T) {
+	prev := buffer.Empty(layout.NewRect(0, 0, 4, 1))
+	prev.SetString(0, 0, "⌨️", style.NewStyle())
+	prev.SetString(2, 0, "ab", style.NewStyle())
+
+	next := buffer.Empty(layout.NewRect(0, 0, 4, 1))
+	next.SetString(0, 0, "⌨️", style.NewStyle().Fg(style.Red))
+	next.SetString(2, 0, "ab", style.NewStyle())
+
+	diff := prev.Diff(next)
+
+	wantCell := buffer.NewCell("⌨️")
+	wantCell.SetStyle(style.NewStyle().Fg(style.Red))
+	want := []buffer.CellDiff{{X: 0, Y: 0, Cell: wantCell}}
+	if !slices.Equal(diff, want) {
+		t.Fatalf("diff = %#v, want %#v", diff, want)
+	}
+}
+
 func TestBuffer_Diff_shouldPanicForIncompatibleAreas(t *testing.T) {
 	tests := []struct {
 		name string
