@@ -8,10 +8,12 @@ import (
 )
 
 type Block struct {
-	title   text.Line
-	borders Borders
-	padding Padding
-	style   style.Style
+	title       text.Line
+	borders     Borders
+	padding     Padding
+	style       style.Style
+	borderStyle style.Style
+	titleStyle  style.Style
 }
 
 type Padding struct {
@@ -66,7 +68,11 @@ func PaddingBottom(value int) Padding {
 }
 
 func NewBlock() Block {
-	return Block{style: style.NewStyle()}
+	return Block{
+		style:       style.NewStyle(),
+		borderStyle: style.NewStyle(),
+		titleStyle:  style.NewStyle(),
+	}
 }
 
 func BorderedBlock() Block {
@@ -85,6 +91,21 @@ func (b Block) Borders(borders Borders) Block {
 
 func (b Block) Padding(padding Padding) Block {
 	b.padding = padding
+	return b
+}
+
+func (b Block) Style(blockStyle style.Style) Block {
+	b.style = blockStyle
+	return b
+}
+
+func (b Block) BorderStyle(borderStyle style.Style) Block {
+	b.borderStyle = borderStyle
+	return b
+}
+
+func (b Block) TitleStyle(titleStyle style.Style) Block {
+	b.titleStyle = titleStyle
 	return b
 }
 
@@ -108,33 +129,33 @@ func (b Block) Inner(area layout.Rect) layout.Rect {
 	inner := area
 	inner.X += left
 	inner.Y += top
-	inner.Width = maxInt(0, inner.Width-left-right)
-	inner.Height = maxInt(0, inner.Height-top-bottom)
+	inner.Width = saturatingSub(inner.Width, saturatingAdd(left, right))
+	inner.Height = saturatingSub(inner.Height, saturatingAdd(top, bottom))
 	inner.X += b.padding.Left
 	inner.Y += b.padding.Top
-	inner.Width = maxInt(0, inner.Width-b.padding.Left-b.padding.Right)
-	inner.Height = maxInt(0, inner.Height-b.padding.Top-b.padding.Bottom)
+	inner.Width = saturatingSub(inner.Width, saturatingAdd(b.padding.Left, b.padding.Right))
+	inner.Height = saturatingSub(inner.Height, saturatingAdd(b.padding.Top, b.padding.Bottom))
 	return inner
 }
 
 func (b Block) horizontalSpace() int {
-	space := b.padding.Left + b.padding.Right
+	space := saturatingAdd(b.padding.Left, b.padding.Right)
 	if b.borders.Has(LeftBorder) {
-		space++
+		space = saturatingAdd(space, 1)
 	}
 	if b.borders.Has(RightBorder) {
-		space++
+		space = saturatingAdd(space, 1)
 	}
 	return space
 }
 
 func (b Block) verticalSpace() int {
-	space := b.padding.Top + b.padding.Bottom
+	space := saturatingAdd(b.padding.Top, b.padding.Bottom)
 	if b.borders.Has(TopBorder) {
-		space++
+		space = saturatingAdd(space, 1)
 	}
 	if b.borders.Has(BottomBorder) {
-		space++
+		space = saturatingAdd(space, 1)
 	}
 	return space
 }
@@ -175,14 +196,19 @@ func (b Block) Render(area layout.Rect, buf *buffer.Buffer) {
 		titleX++
 	}
 	x := titleX
-	for _, span := range b.title.Spans {
-		for _, r := range span.Content {
-			if x >= area.X+area.Width {
-				return
-			}
-			b.setCell(buf, x, area.Y, string(r), b.style.Patch(span.Style))
-			x++
+	for _, grapheme := range b.title.StyledGraphemes(b.style.Patch(b.titleStyle)) {
+		width := buffer.CellWidth(grapheme.Symbol)
+		if width == 0 {
+			continue
 		}
+		if x+width > area.X+area.Width {
+			return
+		}
+		b.setCell(buf, x, area.Y, grapheme.Symbol, grapheme.Style)
+		for trailing := 1; trailing < width; trailing++ {
+			b.setCell(buf, x+trailing, area.Y, " ", grapheme.Style)
+		}
+		x += width
 	}
 }
 
@@ -197,41 +223,70 @@ func (b Block) setCell(buf *buffer.Buffer, x, y int, symbol string, cellStyle st
 }
 
 func (b Block) renderBorders(area layout.Rect, buf *buffer.Buffer) {
+	if area.Width == 0 || area.Height == 0 {
+		return
+	}
+	borderStyle := b.style.Patch(b.borderStyle)
 	right := area.X + area.Width - 1
 	bottom := area.Y + area.Height - 1
 	if b.borders.Has(TopBorder) {
 		for x := area.X; x <= right; x++ {
-			b.setCell(buf, x, area.Y, "─", b.style)
+			b.setCell(buf, x, area.Y, "─", borderStyle)
 		}
 	}
 	if b.borders.Has(BottomBorder) && bottom != area.Y {
 		for x := area.X; x <= right; x++ {
-			b.setCell(buf, x, bottom, "─", b.style)
+			b.setCell(buf, x, bottom, "─", borderStyle)
 		}
 	}
 	if b.borders.Has(LeftBorder) {
 		for y := area.Y; y <= bottom; y++ {
-			b.setCell(buf, area.X, y, "│", b.style)
+			b.setCell(buf, area.X, y, "│", borderStyle)
 		}
 	}
 	if b.borders.Has(RightBorder) && right != area.X {
 		for y := area.Y; y <= bottom; y++ {
-			b.setCell(buf, right, y, "│", b.style)
+			b.setCell(buf, right, y, "│", borderStyle)
 		}
 	}
 	if b.borders.Has(TopBorder) && b.borders.Has(LeftBorder) {
-		b.setCell(buf, area.X, area.Y, "┌", b.style)
+		b.setCell(buf, area.X, area.Y, "┌", borderStyle)
 	}
 	if b.borders.Has(TopBorder) && b.borders.Has(RightBorder) && right != area.X {
-		b.setCell(buf, right, area.Y, "┐", b.style)
+		b.setCell(buf, right, area.Y, "┐", borderStyle)
 	}
 	if b.borders.Has(BottomBorder) && b.borders.Has(LeftBorder) && bottom != area.Y {
-		b.setCell(buf, area.X, bottom, "└", b.style)
+		b.setCell(buf, area.X, bottom, "└", borderStyle)
 	}
 	if b.borders.Has(BottomBorder) && b.borders.Has(RightBorder) && right != area.X && bottom != area.Y {
-		b.setCell(buf, right, bottom, "┘", b.style)
+		b.setCell(buf, right, bottom, "┘", borderStyle)
 	}
 }
+
+func saturatingAdd(a, b int) int {
+	if b > 0 && a > maxIntValue-b {
+		return maxIntValue
+	}
+	if b < 0 && a < minIntValue-b {
+		return minIntValue
+	}
+	return a + b
+}
+
+func saturatingSub(a, b int) int {
+	if b <= 0 {
+		return saturatingAdd(a, -b)
+	}
+	if a <= b {
+		return 0
+	}
+	return a - b
+}
+
+const (
+	maxIntValue = int(^uint(0) >> 1)
+	minIntValue = -maxIntValue - 1
+)
 
 type Borders uint8
 

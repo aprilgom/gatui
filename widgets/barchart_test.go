@@ -428,7 +428,7 @@ func TestBarChart_twoLinesWithoutBarLabels(t *testing.T) {
 
 func TestBarChart_oneLineWithMoreBars(t *testing.T) {
 	bars := make([]widgets.Bar, 0, 30)
-	for i := uint64(0); i < 30; i++ {
+	for i := range uint64(30) {
 		bars = append(bars, widgets.NewBar(i))
 	}
 	buf := buffer.Empty(layout.NewRect(0, 0, 59, 1))

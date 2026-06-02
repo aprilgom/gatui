@@ -1,0 +1,127 @@
+package widgets
+
+import (
+	"math"
+	"testing"
+
+	"gatui/buffer"
+	"gatui/layout"
+	"gatui/style"
+	"gatui/text"
+)
+
+func TestBlock_new(t *testing.T) {
+	block := NewBlock()
+
+	if block.borders != NoBorders {
+		t.Fatalf("NewBlock().borders = %v, want %v", block.borders, NoBorders)
+	}
+	if block.padding != PaddingZero() {
+		t.Fatalf("NewBlock().padding = %#v, want %#v", block.padding, PaddingZero())
+	}
+	if block.style != style.NewStyle() {
+		t.Fatalf("NewBlock().style = %#v, want %#v", block.style, style.NewStyle())
+	}
+
+	bordered := BorderedBlock()
+	if bordered.borders != AllBorders {
+		t.Fatalf("BorderedBlock().borders = %v, want %v", bordered.borders, AllBorders)
+	}
+}
+
+func TestBlock_titleStyle(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 7, 3))
+	block := BorderedBlock().
+		Title(text.LineFromString("Title")).
+		TitleStyle(style.NewStyle().Fg(style.Red))
+
+	block.Render(buf.Area, buf)
+
+	for x := 1; x <= 5; x++ {
+		cell, ok := buf.CellAt(x, 0)
+		if !ok {
+			t.Fatalf("missing cell at (%d,0)", x)
+		}
+		if cell.Style != style.NewStyle().Fg(style.Red) {
+			t.Fatalf("cell(%d,0).Style = %#v, want red foreground", x, cell.Style)
+		}
+	}
+}
+
+func TestBlock_styleIntoWorksFromUserView(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 4, 3))
+	block := BorderedBlock().
+		Style(style.NewStyle().Bg(style.Green)).
+		BorderStyle(style.NewStyle().Fg(style.Cyan)).
+		Title(text.LineFromString("T")).
+		TitleStyle(style.NewStyle().Fg(style.Red))
+
+	block.Render(buf.Area, buf)
+
+	assertBlockCellStyle(t, buf, 0, 0, style.NewStyle().Fg(style.Cyan).Bg(style.Green))
+	assertBlockCellStyle(t, buf, 1, 0, style.NewStyle().Fg(style.Red).Bg(style.Green))
+	assertBlockCellStyle(t, buf, 1, 1, style.NewStyle())
+}
+
+func TestBlock_renderInMinimalBuffer(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 1, 1))
+
+	BorderedBlock().Title(text.LineFromString("Title")).Render(buf.Area, buf)
+
+	cell, ok := buf.CellAt(0, 0)
+	if !ok {
+		t.Fatalf("missing cell at (0,0)")
+	}
+	if cell.Symbol != "┌" {
+		t.Fatalf("cell(0,0).Symbol = %q, want %q", cell.Symbol, "┌")
+	}
+}
+
+func TestBlock_renderInZeroSizeBuffer(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 0, 0))
+
+	BorderedBlock().Title(text.LineFromString("Title")).Render(buf.Area, buf)
+}
+
+func TestBlock_renderCornersHandlesEmptyAreaWithoutPanicking(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 0, 0))
+
+	BorderedBlock().renderBorders(buf.Area, buf)
+}
+
+func TestBlock_renderSidesHandlesEmptyAreaWithoutPanicking(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 0, 0))
+
+	NewBlock().Borders(LeftBorder|RightBorder).renderBorders(buf.Area, buf)
+}
+
+func TestBlock_innerSaturatesWhenPaddingSumOverflows(t *testing.T) {
+	block := BorderedBlock().Padding(NewPadding(math.MaxInt, math.MaxInt, math.MaxInt, math.MaxInt))
+
+	inner := block.Inner(layout.NewRect(1, 2, 3, 4))
+
+	if inner.Width != 0 || inner.Height != 0 {
+		t.Fatalf("inner size = %dx%d, want 0x0", inner.Width, inner.Height)
+	}
+}
+
+func TestBlock_verticalSpaceSaturatesWhenSpaceOverflows(t *testing.T) {
+	block := NewBlock().
+		Borders(TopBorder | BottomBorder).
+		Padding(NewPadding(0, 0, math.MaxInt, math.MaxInt))
+
+	if got := block.verticalSpace(); got != math.MaxInt {
+		t.Fatalf("verticalSpace = %d, want %d", got, math.MaxInt)
+	}
+}
+
+func assertBlockCellStyle(t *testing.T, buf *buffer.Buffer, x, y int, want style.Style) {
+	t.Helper()
+	cell, ok := buf.CellAt(x, y)
+	if !ok {
+		t.Fatalf("missing cell at (%d,%d)", x, y)
+	}
+	if cell.Style != want {
+		t.Fatalf("cell(%d,%d).Style = %#v, want %#v", x, y, cell.Style, want)
+	}
+}
