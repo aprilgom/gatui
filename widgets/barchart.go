@@ -57,12 +57,18 @@ func (b Bar) LabelStyle(labelStyle style.Style) Bar {
 }
 
 type BarGroup struct {
-	label string
-	bars  []Bar
+	label          string
+	labelStyle     style.Style
+	labelAlignment layout.Alignment
+	bars           []Bar
 }
 
 func NewBarGroup(bars []Bar) BarGroup {
-	return BarGroup{bars: append([]Bar(nil), bars...)}
+	return BarGroup{
+		labelStyle:     style.NewStyle(),
+		labelAlignment: layout.Left,
+		bars:           append([]Bar(nil), bars...),
+	}
 }
 
 func (g BarGroup) Label(label string) BarGroup {
@@ -72,6 +78,16 @@ func (g BarGroup) Label(label string) BarGroup {
 
 func (g BarGroup) Bars(bars []Bar) BarGroup {
 	g.bars = append([]Bar(nil), bars...)
+	return g
+}
+
+func (g BarGroup) LabelStyle(labelStyle style.Style) BarGroup {
+	g.labelStyle = labelStyle
+	return g
+}
+
+func (g BarGroup) LabelAlignment(alignment layout.Alignment) BarGroup {
+	g.labelAlignment = alignment
 	return g
 }
 
@@ -138,6 +154,10 @@ func NewBarChart() BarChart {
 		labelStyle: style.NewStyle(),
 		barSet:     NineLevelBarSet,
 	}
+}
+
+func NewBarChartWithBars(bars []Bar) BarChart {
+	return NewBarChart().Data(NewBarGroup(bars))
 }
 
 func (c BarChart) Data(group BarGroup) BarChart {
@@ -211,6 +231,30 @@ func (c BarChart) BarSet(barSet BarSet) BarChart {
 	return c
 }
 
+func (c BarChart) Fg(color style.Color) BarChart {
+	c.style = c.style.Fg(color)
+	return c
+}
+
+func (c BarChart) Bg(color style.Color) BarChart {
+	c.style = c.style.Bg(color)
+	return c
+}
+
+func (c BarChart) Bold() BarChart {
+	c.style = c.style.AddModifier(style.ModifierBold)
+	return c
+}
+
+func (c BarChart) Italic() BarChart {
+	c.style = c.style.AddModifier(style.ModifierItalic)
+	return c
+}
+
+func (c BarChart) Cyan() BarChart {
+	return c.Fg(style.Cyan)
+}
+
 func (c BarChart) Render(area layout.Rect, buf *buffer.Buffer) {
 	if area.Width == 0 || area.Height == 0 {
 		return
@@ -232,22 +276,25 @@ func (c BarChart) Render(area layout.Rect, buf *buffer.Buffer) {
 }
 
 func (c BarChart) renderVertical(chartArea layout.Rect, buf *buffer.Buffer) {
+	hasBarLabels := c.hasBarLabels()
+	hasGroupLabels := c.hasGroupLabels()
 	labelRows := 0
-	if chartArea.Height >= 2 {
+	if chartArea.Height >= 2 && hasBarLabels {
 		labelRows = 1
 	}
-	if chartArea.Height >= 3 && c.hasGroupLabels() {
-		labelRows = 2
+	if hasGroupLabels && (chartArea.Height >= 3 || !hasBarLabels && chartArea.Height >= 2) {
+		labelRows++
 	}
 	max := c.effectiveMax()
 	barHeight := chartArea.Height - labelRows
 	barLabelY := chartArea.Y + barHeight
 	groupLabelY := barLabelY
-	if labelRows == 2 {
+	if hasBarLabels && hasGroupLabels {
 		groupLabelY = barLabelY + 1
 	}
 	x := chartArea.X
 	right := chartArea.X + chartArea.Width
+	totalBars := c.totalBars()
 	for groupIndex, group := range c.groups {
 		if groupIndex > 0 {
 			x += nonNegative(c.groupGap) + nonNegative(c.barGap)
@@ -264,14 +311,17 @@ func (c BarChart) renderVertical(chartArea layout.Rect, buf *buffer.Buffer) {
 			if x+width > right {
 				width = right - x
 			}
-			c.renderBar(buf, x, chartArea.Y, width, barHeight, max, bar)
-			if labelRows > 0 {
+			c.renderBar(buf, x, chartArea.Y, width, barHeight, max, bar, totalBars, hasGroupLabels)
+			if hasBarLabels {
 				c.renderCentered(buf, x, barLabelY, width, bar.label, c.style.Patch(c.labelStyle).Patch(bar.labelStyle))
 			}
 			x += c.barWidth
 		}
 		if group.label != "" && groupStart < right {
-			writeStringWithin(buf, groupStart, groupLabelY, right, group.label, c.style.Patch(c.labelStyle))
+			groupEnd := minInt(x, right)
+			if groupEnd > groupStart {
+				c.renderAligned(buf, groupStart, groupLabelY, groupEnd-groupStart, group.label, group.labelAlignment, c.style.Patch(c.labelStyle).Patch(group.labelStyle))
+			}
 		}
 	}
 }
@@ -307,7 +357,7 @@ func (c BarChart) renderHorizontal(chartArea layout.Rect, buf *buffer.Buffer) {
 			y += c.barWidth
 		}
 		if c.groupGap > 0 && group.label != "" && y < bottom {
-			writeStringWithin(buf, chartArea.X, y, chartArea.X+chartArea.Width, group.label, c.style.Patch(c.labelStyle))
+			c.renderAligned(buf, chartArea.X, y, chartArea.Width, group.label, group.labelAlignment, c.style.Patch(c.labelStyle).Patch(group.labelStyle))
 		}
 	}
 }
@@ -385,7 +435,7 @@ func valueDisplaySuffix(value string, skippedWidth int) string {
 	return ""
 }
 
-func (c BarChart) renderBar(buf *buffer.Buffer, x, y, width, height int, max uint64, bar Bar) {
+func (c BarChart) renderBar(buf *buffer.Buffer, x, y, width, height int, max uint64, bar Bar, totalBars int, hasGroupLabels bool) {
 	if width <= 0 || height <= 0 || max == 0 || bar.value == 0 {
 		return
 	}
@@ -406,26 +456,31 @@ func (c BarChart) renderBar(buf *buffer.Buffer, x, y, width, height int, max uin
 			buf.SetCell(x+dx, y+height-1-rowFromBottom, buffer.Cell{Symbol: symbol, Style: barStyle})
 		}
 	}
-	if height == 1 {
-		return
-	}
 	value := bar.textValue
 	if value == "" {
 		value = uintToString(bar.value)
+	}
+	if width == 1 && hasGroupLabels && eighths < 8 {
+		return
+	}
+	if height == 1 && !c.shouldRenderValueInSingleLine(width, totalBars, max, bar.value, value) {
+		return
 	}
 	valueStyle := barStyle.Patch(c.valueStyle).Patch(bar.valueStyle)
 	c.renderCentered(buf, x, y+height-1, width, value, valueStyle)
 }
 
 func (c BarChart) renderCentered(buf *buffer.Buffer, x, y, width int, value string, cellStyle style.Style) {
-	runes := []rune(value)
-	if len(runes) > width {
-		runes = runes[:width]
+	c.renderAligned(buf, x, y, width, value, layout.Center, cellStyle)
+}
+
+func (c BarChart) renderAligned(buf *buffer.Buffer, x, y, width int, value string, alignment layout.Alignment, cellStyle style.Style) {
+	if width <= 0 || value == "" {
+		return
 	}
-	offset := (width - len(runes)) / 2
-	for i, r := range runes {
-		buf.SetCell(x+offset+i, y, buffer.Cell{Symbol: string(r), Style: cellStyle})
-	}
+	valueWidth := buffer.CellWidth(value)
+	offset := alignedOffset(valueWidth, width, alignment)
+	buf.SetStringN(x+offset, y, value, width-offset, cellStyle)
 }
 
 func (c BarChart) hasGroupLabels() bool {
@@ -435,6 +490,29 @@ func (c BarChart) hasGroupLabels() bool {
 		}
 	}
 	return false
+}
+
+func (c BarChart) hasBarLabels() bool {
+	for _, group := range c.groups {
+		for _, bar := range group.bars {
+			if bar.label != "" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (c BarChart) totalBars() int {
+	total := 0
+	for _, group := range c.groups {
+		total += len(group.bars)
+	}
+	return total
+}
+
+func (c BarChart) shouldRenderValueInSingleLine(width, totalBars int, max, value uint64, textValue string) bool {
+	return width > 1 || (totalBars > 1 && value >= max && buffer.CellWidth(textValue) <= width)
 }
 
 func (c BarChart) effectiveMax() uint64 {

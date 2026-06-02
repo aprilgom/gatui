@@ -7,6 +7,7 @@ import (
 	"gatui/buffer"
 	"gatui/layout"
 	"gatui/style"
+	"gatui/text"
 	"gatui/widgets"
 )
 
@@ -99,6 +100,37 @@ func TestBarChart_shouldRenderEmptyChartWithoutPanic(t *testing.T) {
 		"│  │",
 		"└──┘",
 	})
+}
+
+func TestBarChart_block(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 5))
+	barchart := widgets.NewBarChart().
+		DataPairs([]widgets.BarData{{Label: "foo", Value: 1}, {Label: "bar", Value: 2}}).
+		Block(widgets.BorderedBlock().Title(text.LineFromString("Block")))
+
+	barchart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"┌Block───┐",
+		"│  █     │",
+		"│1 2     │",
+		"│f b     │",
+		"└────────┘",
+	})
+}
+
+func TestBarChart_canBeStylized(t *testing.T) {
+	got := widgets.NewBarChart().
+		DataPairs([]widgets.BarData{{Label: "A", Value: 1}}).
+		Fg(style.Black).
+		Bg(style.White).
+		Bold()
+	buf := buffer.Empty(layout.NewRect(0, 0, 1, 1))
+	got.Render(buf.Area, buf)
+
+	if gotStyle := buf.Cells[0].Style; gotStyle != style.NewStyle().Fg(style.Black).Bg(style.White).AddModifier(style.ModifierBold) {
+		t.Fatalf("style = %#v", gotStyle)
+	}
 }
 
 func TestBarChart_shouldRenderLabelsWithoutDivideByZero_whenMaxIsZero(t *testing.T) {
@@ -344,6 +376,88 @@ func TestBarChart_shouldRenderFourLines(t *testing.T) {
 	})
 }
 
+func TestBarChart_threeLinesDoubleWidth(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 26, 3))
+	barchart := widgets.NewBarChart().
+		Data(widgets.NewBarGroup([]widgets.Bar{
+			widgets.BarWithLabel("a", 0),
+			widgets.BarWithLabel("b", 1),
+			widgets.BarWithLabel("c", 2),
+			widgets.BarWithLabel("d", 3),
+			widgets.BarWithLabel("e", 4),
+			widgets.BarWithLabel("f", 5),
+			widgets.BarWithLabel("g", 6),
+			widgets.BarWithLabel("h", 7),
+			widgets.BarWithLabel("i", 8),
+		}).Label("Group").LabelAlignment(layout.Center)).
+		BarWidth(2).
+		BarSet(widgets.NineLevelBarSet)
+
+	barchart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"   1▁ 2▂ 3▃ 4▄ 5▅ 6▆ 7▇ 8█",
+		"a  b  c  d  e  f  g  h  i ",
+		"          Group           ",
+	})
+}
+
+func TestBarChart_twoLinesWithoutBarLabels(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 17, 3))
+	barchart := widgets.NewBarChart().
+		Data(widgets.NewBarGroup([]widgets.Bar{
+			widgets.NewBar(0),
+			widgets.NewBar(1),
+			widgets.NewBar(2),
+			widgets.NewBar(3),
+			widgets.NewBar(4),
+			widgets.NewBar(5),
+			widgets.NewBar(6),
+			widgets.NewBar(7),
+			widgets.NewBar(8),
+		}).Label("Group").LabelAlignment(layout.Center))
+
+	barchart.Render(layout.NewRect(0, 1, buf.Area.Width, 2), buf)
+
+	assertLines(t, buf, []string{
+		"                 ",
+		"  ▁ ▂ ▃ ▄ ▅ ▆ ▇ 8",
+		"      Group      ",
+	})
+}
+
+func TestBarChart_oneLineWithMoreBars(t *testing.T) {
+	bars := make([]widgets.Bar, 0, 30)
+	for i := uint64(0); i < 30; i++ {
+		bars = append(bars, widgets.NewBar(i))
+	}
+	buf := buffer.Empty(layout.NewRect(0, 0, 59, 1))
+	barchart := widgets.NewBarChart().Data(widgets.NewBarGroup(bars))
+
+	barchart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"        ▁ ▁ ▁ ▁ ▂ ▂ ▂ ▃ ▃ ▃ ▃ ▄ ▄ ▄ ▄ ▅ ▅ ▅ ▆ ▆ ▆ ▆ ▇ ▇ ▇ █"})
+}
+
+func TestBarChart_firstBarOfTheGroupIsHalfOutsideView(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 7, 6))
+	barchart := widgets.NewBarChart().
+		DataPairs([]widgets.BarData{{Label: "a", Value: 1}, {Label: "b", Value: 2}}).
+		DataPairs([]widgets.BarData{{Label: "a", Value: 1}, {Label: "b", Value: 2}}).
+		BarWidth(2)
+
+	barchart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"   ██  ",
+		"   ██  ",
+		"▄▄ ██  ",
+		"██ ██  ",
+		"1█ 2█  ",
+		"a  b   ",
+	})
+}
+
 func TestBarChart_shouldRenderUint64MaxValue(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 3, 3))
 	barchart := widgets.NewBarChart().
@@ -484,6 +598,137 @@ func TestBarChart_shouldRenderHorizontalMultibyteValueTextWithoutPanic(t *testin
 		"\u202f█  ",
 		"\u202f██ ",
 		"\u202f███",
+	})
+}
+
+func TestBarChart_groupLabelStyle(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 5, 2))
+	barchart := widgets.NewBarChart().
+		Data(widgets.NewBarGroup([]widgets.Bar{
+			widgets.NewBar(2),
+		}).Label("G1").LabelStyle(style.NewStyle().Fg(style.Red))).
+		GroupGap(1).
+		Direction(layout.Horizontal).
+		LabelStyle(style.NewStyle().Fg(style.Yellow).AddModifier(style.ModifierBold))
+
+	barchart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"2████", "G1   "})
+	assertCellStyle(t, buf, 0, 1, style.NewStyle().Fg(style.Red).AddModifier(style.ModifierBold))
+	assertCellStyle(t, buf, 1, 1, style.NewStyle().Fg(style.Red).AddModifier(style.ModifierBold))
+}
+
+func TestBarChart_groupLabelCenter(t *testing.T) {
+	group := widgets.NewBarGroup([]widgets.Bar{
+		widgets.BarWithLabel("a", 1),
+		widgets.BarWithLabel("b", 2),
+		widgets.BarWithLabel("c", 3),
+		widgets.BarWithLabel("c", 4),
+	})
+	buf := buffer.Empty(layout.NewRect(0, 0, 13, 5))
+	barchart := widgets.NewBarChart().
+		Data(group.Label("G1").LabelAlignment(layout.Center)).
+		Data(group.Label("G2").LabelAlignment(layout.Center)).
+		GroupGap(0)
+
+	barchart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"    ▂ █     ▂",
+		"  ▄ █ █   ▄ █",
+		"▆ 2 3 4 ▆ 2 3",
+		"a b c c a b c",
+		"  G1     G2  ",
+	})
+}
+
+func TestBarChart_groupLabelRight(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 3, 3))
+	barchart := widgets.NewBarChart().
+		Data(widgets.NewBarGroup([]widgets.Bar{
+			widgets.NewBar(2),
+			widgets.NewBar(5),
+		}).Label("G").LabelAlignment(layout.Right))
+
+	barchart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"  █",
+		"▆ 5",
+		"  G",
+	})
+}
+
+func TestBarChart_unicodeAsValue(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 11, 5))
+	barchart := widgets.NewBarChart().
+		Data(widgets.NewBarGroup([]widgets.Bar{
+			widgets.NewBar(123).Label("B1").TextValue("写"),
+			widgets.NewBar(321).Label("B2").TextValue("写"),
+			widgets.NewBar(333).Label("B2").TextValue("写"),
+		})).
+		BarWidth(3).
+		BarGap(1)
+
+	barchart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"    ▆▆▆ ███",
+		"    ███ ███",
+		"▃▃▃ ███ ███",
+		"写█ 写█ 写█",
+		"B1  B2  B2 ",
+	})
+}
+
+func TestBarChart_newWithBars(t *testing.T) {
+	bars := []widgets.Bar{widgets.BarWithLabel("Red", 1), widgets.BarWithLabel("Green", 2)}
+	buf := buffer.Empty(layout.NewRect(0, 0, 5, 3))
+	widgets.NewBarChartWithBars(bars).Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"  █  ",
+		"1 2  ",
+		"R G  ",
+	})
+}
+
+func TestBar_new(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 1, 2))
+	widgets.NewBarChartWithBars([]widgets.Bar{widgets.NewBar(7)}).Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"█", "7"})
+}
+
+func TestBar_stylized(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 1, 2))
+	widgets.NewBarChartWithBars([]widgets.Bar{
+		widgets.NewBar(7).Style(style.NewStyle().Fg(style.Red)),
+	}).Render(buf.Area, buf)
+
+	assertCellStyle(t, buf, 0, 0, style.NewStyle().Fg(style.Red))
+}
+
+func TestBar_withLabel(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 1, 2))
+	widgets.NewBarChartWithBars([]widgets.Bar{widgets.BarWithLabel("A", 7)}).Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"█", "A"})
+}
+
+func TestBarGroup_new(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 3, 3))
+	widgets.NewBarChart().
+		Data(widgets.NewBarGroup([]widgets.Bar{
+			widgets.NewBar(1),
+			widgets.NewBar(2),
+		}).Label("G")).
+		Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"  █",
+		"1 2",
+		"G  ",
 	})
 }
 
