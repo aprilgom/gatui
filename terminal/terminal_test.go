@@ -966,6 +966,32 @@ func TestTerminal_Flush_shouldDrawCurrentDiffOnly(t *testing.T) {
 	}
 }
 
+func TestTerminal_Flush_withNoUpdatesDoesNotChangeLastKnownCursorPosition(t *testing.T) {
+	backend := testbackend.New(3, 2)
+	term, err := terminal.New(backend)
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+	if err := term.SetCursorPosition(layout.Position{X: 2, Y: 1}); err != nil {
+		t.Fatalf("SetCursorPosition returned error: %v", err)
+	}
+	beforePositions := backend.CursorPositions()
+
+	if err := term.Flush(); err != nil {
+		t.Fatalf("Flush returned error: %v", err)
+	}
+
+	if got, want := backend.CursorPosition(), (layout.Position{X: 2, Y: 1}); got != want {
+		t.Fatalf("backend cursor position = %#v, want %#v", got, want)
+	}
+	if got := backend.CursorPositions(); !slices.Equal(got, beforePositions) {
+		t.Fatalf("cursor position writes = %#v, want unchanged %#v", got, beforePositions)
+	}
+	if got, want := backend.Draws(), [][]buffer.CellDiff{{}}; !cellDiffBatchesEqual(got, want) {
+		t.Fatalf("draws = %#v, want %#v", got, want)
+	}
+}
+
 func TestTerminal_CurrentBuffer_returnsCurrentRenderBuffer(t *testing.T) {
 	term, err := terminal.New(newRecordingBackend(3, 2))
 	if err != nil {
@@ -1396,6 +1422,43 @@ func TestTerminal_Backend_returnsSharedBackendReference(t *testing.T) {
 
 	if got, want := term.Backend(), terminal.Backend(backend); got != want {
 		t.Fatalf("backend reference = %#v, want %#v", got, want)
+	}
+}
+
+func TestTerminal_Backend_allowsMutatingBackendState(t *testing.T) {
+	backend := testbackend.New(3, 2)
+	term, err := terminal.New(backend)
+	if err != nil {
+		t.Fatalf("New returned error: %v", err)
+	}
+
+	gotBackend, ok := term.Backend().(*testbackend.Backend)
+	if !ok {
+		t.Fatalf("Backend() type = %T, want *testbackend.Backend", term.Backend())
+	}
+	gotBackend.SetSize(4, 3)
+	if err := gotBackend.SetCursorPosition(layout.Position{X: 1, Y: 1}); err != nil {
+		t.Fatalf("SetCursorPosition returned error: %v", err)
+	}
+	if err := gotBackend.Draw([]buffer.CellDiff{{X: 2, Y: 1, Cell: buffer.NewCell("x")}}); err != nil {
+		t.Fatalf("Draw returned error: %v", err)
+	}
+	if err := gotBackend.ClearRegion(terminal.ClearUntilNewLine); err != nil {
+		t.Fatalf("ClearRegion returned error: %v", err)
+	}
+
+	gotSize, err := term.Size()
+	if err != nil {
+		t.Fatalf("Size returned error: %v", err)
+	}
+	if want := (layout.Size{Width: 4, Height: 3}); gotSize != want {
+		t.Fatalf("size = %#v, want %#v", gotSize, want)
+	}
+	if got, want := backend.Lines(), []string{"    ", "    ", "    "}; !slices.Equal(got, want) {
+		t.Fatalf("backend lines = %#v, want %#v", got, want)
+	}
+	if got, want := backend.ClearRegions(), []terminal.ClearType{terminal.ClearUntilNewLine}; !slices.Equal(got, want) {
+		t.Fatalf("clear regions = %#v, want %#v", got, want)
 	}
 }
 
@@ -1978,6 +2041,59 @@ func TestTerminal_Clear_fullscreenClearsBackendAndResetsBackBuffer(t *testing.T)
 	}
 	if got, want := len(backend.draws[0]), 6; got != want {
 		t.Fatalf("redraw diff count after Clear = %d, want %d", got, want)
+	}
+}
+
+func TestTerminal_Clear_inlineClearsAfterViewportOriginAndResetsBackBuffer(t *testing.T) {
+	backend := testbackend.WithLines([]string{
+		"before 1  ",
+		"before 2  ",
+		"viewport 1",
+		"viewport 2",
+		"after 1   ",
+		"after 2   ",
+	})
+	if err := backend.SetCursorPosition(layout.Position{X: 2, Y: 2}); err != nil {
+		t.Fatalf("SetCursorPosition returned error: %v", err)
+	}
+	term, err := terminal.NewWithOptions(backend, terminal.TerminalOptions{
+		Viewport: terminal.InlineViewport(2),
+	})
+	if err != nil {
+		t.Fatalf("NewWithOptions returned error: %v", err)
+	}
+	if err := backend.SetCursorPosition(layout.Position{X: 2, Y: 2}); err != nil {
+		t.Fatalf("SetCursorPosition returned error: %v", err)
+	}
+	term.CurrentBuffer().SetSymbol(2, 2, "x")
+
+	if err := term.Clear(); err != nil {
+		t.Fatalf("Clear returned error: %v", err)
+	}
+	renderText(t, term, "viewport 1\nviewport 2")
+
+	wantLines := []string{
+		"before 1  ",
+		"before 2  ",
+		"viewport 1",
+		"viewport 2",
+		"          ",
+		"          ",
+	}
+	if got := backend.Lines(); !slices.Equal(got, wantLines) {
+		t.Fatalf("backend lines = %#v, want %#v", got, wantLines)
+	}
+	if got, want := backend.ClearRegions(), []terminal.ClearType{terminal.ClearAfterCursor}; !slices.Equal(got, want) {
+		t.Fatalf("clear regions = %#v, want %#v", got, want)
+	}
+	if got, want := backend.CursorPositions(), []layout.Position{{X: 2, Y: 2}, {X: 2, Y: 2}, {X: 0, Y: 2}, {X: 2, Y: 2}}; !slices.Equal(got, want) {
+		t.Fatalf("cursor positions = %#v, want %#v", got, want)
+	}
+	if got, want := len(backend.Draws()[0]), 18; got != want {
+		t.Fatalf("redraw diff count after Clear = %d, want %d", got, want)
+	}
+	if got, want := backend.CursorPosition(), (layout.Position{X: 2, Y: 2}); got != want {
+		t.Fatalf("backend cursor position = %#v, want %#v", got, want)
 	}
 }
 
