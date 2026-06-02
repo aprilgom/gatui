@@ -14,6 +14,7 @@ type Block struct {
 	style       style.Style
 	borderStyle style.Style
 	titleStyle  style.Style
+	titleAlign  layout.Alignment
 }
 
 type Padding struct {
@@ -81,6 +82,11 @@ func BorderedBlock() Block {
 
 func (b Block) Title(title text.Line) Block {
 	b.title = title
+	return b
+}
+
+func (b Block) TitleAlignment(alignment layout.Alignment) Block {
+	b.titleAlign = alignment
 	return b
 }
 
@@ -191,17 +197,39 @@ func (b Block) Render(area layout.Rect, buf *buffer.Buffer) {
 	if b.borders != NoBorders {
 		b.renderBorders(area, buf)
 	}
+	b.renderTitle(area, buf)
+}
+
+func (b Block) renderTitle(area layout.Rect, buf *buffer.Buffer) {
 	titleX := area.X
+	titleWidth := area.Width
 	if b.borders.Has(LeftBorder) {
 		titleX++
+		titleWidth = saturatingSub(titleWidth, 1)
 	}
+	if b.borders.Has(RightBorder) {
+		titleWidth = saturatingSub(titleWidth, 1)
+	}
+	if titleWidth == 0 {
+		return
+	}
+
+	renderWidth := minInt(b.title.Width(), titleWidth)
+	switch b.titleAlign {
+	case layout.Center:
+		titleX += (titleWidth - renderWidth) / 2
+	case layout.Right:
+		titleX += titleWidth - renderWidth
+	}
+
 	x := titleX
+	right := titleX + renderWidth
 	for _, grapheme := range b.title.StyledGraphemes(b.style.Patch(b.titleStyle)) {
 		width := buffer.CellWidth(grapheme.Symbol)
 		if width == 0 {
 			continue
 		}
-		if x+width > area.X+area.Width {
+		if x+width > right {
 			return
 		}
 		b.setCell(buf, x, area.Y, grapheme.Symbol, grapheme.Style)

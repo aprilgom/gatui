@@ -63,6 +63,81 @@ func TestBlock_styleIntoWorksFromUserView(t *testing.T) {
 	assertBlockCellStyle(t, buf, 1, 1, style.NewStyle())
 }
 
+func TestBlock_leftTitle(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 1))
+
+	NewBlock().Title(text.LineFromString("L12")).Render(buf.Area, buf)
+
+	assertBlockLines(t, buf, []string{"L12       "})
+}
+
+func TestBlock_leftTitleTruncated(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 1))
+
+	NewBlock().Title(text.LineFromString("L1234567890")).Render(buf.Area, buf)
+
+	assertBlockLines(t, buf, []string{"L123456789"})
+}
+
+func TestBlock_centerTitle(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 1))
+	block := NewBlock().
+		TitleAlignment(layout.Center).
+		Title(text.LineFromString("C12"))
+
+	block.Render(buf.Area, buf)
+
+	assertBlockLines(t, buf, []string{"   C12    "})
+}
+
+func TestBlock_centerTitleTruncated(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 1))
+	block := NewBlock().
+		TitleAlignment(layout.Center).
+		Title(text.LineFromString("C1234567890"))
+
+	block.Render(buf.Area, buf)
+
+	assertBlockLines(t, buf, []string{"C123456789"})
+}
+
+func TestBlock_rightTitle(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 1))
+	block := NewBlock().
+		TitleAlignment(layout.Right).
+		Title(text.LineFromString("R12"))
+
+	block.Render(buf.Area, buf)
+
+	assertBlockLines(t, buf, []string{"       R12"})
+}
+
+func TestBlock_rightTitleTruncated(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 1))
+	block := NewBlock().
+		TitleAlignment(layout.Right).
+		Title(text.LineFromString("R1234567890"))
+
+	block.Render(buf.Area, buf)
+
+	assertBlockLines(t, buf, []string{"R123456789"})
+}
+
+func TestBlock_renderRightAlignedEmptyTitle(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 15, 3))
+	block := NewBlock().
+		TitleAlignment(layout.Right).
+		Title(text.LineFromString(""))
+
+	block.Render(buf.Area, buf)
+
+	assertBlockLines(t, buf, []string{
+		"               ",
+		"               ",
+		"               ",
+	})
+}
+
 func TestBlock_renderInMinimalBuffer(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 1, 1))
 
@@ -124,4 +199,23 @@ func assertBlockCellStyle(t *testing.T, buf *buffer.Buffer, x, y int, want style
 	if cell.Style != want {
 		t.Fatalf("cell(%d,%d).Style = %#v, want %#v", x, y, cell.Style, want)
 	}
+}
+
+func assertBlockLines(t *testing.T, buf *buffer.Buffer, want []string) {
+	t.Helper()
+	if got := buf.Lines(); !equalStringSlices(got, want) {
+		t.Fatalf("buffer lines = %#v, want %#v", got, want)
+	}
+}
+
+func equalStringSlices(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
