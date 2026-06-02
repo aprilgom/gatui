@@ -123,6 +123,35 @@ func (s Sparkline) Style(sparklineStyle style.Style) Sparkline {
 	return s
 }
 
+func (s Sparkline) Fg(color style.Color) Sparkline {
+	s.style = s.style.Fg(color)
+	return s
+}
+
+func (s Sparkline) Bg(color style.Color) Sparkline {
+	s.style = s.style.Bg(color)
+	return s
+}
+
+func (s Sparkline) Bold() Sparkline {
+	s.style = s.style.AddModifier(style.ModifierBold)
+	return s
+}
+
+func (s Sparkline) Dim() Sparkline {
+	s.style = s.style.AddModifier(style.ModifierDim)
+	return s
+}
+
+func (s Sparkline) Italic() Sparkline {
+	s.style = s.style.AddModifier(style.ModifierItalic)
+	return s
+}
+
+func (s Sparkline) Cyan() Sparkline {
+	return s.Fg(style.Cyan)
+}
+
 func (s Sparkline) AbsentValueStyle(absentValueStyle style.Style) Sparkline {
 	s.absentValueStyle = absentValueStyle
 	return s

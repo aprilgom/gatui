@@ -5,9 +5,125 @@ import (
 	"testing"
 
 	"gatui/buffer"
+	"gatui/layout"
 	"gatui/style"
 	"gatui/widgets"
 )
+
+func TestSparkline_canBeStylized(t *testing.T) {
+	buf := sparklineBuffer(1, 1)
+	sparkline := widgets.NewSparkline().
+		Data([]uint64{1}).
+		Fg(style.Red).
+		Bg(style.Blue).
+		Bold().
+		Dim().
+		Italic().
+		Cyan()
+
+	sparkline.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"█"})
+	assertCellStyle(t, buf, 0, 0, style.NewStyle().
+		Fg(style.Cyan).
+		Bg(style.Blue).
+		AddModifier(style.ModifierBold|style.ModifierDim|style.ModifierItalic))
+}
+
+func TestSparkline_canBeCreatedFromArrayOfUint64(t *testing.T) {
+	buf := sparklineBuffer(4, 1)
+	data := []uint64{0, 1, 2}
+	sparkline := widgets.NewSparkline().Data(data)
+	data[1] = 9
+
+	sparkline.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{" ▄█x"})
+}
+
+func TestSparkline_canBeCreatedFromVecOfUint64(t *testing.T) {
+	buf := sparklineBuffer(4, 1)
+	data := []uint64{0, 1, 2}
+	sparkline := widgets.NewSparkline().Data(append([]uint64(nil), data...))
+	data = append(data, 9)
+	if got, want := len(data), 4; got != want {
+		t.Fatalf("len(data) = %d, want %d", got, want)
+	}
+
+	sparkline.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{" ▄█x"})
+}
+
+func TestSparkline_canBeCreatedFromArrayOfOptionalUint64(t *testing.T) {
+	buf := sparklineBuffer(4, 1)
+	bars := []widgets.SparklineBar{
+		widgets.NewSparklineBar(0),
+		widgets.NewAbsentSparklineBar(),
+		widgets.NewSparklineBar(2),
+	}
+	sparkline := widgets.NewSparkline().AbsentValueSymbol("*").Bars(bars)
+	bars[1] = widgets.NewSparklineBar(1)
+
+	sparkline.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{" *█x"})
+}
+
+func TestSparkline_canBeCreatedFromVecOfOptionalUint64(t *testing.T) {
+	buf := sparklineBuffer(4, 1)
+	bars := []widgets.SparklineBar{
+		widgets.NewSparklineBar(0),
+		widgets.NewAbsentSparklineBar(),
+		widgets.NewSparklineBar(2),
+	}
+	sparkline := widgets.NewSparkline().AbsentValueSymbol("*").Bars(append([]widgets.SparklineBar(nil), bars...))
+	bars = append(bars, widgets.NewSparklineBar(9))
+	if got, want := len(bars), 4; got != want {
+		t.Fatalf("len(bars) = %d, want %d", got, want)
+	}
+
+	sparkline.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{" *█x"})
+}
+
+func TestSparkline_renderInMinimalBuffer(t *testing.T) {
+	t.Run("one_by_one", func(t *testing.T) {
+		buf := sparklineBuffer(1, 1)
+		sparkline := widgets.NewSparkline().Data([]uint64{1, 2, 3})
+
+		assertNotPanics(t, func() {
+			sparkline.Render(buf.Area, buf)
+		})
+
+		assertLines(t, buf, []string{"▂"})
+	})
+
+	t.Run("block_with_empty_inner_area", func(t *testing.T) {
+		buf := sparklineBuffer(1, 1)
+		sparkline := widgets.NewSparkline().
+			Block(widgets.NewBlock().Borders(widgets.AllBorders)).
+			Data([]uint64{1})
+
+		assertNotPanics(t, func() {
+			sparkline.Render(buf.Area, buf)
+		})
+
+		assertLines(t, buf, []string{"┌"})
+	})
+}
+
+func TestSparkline_renderInZeroSizeBuffer(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 0, 0))
+	sparkline := widgets.NewSparkline().Data([]uint64{1})
+
+	assertNotPanics(t, func() {
+		sparkline.Render(buf.Area, buf)
+		sparkline.Render(layout.NewRect(0, 0, 1, 0), buf)
+		sparkline.Render(layout.NewRect(0, 0, 0, 1), buf)
+	})
+}
 
 func TestSparkline_shouldNotPanicWhenMaxIsZero(t *testing.T) {
 	buf := sparklineBuffer(6, 1)
