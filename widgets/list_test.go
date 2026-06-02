@@ -618,6 +618,131 @@ func TestList_shouldDisplayMultilineItems(t *testing.T) {
 	}
 }
 
+func TestList_paddingFlicker(t *testing.T) {
+	state := widgets.ListState{}
+	state.SetOffset(2)
+	state.Select(4)
+	list := widgets.NewList([]widgets.ListItem{
+		widgets.ListItemFromString("Item 0"),
+		widgets.ListItemFromString("Item 1"),
+		widgets.ListItemFromString("Item 2"),
+		widgets.ListItemFromString("Item 3"),
+		widgets.ListItemFromString("Item 4"),
+		widgets.ListItemFromString("Item 5"),
+		widgets.ListItemFromString("Item 6"),
+		widgets.ListItemFromString("Item 7"),
+	}).HighlightSymbol(">> ").HighlightSpacing(widgets.HighlightSpacingAlways)
+
+	first := buffer.Empty(layout.NewRect(0, 0, 10, 5))
+	list.RenderStateful(first.Area, first, &state)
+	offsetAfterFirstRender := state.Offset()
+	linesAfterFirstRender := first.Lines()
+
+	second := buffer.Empty(layout.NewRect(0, 0, 10, 5))
+	list.RenderStateful(second.Area, second, &state)
+
+	if state.Offset() != offsetAfterFirstRender {
+		t.Fatalf("Offset() after second render = %d, want %d", state.Offset(), offsetAfterFirstRender)
+	}
+	if actual := second.Lines(); !slices.Equal(actual, linesAfterFirstRender) {
+		t.Fatalf("lines mismatch after second render\nactual:   %#v\nexpected: %#v", actual, linesAfterFirstRender)
+	}
+	assertLines(t, first, []string{
+		"   Item 2 ",
+		"   Item 3 ",
+		">> Item 4 ",
+		"   Item 5 ",
+		"   Item 6 ",
+	})
+}
+
+func TestList_paddingInconsistentItemSizes(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 3))
+	state := widgets.ListState{}
+	state.Select(3)
+	list := widgets.NewList([]widgets.ListItem{
+		widgets.ListItemFromString("Item 0"),
+		widgets.ListItemFromString("Item 1"),
+		widgets.ListItemFromString("Item 2"),
+		widgets.ListItemFromString("Item 3"),
+		widgets.ListItemFromLines(
+			text.LineFromString("Item 4"),
+			text.LineFromString("Test"),
+			text.LineFromString("Test"),
+		),
+		widgets.ListItemFromString("Item 5"),
+	}).HighlightSymbol(">> ").HighlightSpacing(widgets.HighlightSpacingAlways)
+
+	list.RenderStateful(buf.Area, buf, &state)
+
+	assertLines(t, buf, []string{
+		"   Item 1 ",
+		"   Item 2 ",
+		">> Item 3 ",
+	})
+	if state.Offset() != 1 {
+		t.Fatalf("Offset() = %d, want 1", state.Offset())
+	}
+}
+
+func TestList_paddingOffsetPushbackBreak(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 4))
+	state := widgets.ListState{}
+	state.SetOffset(1)
+	state.Select(2)
+	list := widgets.NewList([]widgets.ListItem{
+		widgets.ListItemFromLines(
+			text.LineFromString("Item 0"),
+			text.LineFromString("Test"),
+			text.LineFromString("Test"),
+		),
+		widgets.ListItemFromString("Item 1"),
+		widgets.ListItemFromString("Item 2"),
+		widgets.ListItemFromString("Item 3"),
+	}).HighlightSymbol(">> ").HighlightSpacing(widgets.HighlightSpacingAlways)
+
+	assertNotPanics(t, func() {
+		list.RenderStateful(buf.Area, buf, &state)
+	})
+
+	assertLines(t, buf, []string{
+		"   Item 1 ",
+		">> Item 2 ",
+		"   Item 3 ",
+		"          ",
+	})
+	if state.Offset() != 1 {
+		t.Fatalf("Offset() = %d, want 1", state.Offset())
+	}
+
+	buf = buffer.Empty(layout.NewRect(0, 0, 10, 3))
+	state = widgets.ListState{}
+	state.Select(1)
+	list = widgets.NewList([]widgets.ListItem{
+		widgets.ListItemFromString("Item 0"),
+		widgets.ListItemFromLines(
+			text.LineFromString("Item 1"),
+			text.LineFromString("Test"),
+			text.LineFromString("Test"),
+			text.LineFromString("More"),
+		),
+		widgets.ListItemFromString("Item 2"),
+	}).HighlightSymbol(">> ").HighlightSpacing(widgets.HighlightSpacingAlways)
+
+	assertNotPanics(t, func() {
+		list.RenderStateful(buf.Area, buf, &state)
+	})
+
+	assertLines(t, buf, []string{
+		">> Item 1 ",
+		"   Test   ",
+		"   Test   ",
+	})
+	if state.Offset() != 1 {
+		t.Fatalf("Offset() with oversized selected item = %d, want 1", state.Offset())
+	}
+}
+
 func TestList_shouldRepeatHighlightSymbol(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 10, 6))
 	state := widgets.ListState{}

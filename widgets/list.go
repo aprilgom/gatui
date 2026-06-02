@@ -324,6 +324,12 @@ func (l List) visibleBounds(state *ListState, height int) (int, int) {
 			usedHeight -= l.items[last].height()
 		}
 	}
+	if last <= first {
+		if indexToDisplay >= 0 && indexToDisplay < len(l.items) {
+			return indexToDisplay, indexToDisplay + 1
+		}
+		return first, min(first+1, len(l.items))
+	}
 	return first, last
 }
 
