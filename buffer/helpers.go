@@ -1,6 +1,7 @@
 package buffer
 
 import (
+	"strings"
 	"unicode"
 
 	"gatui/layout"
@@ -34,11 +35,12 @@ func maxInt(a, b int) int {
 	return b
 }
 
-func containsControl(value string) bool {
+func stripControls(value string) string {
+	var stripped strings.Builder
 	for _, r := range value {
-		if unicode.IsControl(r) {
-			return true
+		if !unicode.IsControl(r) {
+			stripped.WriteRune(r)
 		}
 	}
-	return false
+	return stripped.String()
 }

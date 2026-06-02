@@ -88,7 +88,8 @@ func (b *Buffer) SetStringN(x, y int, value string, maxWidth int, cellStyle styl
 writeLoop:
 	for graphemes.Next() {
 		for _, symbol := range cellWidthSymbols(graphemes.Str()) {
-			if containsControl(symbol) {
+			symbol = stripControls(symbol)
+			if symbol == "" {
 				continue
 			}
 

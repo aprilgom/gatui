@@ -504,6 +504,36 @@ func TestBuffer_SetStringN_shouldSkipControlSequences(t *testing.T) {
 	}
 }
 
+func TestBuffer_SetStringN_controlSequenceRenderedFull(t *testing.T) {
+	text := "I \x1b[0;36mwas\x1b[0m here!"
+	buf := buffer.Filled(layout.NewRect(0, 0, 25, 3), buffer.NewCell("x"))
+
+	buf.SetString(1, 1, text, style.NewStyle())
+
+	if got, want := buf.Lines(), []string{
+		"xxxxxxxxxxxxxxxxxxxxxxxxx",
+		"xI [0;36mwas[0m here!xxxx",
+		"xxxxxxxxxxxxxxxxxxxxxxxxx",
+	}; !slices.Equal(got, want) {
+		t.Fatalf("lines = %#v, want %#v", got, want)
+	}
+}
+
+func TestBuffer_SetStringN_controlSequenceRenderedPartially(t *testing.T) {
+	text := "I \x1b[0;36mwas\x1b[0m here!"
+	buf := buffer.Filled(layout.NewRect(0, 0, 11, 3), buffer.NewCell("x"))
+
+	buf.SetString(1, 1, text, style.NewStyle())
+
+	if got, want := buf.Lines(), []string{
+		"xxxxxxxxxxx",
+		"xI [0;36mwa",
+		"xxxxxxxxxxx",
+	}; !slices.Equal(got, want) {
+		t.Fatalf("lines = %#v, want %#v", got, want)
+	}
+}
+
 func TestBuffer_SetString_shouldNoOpOutsideArea(t *testing.T) {
 	buf := buffer.WithLines([]string{"abc"})
 
