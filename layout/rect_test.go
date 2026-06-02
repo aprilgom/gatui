@@ -561,7 +561,7 @@ func TestRect_CenteredHelpers_shouldMatchRatatuiLayoutIntent(t *testing.T) {
 		{
 			name: "centered vertically",
 			got:  layout.NewRect(10, 20, 100, 50).CenteredVertically(layout.Percentage(50)),
-			want: layout.NewRect(10, 32, 100, 25),
+			want: layout.NewRect(10, 33, 100, 25),
 		},
 		{
 			name: "centered both",
@@ -582,6 +582,11 @@ func TestRect_CenteredHelpers_shouldMatchRatatuiLayoutIntent(t *testing.T) {
 			name: "fill constraint fills single centered area like layout",
 			got:  layout.NewRect(10, 20, 100, 50).CenteredVertically(layout.Fill(1)),
 			want: layout.NewRect(10, 20, 100, 50),
+		},
+		{
+			name: "max constraint centers bounded area like layout",
+			got:  layout.NewRect(10, 20, 100, 50).CenteredHorizontally(layout.Max(20)),
+			want: layout.NewRect(50, 20, 20, 50),
 		},
 	}
 

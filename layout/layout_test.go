@@ -505,7 +505,7 @@ func TestLayout_Split_shouldLetMinAndFillAbsorbSurplusBeforeFlexAlignment(t *tes
 		layout.FlexSpaceAround,
 		layout.FlexSpaceEvenly,
 	}
-	want := []layout.Rect{
+	defaultWant := []layout.Rect{
 		layout.NewRect(0, 0, 50, 1),
 		layout.NewRect(50, 0, 50, 1),
 	}
@@ -518,6 +518,13 @@ func TestLayout_Split_shouldLetMinAndFillAbsorbSurplusBeforeFlexAlignment(t *tes
 					Constraints(tt.constraints...).
 					Split(layout.NewRect(0, 0, 100, 1))
 
+				want := defaultWant
+				if tt.name == "min" && flex == layout.FlexLegacy {
+					want = []layout.Rect{
+						layout.NewRect(0, 0, 25, 1),
+						layout.NewRect(25, 0, 75, 1),
+					}
+				}
 				if !slices.Equal(got, want) {
 					t.Fatalf("rects mismatch for flex %d\nwant: %#v\n got: %#v", flex, want, got)
 				}

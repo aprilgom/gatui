@@ -1,7 +1,9 @@
 package layout
 
 import (
+	"os"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -48,15 +50,36 @@ func TestLayout_strengthIsValid(t *testing.T) {
 		name     string
 		strength solverStrength
 	}{
-		{name: "area bounds", strength: strengthAreaBounds},
-		{name: "segment sizing", strength: strengthSegmentSizing},
-		{name: "flex spacing", strength: strengthFlexSpacing},
-		{name: "spacer growth", strength: strengthSpacerGrowth},
+		{name: "spacer size", strength: strengthSpacerSize},
+		{name: "min size", strength: strengthMinSize},
+		{name: "max size", strength: strengthMaxSize},
+		{name: "length size", strength: strengthLengthSize},
+		{name: "percentage size", strength: strengthPercentageSize},
+		{name: "ratio size", strength: strengthRatioSize},
+		{name: "min size eq", strength: strengthMinSizeEq},
+		{name: "max size eq", strength: strengthMaxSizeEq},
+		{name: "fill grow", strength: strengthFillGrow},
+		{name: "grow", strength: strengthGrow},
+		{name: "space grow", strength: strengthSpaceGrow},
+		{name: "all segment grow", strength: strengthAllSegmentGrow},
 	}
 
 	for _, tt := range strengths {
 		if !tt.strength.isValid() {
 			t.Fatalf("%s strength %v is invalid", tt.name, tt.strength)
+		}
+	}
+}
+
+func TestSolveLayoutUncached_shouldNotDelegateToLegacySplitHelpers(t *testing.T) {
+	source, err := os.ReadFile("solver.go")
+	if err != nil {
+		t.Fatalf("ReadFile(solver.go) error = %v, want nil", err)
+	}
+
+	for _, forbidden := range []string{".splitSegments(", "calculateLengths(", "flexOffsets("} {
+		if strings.Contains(string(source), forbidden) {
+			t.Fatalf("solveLayoutUncached must solve constraints directly with casow, found legacy helper call %q", forbidden)
 		}
 	}
 }

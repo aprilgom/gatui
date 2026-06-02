@@ -176,13 +176,11 @@ func (r Rect) AsSize() Size {
 }
 
 func (r Rect) CenteredHorizontally(constraint Constraint) Rect {
-	width := centeredLength(r.Width, constraint)
-	return NewRect(r.X+(r.Width-width)/2, r.Y, width, r.Height)
+	return NewHorizontalLayout(constraint).Flex(FlexCenter).Split(r)[0]
 }
 
 func (r Rect) CenteredVertically(constraint Constraint) Rect {
-	height := centeredLength(r.Height, constraint)
-	return NewRect(r.X, r.Y+(r.Height-height)/2, r.Width, height)
+	return NewVerticalLayout(constraint).Flex(FlexCenter).Split(r)[0]
 }
 
 func (r Rect) Centered(horizontal, vertical Constraint) Rect {
