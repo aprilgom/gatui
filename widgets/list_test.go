@@ -69,6 +69,163 @@ func TestList_canBeStylized(t *testing.T) {
 	}
 }
 
+func TestList_renderingCanBeStylized(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 7, 3))
+	blockStyle := style.NewStyle().Fg(style.Blue)
+	borderStyle := style.NewStyle().Fg(style.Green)
+	titleStyle := style.NewStyle().Fg(style.Yellow).AddModifier(style.ModifierBold)
+	listStyle := style.NewStyle().Bg(style.White)
+	itemStyle := style.NewStyle().Fg(style.Red)
+	highlightStyle := style.NewStyle().Bg(style.Cyan).AddModifier(style.ModifierItalic)
+	state := widgets.ListState{}
+	state.Select(0)
+
+	widgets.NewList([]widgets.ListItem{
+		widgets.ListItemFromLines(text.NewLine(text.StyledSpan("ab", itemStyle))),
+	}).
+		Style(listStyle).
+		Block(widgets.BorderedBlock().
+			Style(blockStyle).
+			BorderStyle(borderStyle).
+			Title(text.NewLine(text.NewSpan("T"))).
+			TitleStyle(titleStyle)).
+		HighlightStyle(highlightStyle).
+		HighlightSymbol(">").
+		RenderStateful(buf.Area, buf, &state)
+
+	assertLines(t, buf, []string{
+		"┌T────┐",
+		"│>ab  │",
+		"└─────┘",
+	})
+	assertCellStyle(t, buf, 0, 0, borderStyle.Patch(listStyle))
+	assertCellStyle(t, buf, 1, 0, titleStyle.Patch(listStyle))
+	assertCellStyle(t, buf, 2, 0, borderStyle.Patch(listStyle))
+	assertCellStyle(t, buf, 0, 1, borderStyle.Patch(listStyle))
+	assertCellStyle(t, buf, 1, 1, listStyle.Patch(highlightStyle))
+	assertCellStyle(t, buf, 2, 1, listStyle.Patch(itemStyle).Patch(highlightStyle))
+	assertCellStyle(t, buf, 3, 1, listStyle.Patch(itemStyle).Patch(highlightStyle))
+	assertCellStyle(t, buf, 4, 1, listStyle.Patch(highlightStyle))
+	assertCellStyle(t, buf, 6, 1, borderStyle.Patch(listStyle))
+}
+
+func TestList_renderingBlock(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 8, 5))
+	list := widgets.NewList([]widgets.ListItem{
+		widgets.ListItemFromString("one"),
+		widgets.ListItemFromString("two"),
+		widgets.ListItemFromString("three"),
+	}).Block(widgets.BorderedBlock().Title(text.LineFromString("L")))
+
+	list.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"┌L─────┐",
+		"│one   │",
+		"│two   │",
+		"│three │",
+		"└──────┘",
+	})
+}
+
+func TestList_emptyList(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 6, 2))
+	state := widgets.ListState{}
+	state.Select(3)
+	state.SetOffset(5)
+
+	widgets.NewList(nil).RenderStateful(buf.Area, buf, &state)
+
+	assertLines(t, buf, []string{
+		"      ",
+		"      ",
+	})
+	if selected, ok := state.Selected(); ok {
+		t.Fatalf("Selected() = %d, true, want false", selected)
+	}
+	if state.Offset() != 0 {
+		t.Fatalf("Offset() = %d, want 0", state.Offset())
+	}
+}
+
+func TestList_doesNotRenderInSmallSpace(t *testing.T) {
+	tests := []struct {
+		name     string
+		area     layout.Rect
+		block    bool
+		expected []string
+	}{
+		{name: "one by one", area: layout.NewRect(0, 0, 1, 1), expected: []string{"i"}},
+		{name: "one by two", area: layout.NewRect(0, 0, 1, 2), expected: []string{"i", "i"}},
+		{name: "two by one", area: layout.NewRect(0, 0, 2, 1), expected: []string{"it"}},
+		{name: "block one by one", area: layout.NewRect(0, 0, 1, 1), block: true, expected: []string{"┌"}},
+		{name: "block one by two", area: layout.NewRect(0, 0, 1, 2), block: true, expected: []string{"┌", "└"}},
+		{name: "block two by one", area: layout.NewRect(0, 0, 2, 1), block: true, expected: []string{"┌┐"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := buffer.Empty(tt.area)
+			list := widgets.NewList([]widgets.ListItem{
+				widgets.ListItemFromString("item"),
+				widgets.ListItemFromString("item"),
+			})
+			if tt.block {
+				list = list.Block(widgets.BorderedBlock())
+			}
+
+			assertNotPanics(t, func() {
+				list.Render(buf.Area, buf)
+			})
+
+			assertLines(t, buf, tt.expected)
+		})
+	}
+}
+
+func TestList_renderingCombinations(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 14, 6))
+	state := widgets.ListState{}
+	state.Select(1)
+	listStyle := style.NewStyle().Bg(style.White)
+	itemStyle := style.NewStyle().Fg(style.Red)
+	highlightStyle := style.NewStyle().Bg(style.Blue).AddModifier(style.ModifierBold)
+	list := widgets.NewList([]widgets.ListItem{
+		widgets.ListItemFromLines(text.LineFromString("top").Center()),
+		widgets.ListItemFromLines(
+			text.NewLine(text.StyledSpan("sel", itemStyle)).Center(),
+			text.LineFromString("line").Right(),
+		),
+		widgets.ListItemFromString("tail"),
+	}).
+		Style(listStyle).
+		Block(widgets.BorderedBlock()).
+		HighlightStyle(highlightStyle).
+		HighlightSymbol(">>").
+		RepeatHighlightSymbol(true).
+		HighlightSpacing(widgets.HighlightSpacingAlways).
+		Right()
+
+	list.RenderStateful(buf.Area, buf, &state)
+
+	assertLines(t, buf, []string{
+		"┌────────────┐",
+		"│     top    │",
+		"│>>   sel    │",
+		"│>>      line│",
+		"│        tail│",
+		"└────────────┘",
+	})
+	for x := 1; x <= 12; x++ {
+		assertCellStyle(t, buf, x, 3, listStyle.Patch(highlightStyle))
+	}
+	for _, x := range []int{1, 2, 3, 4, 5, 9, 10, 11, 12} {
+		assertCellStyle(t, buf, x, 2, listStyle.Patch(highlightStyle))
+	}
+	for x := 6; x <= 8; x++ {
+		assertCellStyle(t, buf, x, 2, listStyle.Patch(highlightStyle).Patch(itemStyle))
+	}
+}
+
 func TestList_noStyle(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 4, 2))
 
