@@ -273,6 +273,33 @@ func TestChart_shouldAllowZeroLengthBounds(t *testing.T) {
 	})
 }
 
+func TestChart_doesNotPanicIfTitleIsWiderThanBuffer(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 8, 4))
+	chart := widgets.NewChart([]widgets.Dataset{}).
+		YAxis(widgets.NewAxis().TitleString("xxxxxxxxxxxxxxxx")).
+		XAxis(widgets.NewAxis().TitleString("xxxxxxxxxxxxxxxx"))
+
+	assertNotPanics(t, func() {
+		chart.Render(buf.Area, buf)
+	})
+	assertLines(t, buf, []string{
+		"        ",
+		"        ",
+		"        ",
+		"        ",
+	})
+}
+
+func TestChart_doesNotPanicIfYAxisHasOneLabel(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 20, 5))
+	chart := widgets.NewChart([]widgets.Dataset{}).
+		YAxis(widgets.NewAxis().Bounds(0, 1).LabelStrings([]string{"only"}))
+
+	assertNotPanics(t, func() {
+		chart.Render(buf.Area, buf)
+	})
+}
+
 func TestChart_shouldStyleTopLine(t *testing.T) {
 	titleStyle := style.NewStyle().Fg(style.Red).Bg(style.LightBlue)
 	buf := buffer.Empty(layout.NewRect(0, 0, 9, 5))
@@ -633,6 +660,71 @@ func TestChart_datasetsWithoutNameShouldNotContributeToLegendHeight(t *testing.T
 		"                                           │     │",
 		"                                           └─────┘",
 	})
+}
+
+func TestChart_longYAxisTitleOverlappingLegend(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 30, 20))
+	chart := widgets.NewChart([]widgets.Dataset{
+		widgets.NewDataset().Name("Ds1"),
+	}).
+		YAxis(widgets.NewAxis().TitleString("The title overlap a legend."))
+
+	chart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"The title overlap a legend.   ",
+		"                         ┌───┐",
+		"                         │Ds1│",
+		"                         └───┘",
+		"                              ",
+		"                              ",
+		"                              ",
+		"                              ",
+		"                              ",
+		"                              ",
+		"                              ",
+		"                              ",
+		"                              ",
+		"                              ",
+		"                              ",
+		"                              ",
+		"                              ",
+		"                              ",
+		"                              ",
+		"                              ",
+	})
+}
+
+func TestChart_legendAreaCanFitSameChartArea(t *testing.T) {
+	positions := []widgets.LegendPosition{
+		widgets.LegendPositionTopLeft,
+		widgets.LegendPositionTop,
+		widgets.LegendPositionTopRight,
+		widgets.LegendPositionLeft,
+		widgets.LegendPositionRight,
+		widgets.LegendPositionBottom,
+		widgets.LegendPositionBottomLeft,
+		widgets.LegendPositionBottomRight,
+	}
+
+	for _, position := range positions {
+		t.Run(strconv.Itoa(int(position)), func(t *testing.T) {
+			buf := buffer.Empty(layout.NewRect(0, 0, 6, 3))
+			chart := widgets.NewChart([]widgets.Dataset{
+				widgets.NewDataset().Name("Data"),
+			}).
+				HiddenLegendConstraints(layout.Percentage(100), layout.Percentage(100)).
+				LegendPosition(position)
+
+			chart.Render(buf.Area, buf)
+
+			assertLines(t, buf, []string{
+				"┌────┐",
+				"│Data│",
+				"└────┘",
+			})
+		})
+	}
 }
 
 func TestChart_shouldNotRenderLegend_whenNoDatasetsAreNamed(t *testing.T) {

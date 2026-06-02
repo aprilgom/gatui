@@ -404,7 +404,7 @@ func (c Chart) renderXAxis(buf *buffer.Buffer, l chartAxisLayout) {
 }
 
 func (c Chart) renderYLabels(buf *buffer.Buffer, l chartAxisLayout) {
-	if len(c.yAxis.labels) < 2 || l.yLabelW <= 0 {
+	if len(c.yAxis.labels) == 0 || l.yLabelW <= 0 {
 		return
 	}
 	top := l.area.Y
@@ -413,6 +413,10 @@ func (c Chart) renderYLabels(buf *buffer.Buffer, l chartAxisLayout) {
 		bottom = l.area.Y + l.area.Height - 1
 	}
 	if bottom < top {
+		return
+	}
+	if len(c.yAxis.labels) == 1 {
+		c.renderLabel(buf, c.yAxis.labels[0], layout.NewRect(l.area.X, bottom, l.yLabelW, 1), c.yAxis.labelsAlignment, c.yAxis.axisStyle)
 		return
 	}
 	last := len(c.yAxis.labels) - 1
@@ -475,10 +479,14 @@ func (c Chart) firstXLabelArea(l chartAxisLayout, labelWidth, maxWidthAfterYAxis
 }
 
 func (c Chart) renderYTitle(buf *buffer.Buffer, l chartAxisLayout) {
-	if c.yAxis.title == nil || l.graphLeft >= l.graphRight {
+	if !c.hasRenderableYTitle(l) {
 		return
 	}
 	renderLine(layout.NewRect(l.graphLeft, l.area.Y, l.graphRight-l.graphLeft, 1), buf, *c.yAxis.title, c.yAxis.axisStyle)
+}
+
+func (c Chart) hasRenderableYTitle(l chartAxisLayout) bool {
+	return c.yAxis.title != nil && c.yAxis.title.Width()+1 < l.graphRight-l.graphLeft && c.graphArea(l).Height > 2
 }
 
 func (c Chart) renderDatasets(buf *buffer.Buffer, l chartAxisLayout) {
@@ -506,7 +514,7 @@ func (c Chart) renderDatasets(buf *buffer.Buffer, l chartAxisLayout) {
 }
 
 func (c Chart) renderLegend(buf *buffer.Buffer, l chartAxisLayout) {
-	legendArea, ok := c.legendArea(l.area)
+	legendArea, ok := c.legendArea(l)
 	if !ok {
 		return
 	}
@@ -542,8 +550,12 @@ func (c Chart) renderLegend(buf *buffer.Buffer, l chartAxisLayout) {
 	}
 }
 
-func (c Chart) legendArea(area layout.Rect) (layout.Rect, bool) {
+func (c Chart) legendArea(l chartAxisLayout) (layout.Rect, bool) {
 	if c.legendPosition == nil {
+		return layout.Rect{}, false
+	}
+	area := c.graphArea(l)
+	if area.Width <= 0 || area.Height <= 0 {
 		return layout.Rect{}, false
 	}
 	innerWidth := 0
@@ -589,7 +601,25 @@ func (c Chart) legendArea(area layout.Rect) (layout.Rect, bool) {
 		x = area.X + area.Width - legendWidth
 		y = area.Y + area.Height - legendHeight
 	}
+	if c.topLegendOverlapsYTitle(l, x) {
+		y++
+		if y+legendHeight > area.Y+area.Height {
+			return layout.Rect{}, false
+		}
+	}
 	return layout.NewRect(x, y, legendWidth, legendHeight), true
+}
+
+func (c Chart) topLegendOverlapsYTitle(l chartAxisLayout, legendX int) bool {
+	if !c.hasRenderableYTitle(l) {
+		return false
+	}
+	switch *c.legendPosition {
+	case LegendPositionTopLeft, LegendPositionTop, LegendPositionTopRight:
+	default:
+		return false
+	}
+	return legendX < l.graphLeft+c.yAxis.title.Width()
 }
 
 func (c Chart) legendFits(area layout.Rect, legendWidth, legendHeight int) bool {
