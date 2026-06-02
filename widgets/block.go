@@ -20,6 +20,7 @@ type Block struct {
 	borderStyle   style.Style
 	titleStyle    style.Style
 	titleAlign    layout.Alignment
+	shadow        *Shadow
 }
 
 type BorderSet struct {
@@ -409,6 +410,11 @@ func (b Block) TitleStyle(titleStyle style.Style) Block {
 	return b
 }
 
+func (b Block) Shadow(shadow Shadow) Block {
+	b.shadow = &shadow
+	return b
+}
+
 func (b Block) Inner(area layout.Rect) layout.Rect {
 	left := 0
 	right := 0
@@ -492,6 +498,9 @@ func (b Block) Render(area layout.Rect, buf *buffer.Buffer) {
 		b.renderBorders(area, buf)
 	}
 	b.renderTitle(area, buf)
+	if b.shadow != nil {
+		b.shadow.Render(area, buf)
+	}
 }
 
 func (b Block) renderTitle(area layout.Rect, buf *buffer.Buffer) {
