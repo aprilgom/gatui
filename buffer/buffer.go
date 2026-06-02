@@ -47,27 +47,49 @@ func WithLines(lines []string) *Buffer {
 	return buf
 }
 
-func (b *Buffer) CellAt(x, y int) (Cell, bool) {
+func (b *Buffer) IndexOf(x, y int) (int, bool) {
 	if b == nil || x < b.Area.X || y < b.Area.Y || x >= b.Area.X+b.Area.Width || y >= b.Area.Y+b.Area.Height {
+		return 0, false
+	}
+	return (y-b.Area.Y)*b.Area.Width + (x - b.Area.X), true
+}
+
+func (b *Buffer) PosOf(index int) (layout.Position, bool) {
+	if b == nil || index < 0 || index >= len(b.Cells) {
+		return layout.Position{}, false
+	}
+	return layout.NewPosition(b.Area.X+index%b.Area.Width, b.Area.Y+index/b.Area.Width), true
+}
+
+func (b *Buffer) CellAt(x, y int) (Cell, bool) {
+	index, ok := b.IndexOf(x, y)
+	if !ok {
 		return Cell{}, false
 	}
-	index := (y-b.Area.Y)*b.Area.Width + (x - b.Area.X)
 	return b.Cells[index], true
 }
 
+func (b *Buffer) CellRef(x, y int) (*Cell, bool) {
+	index, ok := b.IndexOf(x, y)
+	if !ok {
+		return nil, false
+	}
+	return &b.Cells[index], true
+}
+
 func (b *Buffer) SetCell(x, y int, cell Cell) {
-	if b == nil || x < b.Area.X || y < b.Area.Y || x >= b.Area.X+b.Area.Width || y >= b.Area.Y+b.Area.Height {
+	index, ok := b.IndexOf(x, y)
+	if !ok {
 		return
 	}
-	index := (y-b.Area.Y)*b.Area.Width + (x - b.Area.X)
 	b.Cells[index] = cell
 }
 
 func (b *Buffer) SetSymbol(x, y int, symbol string) {
-	if b == nil || x < b.Area.X || y < b.Area.Y || x >= b.Area.X+b.Area.Width || y >= b.Area.Y+b.Area.Height {
+	index, ok := b.IndexOf(x, y)
+	if !ok {
 		return
 	}
-	index := (y-b.Area.Y)*b.Area.Width + (x - b.Area.X)
 	b.Cells[index].Symbol = symbol
 }
 

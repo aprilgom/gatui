@@ -191,6 +191,164 @@ func TestFilled_shouldFillAreaWithCell(t *testing.T) {
 	}
 }
 
+func TestBuffer_IndexOfAndPosOf_translateCoordinates(t *testing.T) {
+	area := layout.NewRect(200, 100, 50, 80)
+	buf := buffer.Empty(area)
+
+	firstIndex, ok := buf.IndexOf(200, 100)
+	if !ok {
+		t.Fatal("IndexOf first cell ok = false, want true")
+	}
+	if got, want := firstIndex, 0; got != want {
+		t.Fatalf("IndexOf first cell = %d, want %d", got, want)
+	}
+	firstPos, ok := buf.PosOf(0)
+	if !ok {
+		t.Fatal("PosOf first cell ok = false, want true")
+	}
+	if got, want := firstPos, layout.NewPosition(200, 100); got != want {
+		t.Fatalf("PosOf first cell = %#v, want %#v", got, want)
+	}
+
+	lastIndex, ok := buf.IndexOf(249, 179)
+	if !ok {
+		t.Fatal("IndexOf last cell ok = false, want true")
+	}
+	if got, want := lastIndex, len(buf.Cells)-1; got != want {
+		t.Fatalf("IndexOf last cell = %d, want %d", got, want)
+	}
+	lastPos, ok := buf.PosOf(len(buf.Cells) - 1)
+	if !ok {
+		t.Fatal("PosOf last cell ok = false, want true")
+	}
+	if got, want := lastPos, layout.NewPosition(249, 179); got != want {
+		t.Fatalf("PosOf last cell = %#v, want %#v", got, want)
+	}
+}
+
+func TestBuffer_IndexOf_returnsFalseOutOfBounds(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(10, 10, 10, 10))
+	tests := []struct {
+		name string
+		x    int
+		y    int
+	}{
+		{name: "left", x: 9, y: 10},
+		{name: "top", x: 10, y: 9},
+		{name: "right", x: 20, y: 10},
+		{name: "bottom", x: 10, y: 20},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got, ok := buf.IndexOf(tt.x, tt.y); ok {
+				t.Fatalf("IndexOf(%d,%d) = (%d,true), want ok=false", tt.x, tt.y, got)
+			}
+		})
+	}
+
+	var nilBuf *buffer.Buffer
+	if got, ok := nilBuf.IndexOf(10, 10); ok {
+		t.Fatalf("nil IndexOf = (%d,true), want ok=false", got)
+	}
+}
+
+func TestBuffer_PosOf_returnsFalseOutOfBounds(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 10))
+
+	for _, index := range []int{-1, 100} {
+		if got, ok := buf.PosOf(index); ok {
+			t.Fatalf("PosOf(%d) = (%#v,true), want ok=false", index, got)
+		}
+	}
+
+	var nilBuf *buffer.Buffer
+	if got, ok := nilBuf.PosOf(0); ok {
+		t.Fatalf("nil PosOf = (%#v,true), want ok=false", got)
+	}
+}
+
+func TestBuffer_IndexPosOf_handlesIndexesBeyondU16Max(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 256, 257))
+	tests := []struct {
+		x     int
+		y     int
+		index int
+	}{
+		{x: 255, y: 255, index: 65535},
+		{x: 0, y: 256, index: 65536},
+		{x: 1, y: 256, index: 65537},
+		{x: 255, y: 256, index: 65791},
+	}
+
+	for _, tt := range tests {
+		gotIndex, ok := buf.IndexOf(tt.x, tt.y)
+		if !ok {
+			t.Fatalf("IndexOf(%d,%d) ok = false, want true", tt.x, tt.y)
+		}
+		if gotIndex != tt.index {
+			t.Fatalf("IndexOf(%d,%d) = %d, want %d", tt.x, tt.y, gotIndex, tt.index)
+		}
+
+		gotPos, ok := buf.PosOf(tt.index)
+		if !ok {
+			t.Fatalf("PosOf(%d) ok = false, want true", tt.index)
+		}
+		if want := layout.NewPosition(tt.x, tt.y); gotPos != want {
+			t.Fatalf("PosOf(%d) = %#v, want %#v", tt.index, gotPos, want)
+		}
+	}
+}
+
+func TestBuffer_CellAt_matchesRatatuiCell(t *testing.T) {
+	buf := buffer.WithLines([]string{"Hello", "World"})
+
+	got, ok := buf.CellAt(0, 0)
+	if !ok {
+		t.Fatal("CellAt(0,0) ok = false, want true")
+	}
+	if want := buffer.NewCell("H"); got != want {
+		t.Fatalf("CellAt(0,0) = %#v, want %#v", got, want)
+	}
+	if got, ok := buf.CellAt(10, 10); ok {
+		t.Fatalf("CellAt(10,10) = (%#v,true), want ok=false", got)
+	}
+}
+
+func TestBuffer_CellRef_allowsMutation(t *testing.T) {
+	buf := buffer.WithLines([]string{"Hello", "World"})
+
+	cell, ok := buf.CellRef(0, 0)
+	if !ok {
+		t.Fatal("CellRef(0,0) ok = false, want true")
+	}
+	cell.SetSymbol("Y")
+	cell.SetStyle(style.NewStyle().Fg(style.Red))
+
+	got, ok := buf.CellAt(0, 0)
+	if !ok {
+		t.Fatal("CellAt(0,0) after mutation ok = false, want true")
+	}
+	want := buffer.NewCell("Y")
+	want.SetStyle(style.NewStyle().Fg(style.Red))
+	if got != want {
+		t.Fatalf("mutated cell = %#v, want %#v", got, want)
+	}
+}
+
+func TestBuffer_CellRef_returnsFalseOutOfBounds(t *testing.T) {
+	buf := buffer.WithLines([]string{"Hello", "World"})
+
+	if got, ok := buf.CellRef(10, 10); ok {
+		t.Fatalf("CellRef(10,10) = (%#v,true), want ok=false", got)
+	}
+
+	var nilBuf *buffer.Buffer
+	if got, ok := nilBuf.CellRef(0, 0); ok {
+		t.Fatalf("nil CellRef = (%#v,true), want ok=false", got)
+	}
+}
+
 func TestBuffer_Reset_shouldResetAllCellsButKeepArea(t *testing.T) {
 	area := layout.NewRect(1, 2, 2, 1)
 	buf := buffer.Empty(area)
