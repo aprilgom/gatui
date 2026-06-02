@@ -11,12 +11,67 @@ type Block struct {
 	titles        []blockTitle
 	titlePosition TitlePosition
 	borders       Borders
+	borderSet     BorderSet
 	padding       Padding
 	style         style.Style
 	borderStyle   style.Style
 	titleStyle    style.Style
 	titleAlign    layout.Alignment
 }
+
+type BorderSet struct {
+	TopLeft          string
+	TopRight         string
+	BottomLeft       string
+	BottomRight      string
+	VerticalLeft     string
+	VerticalRight    string
+	HorizontalTop    string
+	HorizontalBottom string
+}
+
+var (
+	PlainBorderSet = BorderSet{
+		TopLeft:          "┌",
+		TopRight:         "┐",
+		BottomLeft:       "└",
+		BottomRight:      "┘",
+		VerticalLeft:     "│",
+		VerticalRight:    "│",
+		HorizontalTop:    "─",
+		HorizontalBottom: "─",
+	}
+	RoundedBorderSet = BorderSet{
+		TopLeft:          "╭",
+		TopRight:         "╮",
+		BottomLeft:       "╰",
+		BottomRight:      "╯",
+		VerticalLeft:     "│",
+		VerticalRight:    "│",
+		HorizontalTop:    "─",
+		HorizontalBottom: "─",
+	}
+	DoubleBorderSet = BorderSet{
+		TopLeft:          "╔",
+		TopRight:         "╗",
+		BottomLeft:       "╚",
+		BottomRight:      "╝",
+		VerticalLeft:     "║",
+		VerticalRight:    "║",
+		HorizontalTop:    "═",
+		HorizontalBottom: "═",
+	}
+	SolidBorderSet = BorderSet{
+		TopLeft:          "┏",
+		TopRight:         "┓",
+		BottomLeft:       "┗",
+		BottomRight:      "┛",
+		VerticalLeft:     "┃",
+		VerticalRight:    "┃",
+		HorizontalTop:    "━",
+		HorizontalBottom: "━",
+	}
+)
 
 type blockTitle struct {
 	position TitlePosition
@@ -84,6 +139,7 @@ func PaddingBottom(value int) Padding {
 func NewBlock() Block {
 	return Block{
 		titlePosition: TitlePositionTop,
+		borderSet:     PlainBorderSet,
 		style:         style.NewStyle(),
 		borderStyle:   style.NewStyle(),
 		titleStyle:    style.NewStyle(),
@@ -121,6 +177,11 @@ func (b Block) TitleAlignment(alignment layout.Alignment) Block {
 
 func (b Block) Borders(borders Borders) Block {
 	b.borders = borders
+	return b
+}
+
+func (b Block) BorderSet(borderSet BorderSet) Block {
+	b.borderSet = borderSet
 	return b
 }
 
@@ -430,35 +491,35 @@ func (b Block) renderBorders(area layout.Rect, buf *buffer.Buffer) {
 	bottom := area.Y + area.Height - 1
 	if b.borders.Has(TopBorder) {
 		for x := area.X; x <= right; x++ {
-			b.setCell(buf, x, area.Y, "─", borderStyle)
+			b.setCell(buf, x, area.Y, b.borderSet.HorizontalTop, borderStyle)
 		}
 	}
 	if b.borders.Has(BottomBorder) && bottom != area.Y {
 		for x := area.X; x <= right; x++ {
-			b.setCell(buf, x, bottom, "─", borderStyle)
+			b.setCell(buf, x, bottom, b.borderSet.HorizontalBottom, borderStyle)
 		}
 	}
 	if b.borders.Has(LeftBorder) {
 		for y := area.Y; y <= bottom; y++ {
-			b.setCell(buf, area.X, y, "│", borderStyle)
+			b.setCell(buf, area.X, y, b.borderSet.VerticalLeft, borderStyle)
 		}
 	}
 	if b.borders.Has(RightBorder) && right != area.X {
 		for y := area.Y; y <= bottom; y++ {
-			b.setCell(buf, right, y, "│", borderStyle)
+			b.setCell(buf, right, y, b.borderSet.VerticalRight, borderStyle)
 		}
 	}
 	if b.borders.Has(TopBorder) && b.borders.Has(LeftBorder) {
-		b.setCell(buf, area.X, area.Y, "┌", borderStyle)
+		b.setCell(buf, area.X, area.Y, b.borderSet.TopLeft, borderStyle)
 	}
 	if b.borders.Has(TopBorder) && b.borders.Has(RightBorder) && right != area.X {
-		b.setCell(buf, right, area.Y, "┐", borderStyle)
+		b.setCell(buf, right, area.Y, b.borderSet.TopRight, borderStyle)
 	}
 	if b.borders.Has(BottomBorder) && b.borders.Has(LeftBorder) && bottom != area.Y {
-		b.setCell(buf, area.X, bottom, "└", borderStyle)
+		b.setCell(buf, area.X, bottom, b.borderSet.BottomLeft, borderStyle)
 	}
 	if b.borders.Has(BottomBorder) && b.borders.Has(RightBorder) && right != area.X && bottom != area.Y {
-		b.setCell(buf, right, bottom, "┘", borderStyle)
+		b.setCell(buf, right, bottom, b.borderSet.BottomRight, borderStyle)
 	}
 }
 

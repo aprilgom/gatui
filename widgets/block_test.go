@@ -48,6 +48,152 @@ func TestBlock_titleStyle(t *testing.T) {
 	}
 }
 
+func TestBlock_titleBorderStyle(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 3))
+	block := BorderedBlock().
+		Title(text.LineFromString("test")).
+		BorderStyle(style.NewStyle().Fg(style.Yellow))
+
+	block.Render(buf.Area, buf)
+
+	assertBlockLines(t, buf, []string{
+		"┌test────┐",
+		"│        │",
+		"└────────┘",
+	})
+	for x := range 10 {
+		assertBlockCellStyle(t, buf, x, 0, style.NewStyle().Fg(style.Yellow))
+		assertBlockCellStyle(t, buf, x, 2, style.NewStyle().Fg(style.Yellow))
+	}
+	assertBlockCellStyle(t, buf, 0, 1, style.NewStyle().Fg(style.Yellow))
+	assertBlockCellStyle(t, buf, 9, 1, style.NewStyle().Fg(style.Yellow))
+	for x := 1; x <= 8; x++ {
+		assertBlockCellStyle(t, buf, x, 1, style.NewStyle())
+	}
+}
+
+func TestBlock_renderCustomBorderSet(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 3))
+	block := BorderedBlock().BorderSet(BorderSet{
+		TopLeft:          "1",
+		TopRight:         "2",
+		BottomLeft:       "3",
+		BottomRight:      "4",
+		VerticalLeft:     "L",
+		VerticalRight:    "R",
+		HorizontalTop:    "T",
+		HorizontalBottom: "B",
+	})
+
+	block.Render(buf.Area, buf)
+
+	assertBlockLines(t, buf, []string{
+		"1TTTTTTTT2",
+		"L        R",
+		"3BBBBBBBB4",
+	})
+}
+
+func TestBlock_renderRoundedBorder(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 3))
+
+	BorderedBlock().BorderSet(RoundedBorderSet).Render(buf.Area, buf)
+
+	assertBlockLines(t, buf, []string{
+		"╭────────╮",
+		"│        │",
+		"╰────────╯",
+	})
+}
+
+func TestBlock_renderDoubleBorder(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 3))
+
+	BorderedBlock().BorderSet(DoubleBorderSet).Render(buf.Area, buf)
+
+	assertBlockLines(t, buf, []string{
+		"╔════════╗",
+		"║        ║",
+		"╚════════╝",
+	})
+}
+
+func TestBlock_renderSolidBorder(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 3))
+
+	BorderedBlock().BorderSet(SolidBorderSet).Render(buf.Area, buf)
+
+	assertBlockLines(t, buf, []string{
+		"┏━━━━━━━━┓",
+		"┃        ┃",
+		"┗━━━━━━━━┛",
+	})
+}
+
+func TestBlock_renderPartialBorders(t *testing.T) {
+	tests := []struct {
+		name    string
+		borders Borders
+		want    []string
+	}{
+		{
+			name:    "all",
+			borders: TopBorder | LeftBorder | RightBorder | BottomBorder,
+			want: []string{
+				"┌────────┐",
+				"│        │",
+				"└────────┘",
+			},
+		},
+		{
+			name:    "top left",
+			borders: TopBorder | LeftBorder,
+			want: []string{
+				"┌─────────",
+				"│         ",
+				"│         ",
+			},
+		},
+		{
+			name:    "top right",
+			borders: TopBorder | RightBorder,
+			want: []string{
+				"─────────┐",
+				"         │",
+				"         │",
+			},
+		},
+		{
+			name:    "bottom left",
+			borders: BottomBorder | LeftBorder,
+			want: []string{
+				"│         ",
+				"│         ",
+				"└─────────",
+			},
+		},
+		{
+			name:    "bottom right",
+			borders: BottomBorder | RightBorder,
+			want: []string{
+				"         │",
+				"         │",
+				"─────────┘",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := buffer.Empty(layout.NewRect(0, 0, 10, 3))
+
+			NewBlock().Borders(tt.borders).Render(buf.Area, buf)
+
+			assertBlockLines(t, buf, tt.want)
+		})
+	}
+}
+
 func TestBlock_styleIntoWorksFromUserView(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 4, 3))
 	block := BorderedBlock().
