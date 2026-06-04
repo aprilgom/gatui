@@ -1,6 +1,7 @@
 package widgets_test
 
 import (
+	"fmt"
 	"testing"
 
 	"gatui/buffer"
@@ -521,6 +522,51 @@ func TestTable_insufficientAreaHighlightSymbolAndColumnSpacingAllocation(t *test
 	})
 }
 
+func TestTable_maxConstraint(t *testing.T) {
+	assertConstraintTable(t, 20, nil, []layout.Constraint{layout.Max(4), layout.Max(4)}, []string{
+		"ABCD 1234           ",
+	})
+	assertConstraintTable(t, 20, new(0), []layout.Constraint{layout.Max(4), layout.Max(4)}, []string{
+		">>>ABCD 1234        ",
+	})
+	assertConstraintTable(t, 7, nil, []layout.Constraint{layout.Max(4), layout.Max(4)}, []string{
+		"ABC 123",
+	})
+	assertConstraintTable(t, 7, new(0), []layout.Constraint{layout.Max(4), layout.Max(4)}, []string{
+		">>>AB 1",
+	})
+}
+
+func TestTable_minConstraint(t *testing.T) {
+	assertConstraintTable(t, 20, nil, []layout.Constraint{layout.Min(4), layout.Min(4)}, []string{
+		"ABCDE      12345    ",
+	})
+	assertConstraintTable(t, 20, new(0), []layout.Constraint{layout.Min(4), layout.Min(4)}, []string{
+		">>>ABCDE    12345   ",
+	})
+	assertConstraintTable(t, 7, nil, []layout.Constraint{layout.Min(4), layout.Min(4)}, []string{
+		"ABC 123",
+	})
+	assertConstraintTable(t, 7, new(0), []layout.Constraint{layout.Min(4), layout.Min(4)}, []string{
+		">>>AB 1",
+	})
+}
+
+func TestTable_underconstrainedFlex(t *testing.T) {
+	assertConstraintTable(t, 62, nil, []layout.Constraint{layout.Min(10), layout.Min(10), layout.Min(1)}, []string{
+		"ABCDE                12345                Z                   ",
+	})
+}
+
+func TestTable_underconstrainedSegmentSize(t *testing.T) {
+	assertConstraintTable(t, 62, nil, []layout.Constraint{layout.Min(10), layout.Min(10), layout.Min(1)}, []string{
+		"ABCDE                12345                Z                   ",
+	})
+	assertConstraintTable(t, 23, nil, []layout.Constraint{layout.Min(10), layout.Min(10), layout.Min(1)}, []string{
+		"ABCDE      12345      Z",
+	})
+}
+
 func TestTable_new(t *testing.T) {
 	rows := []widgets.TableRow{
 		widgets.NewTableRow([]widgets.TableCell{widgets.TableCellFromString("A")}),
@@ -534,6 +580,45 @@ func TestTable_new(t *testing.T) {
 	table.Render(buf.Area, buf)
 
 	assertLines(t, buf, []string{"A  "})
+}
+
+func TestTable_default(t *testing.T) {
+	buf := buffer.WithLines([]string{"abc", "def"})
+
+	widgets.NewTable([]widgets.TableRow{}, []layout.Constraint{}).Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"abc", "def"})
+	assertAllCellsStyle(t, buf, style.NewStyle())
+}
+
+func TestTable_collectRows(t *testing.T) {
+	rows := make([]widgets.TableRow, 0, 4)
+	for i := 0; i < 4; i++ {
+		cells := make([]string, 0, 4)
+		for j := 0; j < 4; j++ {
+			cells = append(cells, fmt.Sprintf("%d*%d = %d", i, j, i*j))
+		}
+		rows = append(rows, widgets.TableRowFromStrings(cells))
+	}
+	widths := []layout.Constraint{
+		layout.Percentage(25),
+		layout.Percentage(25),
+		layout.Percentage(25),
+		layout.Percentage(25),
+	}
+	table := widgets.NewTable(rows, widths)
+	rows[0] = widgets.TableRowFromStrings([]string{"mutated"})
+	widths[0] = layout.Length(1)
+
+	buf := buffer.Empty(layout.NewRect(0, 0, 40, 4))
+	table.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"0*0 = 0   0*1 = 0   0*2 = 0   0*3 = 0   ",
+		"1*0 = 0   1*1 = 1   1*2 = 2   1*3 = 3   ",
+		"2*0 = 0   2*1 = 2   2*2 = 4   2*3 = 6   ",
+		"3*0 = 0   3*1 = 3   3*2 = 6   3*3 = 9   ",
+	})
 }
 
 func TestTable_rows(t *testing.T) {
@@ -2015,6 +2100,25 @@ func assertTableWithSelection(t *testing.T, highlightSpacing widgets.HighlightSp
 		HighlightSpacing(highlightSpacing).
 		HighlightSymbol(">>>").
 		ColumnSpacing(columnSpacing)
+
+	table.RenderStateful(buf.Area, buf, &state)
+
+	assertLines(t, buf, expected)
+}
+
+func assertConstraintTable(t *testing.T, width int, selected *int, widths []layout.Constraint, expected []string) {
+	t.Helper()
+	buf := buffer.Empty(layout.NewRect(0, 0, width, len(expected)))
+	state := widgets.NewTableState()
+	if selected != nil {
+		state.Select(*selected)
+	}
+	table := widgets.NewTable([]widgets.TableRow{
+		widgets.TableRowFromStrings([]string{"ABCDE", "12345", "Z"}),
+	}, widths).
+		HighlightSpacing(widgets.HighlightSpacingWhenSelected).
+		HighlightSymbol(">>>").
+		ColumnSpacing(1)
 
 	table.RenderStateful(buf.Area, buf, &state)
 

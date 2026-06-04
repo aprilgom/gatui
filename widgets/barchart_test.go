@@ -102,6 +102,36 @@ func TestBarChart_shouldRenderEmptyChartWithoutPanic(t *testing.T) {
 	})
 }
 
+func TestBarChart_default(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 10, 3))
+
+	widgets.NewBarChart().Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"          ",
+		"          ",
+		"          ",
+	})
+}
+
+func TestBarChart_constructorsIgnoreEmptyGroups(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 8, 3))
+	barchart := widgets.NewBarChartWithBars(nil).
+		Data(widgets.NewBarGroup(nil).Label("empty")).
+		Data(widgets.NewBarGroup([]widgets.Bar{
+			widgets.NewBar(1).Label("A"),
+			widgets.NewBar(2).Label("B"),
+		}))
+
+	barchart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"  █     ",
+		"1 2     ",
+		"A B     ",
+	})
+}
+
 func TestBarChart_block(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 10, 5))
 	barchart := widgets.NewBarChart().

@@ -690,6 +690,16 @@ func (t Table) resolveColumnWidths(width int) []int {
 	if width <= 0 || len(widths) == 0 {
 		return widths
 	}
+	if t.hasSolverResolvedConstraint() {
+		columns := layout.NewHorizontalLayout(t.widths...).
+			Flex(layout.FlexStart).
+			Spacing(t.columnSpacing).
+			Split(layout.NewRect(0, 0, width, 1))
+		for i, column := range columns {
+			widths[i] = column.Width
+		}
+		return widths
+	}
 	spacingTotal := t.columnSpacing * maxInt(0, len(widths)-1)
 	available := maxInt(0, width-spacingTotal)
 	hasLength := false
@@ -726,6 +736,15 @@ func (t Table) resolveColumnWidths(width int) []int {
 	t.distributeRatioRemainder(widths, available)
 	t.fitWidths(widths, available, hasLength && !hasPercentage)
 	return widths
+}
+
+func (t Table) hasSolverResolvedConstraint() bool {
+	for _, constraint := range t.widths {
+		if constraint.IsMax() || constraint.IsFill() || constraint.IsMin() {
+			return true
+		}
+	}
+	return false
 }
 
 func (t Table) resolveOverspecifiedMixedWidths(available int) []int {

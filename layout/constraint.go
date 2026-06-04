@@ -69,6 +69,10 @@ func (c Constraint) IsLength() bool {
 	return c.kind == constraintLength
 }
 
+func (c Constraint) IsMin() bool {
+	return c.kind == constraintMin
+}
+
 func (c Constraint) IsPercentage() bool {
 	return c.kind == constraintPercentage
 }
