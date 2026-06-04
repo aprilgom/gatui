@@ -38,5 +38,6 @@ Implemented slices:
 - Package structure with type definitions split into focused files per package.
 - Public API contract smoke test.
 - Go port coverage represented by package tests across `layout`, `buffer`, `style`, `text`, `terminal`, and `widgets`.
+- P0 ROI implementation pass completed; the 215 remaining missing-test actions are rebucketed across P1-P4 in the correspondence backlog.
 
-See [AGENTS.md](AGENTS.md) for Codex workflow guidance and [ARCHITECTURE.md](ARCHITECTURE.md) for the package map.
+See [AGENTS.md](AGENTS.md) for Codex workflow guidance, [ARCHITECTURE.md](ARCHITECTURE.md) for the package map, and [../correspondence/roi/README.md](../correspondence/roi/README.md) for the current ROI backlog.

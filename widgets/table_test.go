@@ -659,6 +659,15 @@ func TestTable_renderInMinimalBuffer(t *testing.T) {
 	assertLines(t, buf, []string{" "})
 }
 
+func TestTable_renderDefault(t *testing.T) {
+	buf := buffer.WithLines([]string{"abc", "def"})
+
+	widgets.NewTable(nil, nil).Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"abc", "def"})
+	assertAllCellsStyle(t, buf, style.NewStyle())
+}
+
 func TestTable_renderInZeroSizeBuffer(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 0, 0))
 	table := widgets.NewTable([]widgets.TableRow{

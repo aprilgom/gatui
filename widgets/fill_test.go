@@ -21,6 +21,17 @@ func TestFill_shouldFillAreaWithSymbol(t *testing.T) {
 	})
 }
 
+func TestFill_shouldFillAreaWithSymbolAndStyle(t *testing.T) {
+	buf := buffer.WithLines([]string{"abc", "def"})
+	fillStyle := style.NewStyle().Fg(style.Red).Bg(style.Blue).AddModifier(style.ModifierBold)
+
+	widgets.NewFill("x").Style(fillStyle).Render(layout.NewRect(1, 0, 2, 2), buf)
+
+	assertLines(t, buf, []string{"axx", "dxx"})
+	assertCellStyle(t, buf, 1, 0, fillStyle)
+	assertCellStyle(t, buf, 2, 1, fillStyle)
+}
+
 func TestFill_shouldPatchStyleOverExistingCells(t *testing.T) {
 	buf := buffer.WithLines([]string{"abc", "def"})
 	buf.SetBg(buf.Area, style.Blue)
@@ -51,6 +62,31 @@ func TestFill_shouldIgnoreEmptyArea(t *testing.T) {
 	widgets.NewFill("x").Render(layout.NewRect(0, 0, 1, 0), buf)
 
 	assertLines(t, buf, []string{"abc"})
+}
+
+func TestFill_shouldClipAreaToBuffer(t *testing.T) {
+	buf := buffer.WithLines([]string{"abcd", "efgh"})
+
+	widgets.NewFill("x").Render(layout.NewRect(2, 1, 5, 3), buf)
+
+	assertLines(t, buf, []string{"abcd", "efxx"})
+}
+
+func TestFill_shouldIgnoreFullyOutOfBoundsArea(t *testing.T) {
+	buf := buffer.WithLines([]string{"abcd", "efgh"})
+
+	widgets.NewFill("x").Render(layout.NewRect(5, 0, 2, 2), buf)
+	widgets.NewFill("x").Render(layout.NewRect(0, 3, 2, 2), buf)
+
+	assertLines(t, buf, []string{"abcd", "efgh"})
+}
+
+func TestFill_shouldRenderWithOffsetBufferArea(t *testing.T) {
+	buf := buffer.Filled(layout.NewRect(3, 2, 4, 2), buffer.NewCell("."))
+
+	widgets.NewFill("x").Render(layout.NewRect(1, 1, 4, 3), buf)
+
+	assertLines(t, buf, []string{"xx..", "xx.."})
 }
 
 func TestFill_shouldUseBufferWidthSemanticsForWideGraphemes(t *testing.T) {

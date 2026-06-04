@@ -695,6 +695,29 @@ func TestClear_shouldResetCellsToBlankDefaultStyle(t *testing.T) {
 	assertCellStyle(t, buf, 2, 1, style.NewStyle())
 }
 
+func TestClear_shouldClipPartiallyOutOfBoundsAreaToBuffer(t *testing.T) {
+	buf := buffer.WithLines([]string{"abcd", "efgh"})
+	buf.SetFg(buf.Area, style.Red)
+
+	widgets.Clear{}.Render(layout.NewRect(2, 1, 5, 3), buf)
+
+	assertLines(t, buf, []string{"abcd", "ef  "})
+	assertCellStyle(t, buf, 1, 1, style.NewStyle().Fg(style.Red))
+	assertCellStyle(t, buf, 2, 1, style.NewStyle())
+	assertCellStyle(t, buf, 3, 1, style.NewStyle())
+}
+
+func TestClear_shouldIgnoreFullyOutOfBoundsArea(t *testing.T) {
+	buf := buffer.WithLines([]string{"abcd", "efgh"})
+	buf.SetFg(buf.Area, style.Red)
+
+	widgets.Clear{}.Render(layout.NewRect(5, 0, 2, 2), buf)
+	widgets.Clear{}.Render(layout.NewRect(0, 3, 2, 2), buf)
+
+	assertLines(t, buf, []string{"abcd", "efgh"})
+	assertAllCellsStyle(t, buf, style.NewStyle().Fg(style.Red))
+}
+
 func assertLines(t *testing.T, buf *buffer.Buffer, expected []string) {
 	t.Helper()
 	if actual := buf.Lines(); !slices.Equal(actual, expected) {
