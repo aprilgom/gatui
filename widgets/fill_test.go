@@ -55,6 +55,42 @@ func TestFill_shouldRenderEmptySymbolAsSpace(t *testing.T) {
 	assertLines(t, buf, []string{"a c"})
 }
 
+func TestFill_acceptsOwnedStringSymbol(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 2, 1))
+	symbol := string([]rune{'•'})
+
+	widgets.NewFill(symbol).Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"••"})
+}
+
+func TestFill_symbolSetterReplacesSymbol(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 2, 1))
+
+	widgets.NewFill("a").Symbol("b").Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"bb"})
+}
+
+func TestFill_symbolSetterNormalizesEmptySymbol(t *testing.T) {
+	buf := buffer.WithLines([]string{"abc"})
+
+	widgets.NewFill("a").Symbol("").Render(layout.NewRect(1, 0, 1, 1), buf)
+
+	assertLines(t, buf, []string{"a c"})
+}
+
+func TestFill_stylizeShorthandWorks(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 2, 1))
+
+	widgets.NewFill("*").Fg(style.Blue).Bold().Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"**"})
+	wantStyle := style.NewStyle().Fg(style.Blue).AddModifier(style.ModifierBold)
+	assertCellStyle(t, buf, 0, 0, wantStyle)
+	assertCellStyle(t, buf, 1, 0, wantStyle)
+}
+
 func TestFill_shouldIgnoreEmptyArea(t *testing.T) {
 	buf := buffer.WithLines([]string{"abc"})
 

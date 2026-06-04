@@ -18,9 +18,46 @@ func NewFill(symbol string) Fill {
 	return Fill{symbol: symbol, style: style.NewStyle()}
 }
 
+func (f Fill) Symbol(symbol string) Fill {
+	if symbol == "" {
+		symbol = " "
+	}
+	f.symbol = symbol
+	return f
+}
+
 func (f Fill) Style(cellStyle style.Style) Fill {
 	f.style = cellStyle
 	return f
+}
+
+func (f Fill) Fg(color style.Color) Fill {
+	f.style = f.style.Fg(color)
+	return f
+}
+
+func (f Fill) Bg(color style.Color) Fill {
+	f.style = f.style.Bg(color)
+	return f
+}
+
+func (f Fill) Bold() Fill {
+	f.style = f.style.AddModifier(style.ModifierBold)
+	return f
+}
+
+func (f Fill) Dim() Fill {
+	f.style = f.style.AddModifier(style.ModifierDim)
+	return f
+}
+
+func (f Fill) Italic() Fill {
+	f.style = f.style.AddModifier(style.ModifierItalic)
+	return f
+}
+
+func (f Fill) Cyan() Fill {
+	return f.Fg(style.Cyan)
 }
 
 func (f Fill) Render(area layout.Rect, buf *buffer.Buffer) {
