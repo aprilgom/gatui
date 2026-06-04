@@ -32,6 +32,10 @@ func maxInt(a, b int) int {
 	return b
 }
 
+func maxIntValue() int {
+	return int(^uint(0) >> 1)
+}
+
 func clampInt(value, low, high int) int {
 	if high < low {
 		return low

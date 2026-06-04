@@ -47,6 +47,23 @@ func DefaultConstraint() Constraint {
 	return Percentage(100)
 }
 
+func (c Constraint) Apply(length int) int {
+	length = maxInt(0, length)
+	switch c.kind {
+	case constraintPercentage:
+		return minInt(int(float64(c.value)/100*float64(length)), length)
+	case constraintRatio:
+		denominator := maxInt(c.denominator, 1)
+		return minInt(int(float64(c.value)/float64(denominator)*float64(length)), length)
+	case constraintLength, constraintFill, constraintMax:
+		return minInt(length, maxInt(0, c.value))
+	case constraintMin:
+		return maxInt(length, maxInt(0, c.value))
+	default:
+		return length
+	}
+}
+
 func (c Constraint) String() string {
 	switch c.kind {
 	case constraintLength:

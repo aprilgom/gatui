@@ -402,6 +402,41 @@ func TestCanvas_shouldCombineBraillePointsInsideOneTerminalCell(t *testing.T) {
 	assertCellStyle(t, buf, 0, 0, style.NewStyle().Fg(style.Red))
 }
 
+func TestCanvas_shouldKeepDrawCallsInSameImplicitBrailleLayer(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 1, 1))
+
+	widgets.NewCanvas().
+		Marker(widgets.CanvasMarkerBraille).
+		XBounds(0, 1).
+		YBounds(0, 3).
+		Paint(func(ctx *widgets.CanvasContext) {
+			ctx.Draw(widgets.NewPoints([]widgets.CanvasPoint{{X: 0, Y: 3}}, style.Red))
+			ctx.Draw(widgets.NewPoints([]widgets.CanvasPoint{{X: 1, Y: 3}}, style.Blue))
+		}).
+		Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"⠉"})
+	assertCellStyle(t, buf, 0, 0, style.NewStyle().Fg(style.Blue))
+}
+
+func TestCanvas_shouldRenderLaterBrailleLayerOverEarlierLayer(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 1, 1))
+
+	widgets.NewCanvas().
+		Marker(widgets.CanvasMarkerBraille).
+		XBounds(0, 1).
+		YBounds(0, 3).
+		Paint(func(ctx *widgets.CanvasContext) {
+			ctx.Draw(widgets.NewPoints([]widgets.CanvasPoint{{X: 0, Y: 3}}, style.Red))
+			ctx.Layer()
+			ctx.Draw(widgets.NewPoints([]widgets.CanvasPoint{{X: 1, Y: 3}}, style.Blue))
+		}).
+		Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"⠈"})
+	assertCellStyle(t, buf, 0, 0, style.NewStyle().Fg(style.Blue))
+}
+
 func TestCanvas_shouldRenderHalfBlockUpperLowerAndFullCells(t *testing.T) {
 	tests := []struct {
 		name     string

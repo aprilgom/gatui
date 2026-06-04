@@ -11,6 +11,34 @@ func NewPosition(x, y int) Position {
 	return Position{X: maxInt(0, x), Y: maxInt(0, y)}
 }
 
+func PositionOrigin() Position {
+	return NewPosition(0, 0)
+}
+
+func PositionMin() Position {
+	return PositionOrigin()
+}
+
+func PositionMax() Position {
+	return NewPosition(MaxCoordinate, MaxCoordinate)
+}
+
+func PositionFromTuple(x, y int) Position {
+	return NewPosition(x, y)
+}
+
+func PositionFromRect(rect Rect) Position {
+	return rect.AsPosition()
+}
+
+func (p Position) Tuple() (x, y int) {
+	return p.X, p.Y
+}
+
+func (p Position) String() string {
+	return fmt.Sprintf("(%d, %d)", p.X, p.Y)
+}
+
 func (p Position) Offset(offset Offset) Position {
 	return p.AddOffset(offset)
 }
@@ -32,8 +60,24 @@ func NewSize(width, height int) Size {
 	return Size{Width: maxInt(0, width), Height: maxInt(0, height)}
 }
 
+func SizeZero() Size {
+	return NewSize(0, 0)
+}
+
+func SizeMin() Size {
+	return SizeZero()
+}
+
+func SizeMax() Size {
+	return NewSize(MaxCoordinate, MaxCoordinate)
+}
+
 func SizeFromTuple(width, height int) Size {
 	return NewSize(width, height)
+}
+
+func SizeFromRect(rect Rect) Size {
+	return rect.AsSize()
 }
 
 func (s Size) Area() int {
@@ -42,6 +86,10 @@ func (s Size) Area() int {
 
 func (s Size) Tuple() (width, height int) {
 	return s.Width, s.Height
+}
+
+func (s Size) String() string {
+	return fmt.Sprintf("%dx%d", s.Width, s.Height)
 }
 
 type Margin struct {
@@ -53,6 +101,14 @@ func NewMargin(horizontal, vertical int) Margin {
 	return Margin{Horizontal: horizontal, Vertical: vertical}
 }
 
+func MarginFromInt(value int) Margin {
+	return NewMargin(value, value)
+}
+
+func (m Margin) String() string {
+	return fmt.Sprintf("%dx%d", m.Horizontal, m.Vertical)
+}
+
 type Offset struct {
 	X int
 	Y int
@@ -60,6 +116,20 @@ type Offset struct {
 
 func NewOffset(x, y int) Offset {
 	return Offset{X: x, Y: y}
+}
+
+func OffsetZero() Offset {
+	return NewOffset(0, 0)
+}
+
+func OffsetMin() Offset {
+	minimum := -maxIntValue() - 1
+	return NewOffset(minimum, minimum)
+}
+
+func OffsetMax() Offset {
+	maximum := maxIntValue()
+	return NewOffset(maximum, maximum)
 }
 
 func OffsetFromPosition(position Position) Offset {

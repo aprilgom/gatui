@@ -253,6 +253,62 @@ func TestCanvasMarker_renderSymbols(t *testing.T) {
 	}
 }
 
+func TestCanvasMarker_shouldMatchRatatuiDisplayNames(t *testing.T) {
+	tests := []struct {
+		marker symbols.CanvasMarker
+		want   string
+	}{
+		{marker: symbols.CanvasMarkerDot, want: "Dot"},
+		{marker: symbols.CanvasMarkerBlock, want: "Block"},
+		{marker: symbols.CanvasMarkerBar, want: "Bar"},
+		{marker: symbols.CanvasMarkerBraille, want: "Braille"},
+		{marker: symbols.CanvasMarkerHalfBlock, want: "HalfBlock"},
+		{marker: symbols.CanvasMarkerQuadrant, want: "Quadrant"},
+		{marker: symbols.CanvasMarkerSextant, want: "Sextant"},
+		{marker: symbols.CanvasMarkerOctant, want: "Octant"},
+		{marker: symbols.CanvasMarkerCustom("+"), want: "Custom"},
+	}
+	for _, tt := range tests {
+		if got := tt.marker.String(); got != tt.want {
+			t.Fatalf("%v.String() = %q, want %q", string(tt.marker), got, tt.want)
+		}
+	}
+}
+
+func TestParseCanvasMarker_shouldMatchRatatuiMarkerFromStr(t *testing.T) {
+	tests := []struct {
+		input string
+		want  symbols.CanvasMarker
+	}{
+		{input: "Dot", want: symbols.CanvasMarkerDot},
+		{input: "Block", want: symbols.CanvasMarkerBlock},
+		{input: "Bar", want: symbols.CanvasMarkerBar},
+		{input: "Braille", want: symbols.CanvasMarkerBraille},
+		{input: "HalfBlock", want: symbols.CanvasMarkerHalfBlock},
+		{input: "Quadrant", want: symbols.CanvasMarkerQuadrant},
+		{input: "Sextant", want: symbols.CanvasMarkerSextant},
+		{input: "Octant", want: symbols.CanvasMarkerOctant},
+	}
+	for _, tt := range tests {
+		got, ok := symbols.ParseCanvasMarker(tt.input)
+		if !ok || got != tt.want {
+			t.Fatalf("ParseCanvasMarker(%q) = %q, %v; want %q, true", tt.input, got, ok, tt.want)
+		}
+	}
+	if got, ok := symbols.ParseCanvasMarker(""); ok {
+		t.Fatalf("ParseCanvasMarker(empty) = %q, true; want false", got)
+	}
+}
+
+func TestBrailleSymbols_shouldExposeRatatuiBrailleLookup(t *testing.T) {
+	if len(symbols.Braille) != 256 {
+		t.Fatalf("len(Braille) = %d, want 256", len(symbols.Braille))
+	}
+	if symbols.Braille[0] != '⠀' || symbols.Braille[1] != '⠁' || symbols.Braille[13] != '⠓' || symbols.Braille[255] != '⣿' {
+		t.Fatalf("unexpected braille lookup")
+	}
+}
+
 func TestPixelSymbols_shouldExposeRatatuiPseudoPixelLookups(t *testing.T) {
 	if symbols.Quadrants[0] != ' ' || symbols.Quadrants[3] != '▀' || symbols.Quadrants[15] != '█' {
 		t.Fatalf("unexpected quadrant lookup: %q %q %q", symbols.Quadrants[0], symbols.Quadrants[3], symbols.Quadrants[15])

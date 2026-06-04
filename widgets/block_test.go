@@ -1108,6 +1108,36 @@ func TestBlock_innerSaturatesWhenPaddingSumOverflows(t *testing.T) {
 	}
 }
 
+func TestBlock_innerClampsLeftAndTopBorderOffsetsForEmptyExtent(t *testing.T) {
+	tests := []struct {
+		name  string
+		block Block
+		area  layout.Rect
+		want  layout.Rect
+	}{
+		{
+			name:  "left border with zero width",
+			block: NewBlock().Borders(LeftBorder),
+			area:  layout.NewRect(0, 0, 0, 1),
+			want:  layout.NewRect(0, 0, 0, 1),
+		},
+		{
+			name:  "top border with zero height",
+			block: NewBlock().Borders(TopBorder),
+			area:  layout.NewRect(0, 0, 1, 0),
+			want:  layout.NewRect(0, 0, 1, 0),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.block.Inner(tt.area); got != tt.want {
+				t.Fatalf("Inner(%#v) = %#v, want %#v", tt.area, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestBlock_verticalSpaceSaturatesWhenSpaceOverflows(t *testing.T) {
 	block := NewBlock().
 		Borders(TopBorder | BottomBorder).

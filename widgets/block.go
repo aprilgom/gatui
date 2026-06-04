@@ -365,8 +365,8 @@ func (b Block) Inner(area layout.Rect) layout.Rect {
 		bottom = 1
 	}
 	inner := area
-	inner.X += left
-	inner.Y += top
+	inner.X = minInt(saturatingAdd(inner.X, left), inner.Right())
+	inner.Y = minInt(saturatingAdd(inner.Y, top), inner.Bottom())
 	inner.Width = saturatingSub(inner.Width, saturatingAdd(left, right))
 	inner.Height = saturatingSub(inner.Height, saturatingAdd(top, bottom))
 	inner.X += b.padding.Left

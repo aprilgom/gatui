@@ -56,6 +56,29 @@ func TestOffset_FromPosition_convertsCoordinates(t *testing.T) {
 	}
 }
 
+func TestPosition_Helpers_shouldMatchRatatui(t *testing.T) {
+	if got := layout.PositionOrigin(); got != layout.NewPosition(0, 0) {
+		t.Fatalf("PositionOrigin() = %#v, want origin", got)
+	}
+	if got := layout.PositionMin(); got != layout.PositionOrigin() {
+		t.Fatalf("PositionMin() = %#v, want origin", got)
+	}
+	if got := layout.PositionMax(); got != layout.NewPosition(layout.MaxCoordinate, layout.MaxCoordinate) {
+		t.Fatalf("PositionMax() = %#v, want max coordinate", got)
+	}
+
+	position := layout.PositionFromTuple(1, 2)
+	if got := layout.PositionFromRect(layout.NewRect(1, 2, 3, 4)); got != position {
+		t.Fatalf("PositionFromRect() = %#v, want %#v", got, position)
+	}
+	if x, y := position.Tuple(); x != 1 || y != 2 {
+		t.Fatalf("Position.Tuple() = (%d, %d), want (1, 2)", x, y)
+	}
+	if got := position.String(); got != "(1, 2)" {
+		t.Fatalf("Position.String() = %q, want %q", got, "(1, 2)")
+	}
+}
+
 func TestPosition_AddAndSubtractOffset(t *testing.T) {
 	got := layout.NewPosition(10, 10).
 		AddOffset(layout.NewOffset(-3, 4)).
@@ -228,6 +251,24 @@ func TestSize_Tuple(t *testing.T) {
 	}
 }
 
+func TestSize_Helpers_shouldMatchRatatui(t *testing.T) {
+	if got := layout.SizeZero(); got != layout.NewSize(0, 0) {
+		t.Fatalf("SizeZero() = %#v, want zero", got)
+	}
+	if got := layout.SizeMin(); got != layout.SizeZero() {
+		t.Fatalf("SizeMin() = %#v, want zero", got)
+	}
+	if got := layout.SizeMax(); got != layout.NewSize(layout.MaxCoordinate, layout.MaxCoordinate) {
+		t.Fatalf("SizeMax() = %#v, want max coordinate", got)
+	}
+	if got := layout.SizeFromRect(layout.NewRect(1, 2, 3, 4)); got != layout.NewSize(3, 4) {
+		t.Fatalf("SizeFromRect() = %#v, want 3x4", got)
+	}
+	if got := layout.NewSize(10, 20).String(); got != "10x20" {
+		t.Fatalf("Size.String() = %q, want %q", got, "10x20")
+	}
+}
+
 func TestSize_FromTuple_shouldMatchRatatui(t *testing.T) {
 	got := layout.SizeFromTuple(10, 20)
 	want := layout.NewSize(10, 20)
@@ -248,6 +289,30 @@ func TestSize_FromTuple_shouldUseGoClampPolicy(t *testing.T) {
 
 	if got != want {
 		t.Fatalf("SizeFromTuple(-10, -20) = %#v, want %#v", got, want)
+	}
+}
+
+func TestMargin_Helpers_shouldMatchRatatui(t *testing.T) {
+	if got := layout.MarginFromInt(5); got != layout.NewMargin(5, 5) {
+		t.Fatalf("MarginFromInt(5) = %#v, want uniform margin", got)
+	}
+	if got := layout.NewMargin(1, 2).String(); got != "1x2" {
+		t.Fatalf("Margin.String() = %q, want %q", got, "1x2")
+	}
+}
+
+func TestOffset_Helpers_shouldMatchRatatui(t *testing.T) {
+	maxInt := int(^uint(0) >> 1)
+	minInt := -maxInt - 1
+
+	if got := layout.OffsetZero(); got != layout.NewOffset(0, 0) {
+		t.Fatalf("OffsetZero() = %#v, want zero", got)
+	}
+	if got := layout.OffsetMin(); got != layout.NewOffset(minInt, minInt) {
+		t.Fatalf("OffsetMin() = %#v, want min int offset", got)
+	}
+	if got := layout.OffsetMax(); got != layout.NewOffset(maxInt, maxInt) {
+		t.Fatalf("OffsetMax() = %#v, want max int offset", got)
 	}
 }
 

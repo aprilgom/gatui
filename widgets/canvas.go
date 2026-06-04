@@ -44,6 +44,7 @@ func CanvasMarkerCustom(symbol string) CanvasMarker {
 
 type CanvasContext struct {
 	labels []CanvasLabel
+	layers [][]CanvasShape
 	shapes []CanvasShape
 }
 
@@ -193,6 +194,14 @@ func (ctx *CanvasContext) Draw(shape CanvasShape) {
 	ctx.shapes = append(ctx.shapes, shape)
 }
 
+func (ctx *CanvasContext) Layer() {
+	if ctx == nil {
+		return
+	}
+	ctx.layers = append(ctx.layers, ctx.shapes)
+	ctx.shapes = nil
+}
+
 func NewPoints(coords []CanvasPoint, color style.Color) Points {
 	return Points{Coords: coords, Color: color}
 }
@@ -312,14 +321,25 @@ func (c Canvas) Render(area layout.Rect, buf *buffer.Buffer) {
 	if c.paint != nil {
 		c.paint(ctx)
 	}
-	painter := newCanvasPainter(area.Width, area.Height, c.xMin, c.xMax, c.yMin, c.yMax, c.marker)
-	for _, shape := range ctx.shapes {
-		shape.Draw(painter)
+	ctx.finishLayer()
+	for _, layer := range ctx.layers {
+		painter := newCanvasPainter(area.Width, area.Height, c.xMin, c.xMax, c.yMin, c.yMax, c.marker)
+		for _, shape := range layer {
+			shape.Draw(painter)
+		}
+		c.renderShapes(area, buf, painter)
 	}
-	c.renderShapes(area, buf, painter)
 	for _, label := range ctx.labels {
 		c.renderLabel(area, buf, label)
 	}
+}
+
+func (ctx *CanvasContext) finishLayer() {
+	if ctx == nil || len(ctx.shapes) == 0 {
+		return
+	}
+	ctx.layers = append(ctx.layers, ctx.shapes)
+	ctx.shapes = nil
 }
 
 func newCanvasPainter(width, height int, xMin, xMax, yMin, yMax float64, marker CanvasMarker) *CanvasPainter {

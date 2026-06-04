@@ -169,6 +169,33 @@ func TestConstraint_Default_shouldMatchRatatui(t *testing.T) {
 	}
 }
 
+func TestConstraint_Apply_shouldMatchRatatui(t *testing.T) {
+	tests := []struct {
+		name       string
+		constraint layout.Constraint
+		length     int
+		want       int
+	}{
+		{name: "percentage", constraint: layout.Percentage(50), length: 80, want: 40},
+		{name: "percentage clamps to length", constraint: layout.Percentage(150), length: 80, want: 80},
+		{name: "ratio", constraint: layout.Ratio(1, 4), length: 80, want: 20},
+		{name: "ratio clamps to length", constraint: layout.Ratio(2, 1), length: 80, want: 80},
+		{name: "ratio zero denominator uses one", constraint: layout.Ratio(1, 0), length: 80, want: 80},
+		{name: "length", constraint: layout.Length(120), length: 80, want: 80},
+		{name: "fill", constraint: layout.Fill(30), length: 80, want: 30},
+		{name: "max", constraint: layout.Max(30), length: 80, want: 30},
+		{name: "min", constraint: layout.Min(120), length: 80, want: 120},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.constraint.Apply(tt.length); got != tt.want {
+				t.Fatalf("%s.Apply(%d) = %d, want %d", tt.constraint, tt.length, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestConstraint_String_shouldMatchRatatui(t *testing.T) {
 	tests := []struct {
 		constraint layout.Constraint
