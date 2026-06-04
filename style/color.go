@@ -118,9 +118,6 @@ func (c Color) String() string {
 }
 
 func ParseColor(value string) (Color, error) {
-	if value == "lightwhite" {
-		return LightWhite, nil
-	}
 	normalized := strings.ToLower(value)
 	normalized = strings.ReplaceAll(normalized, " ", "")
 	normalized = strings.ReplaceAll(normalized, "-", "")

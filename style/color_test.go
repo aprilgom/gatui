@@ -68,7 +68,7 @@ func TestParseColor_shouldParseNamedIndexedAndRGBColors(t *testing.T) {
 		{name: "light magenta", value: "lightmagenta", want: style.LightMagenta},
 		{name: "light cyan", value: "lightcyan", want: style.LightCyan},
 		{name: "white", value: "white", want: style.White},
-		{name: "light white", value: "lightwhite", want: style.LightWhite},
+		{name: "light white alias", value: "lightwhite", want: style.White},
 		{name: "light black alias", value: "lightblack", want: style.DarkGray},
 		{name: "light gray alias", value: "lightgray", want: style.White},
 		{name: "grey alias", value: "grey", want: style.Gray},
