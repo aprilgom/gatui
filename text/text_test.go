@@ -94,6 +94,126 @@ func TestSpan_Width_shouldUseDisplayWidth(t *testing.T) {
 	}
 }
 
+func TestSpan_add(t *testing.T) {
+	baseStyle := style.NewStyle().Fg(style.Green).Bg(style.Yellow)
+	otherStyle := style.NewStyle().Fg(style.Red)
+	original := text.StyledSpan("hello", baseStyle)
+
+	got := original.Add(text.StyledSpan(" world", otherStyle))
+
+	if got.Content != "hello world" {
+		t.Fatalf("content = %q, want hello world", got.Content)
+	}
+	if got.Style != baseStyle {
+		t.Fatalf("style = %#v, want %#v", got.Style, baseStyle)
+	}
+	if original.Content != "hello" {
+		t.Fatalf("Add mutated original content to %q", original.Content)
+	}
+}
+
+func TestSpan_fromRefStrBorrowedCow(t *testing.T) {
+	source := "borrowed"
+
+	got := text.NewSpan(source)
+	source = "changed"
+
+	if source != "changed" {
+		t.Fatalf("source = %q, want changed", source)
+	}
+	if got.Content != "borrowed" {
+		t.Fatalf("content = %q, want borrowed", got.Content)
+	}
+	if got.Style != style.NewStyle() {
+		t.Fatalf("style = %#v, want default", got.Style)
+	}
+}
+
+func TestSpan_fromRefStringBorrowedCow(t *testing.T) {
+	source := strings.Builder{}
+	source.WriteString("borrowed string")
+	content := source.String()
+
+	got := text.NewSpan(content)
+	source.Reset()
+	source.WriteString("changed")
+
+	if got.Content != "borrowed string" {
+		t.Fatalf("content = %q, want borrowed string", got.Content)
+	}
+	if got.Style != style.NewStyle() {
+		t.Fatalf("style = %#v, want default", got.Style)
+	}
+}
+
+func TestSpan_rawString(t *testing.T) {
+	got := text.NewSpan(strings.Join([]string{"raw", "string"}, " "))
+
+	if got.Content != "raw string" {
+		t.Fatalf("content = %q, want raw string", got.Content)
+	}
+	if got.Style != style.NewStyle() {
+		t.Fatalf("style = %#v, want default", got.Style)
+	}
+}
+
+func TestSpan_setContent(t *testing.T) {
+	originalStyle := style.NewStyle().Fg(style.Blue)
+	original := text.StyledSpan("old", originalStyle)
+
+	got := original.SetContent("new")
+
+	if got.Content != "new" {
+		t.Fatalf("content = %q, want new", got.Content)
+	}
+	if got.Style != originalStyle {
+		t.Fatalf("style = %#v, want %#v", got.Style, originalStyle)
+	}
+	if original.Content != "old" {
+		t.Fatalf("SetContent mutated original content to %q", original.Content)
+	}
+}
+
+func TestSpan_setStyle(t *testing.T) {
+	original := text.StyledSpan("content", style.NewStyle().Fg(style.Blue))
+	replacement := style.NewStyle().Fg(style.Red).Bg(style.Yellow).AddModifier(style.ModifierBold)
+
+	got := original.SetStyle(replacement)
+
+	if got.Content != "content" {
+		t.Fatalf("content = %q, want content", got.Content)
+	}
+	if got.Style != replacement {
+		t.Fatalf("style = %#v, want %#v", got.Style, replacement)
+	}
+	if original.Style == replacement {
+		t.Fatalf("SetStyle mutated original style")
+	}
+}
+
+func TestSpan_styledString(t *testing.T) {
+	spanStyle := style.NewStyle().Fg(style.Magenta).AddModifier(style.ModifierItalic)
+	got := text.StyledSpan(strings.Join([]string{"styled", "string"}, " "), spanStyle)
+
+	if got.Content != "styled string" {
+		t.Fatalf("content = %q, want styled string", got.Content)
+	}
+	if got.Style != spanStyle {
+		t.Fatalf("style = %#v, want %#v", got.Style, spanStyle)
+	}
+}
+
+func TestSpan_toSpan(t *testing.T) {
+	spanStyle := style.NewStyle().Fg(style.Cyan).AddModifier(style.ModifierUnderlined)
+	original := text.StyledSpan("identity", spanStyle)
+
+	got := original.ToSpan()
+
+	if got != original {
+		t.Fatalf("ToSpan() = %#v, want %#v", got, original)
+	}
+}
+
 func TestStyledGrapheme_New_shouldStoreSymbolAndStyle(t *testing.T) {
 	graphemeStyle := style.NewStyle().Fg(style.Yellow).AddModifier(style.ModifierItalic)
 
@@ -1045,6 +1165,50 @@ func TestSpan_Render_shouldTruncateOverflowingAreaToBuffer(t *testing.T) {
 	assertTextLines(t, buf, []string{"          test "})
 }
 
+func TestSpan_renderOutOfBounds(t *testing.T) {
+	tests := []struct {
+		name string
+		area layout.Rect
+		want []string
+	}{
+		{
+			name: "outside right",
+			area: layout.NewRect(5, 0, 2, 1),
+			want: []string{"    "},
+		},
+		{
+			name: "outside below",
+			area: layout.NewRect(0, 2, 4, 1),
+			want: []string{"    "},
+		},
+		{
+			name: "partially overlaps right edge",
+			area: layout.NewRect(2, 0, 4, 1),
+			want: []string{"  he"},
+		},
+		{
+			name: "zero width",
+			area: layout.NewRect(0, 0, 0, 1),
+			want: []string{"    "},
+		},
+		{
+			name: "zero height",
+			area: layout.NewRect(0, 0, 4, 0),
+			want: []string{"    "},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := buffer.Empty(layout.NewRect(0, 0, 4, 1))
+
+			text.NewSpan("hello").Render(tt.area, buf)
+
+			assertTextLines(t, buf, tt.want)
+		})
+	}
+}
+
 func TestLine_Render_shouldRespectAlignmentAndTruncation(t *testing.T) {
 	tests := []struct {
 		name string
@@ -1081,7 +1245,7 @@ func TestLine_Render(t *testing.T) {
 	line.Render(buf.Area, buf)
 
 	assertTextLines(t, buf, []string{"Hello world!   "})
-	for x := 0; x < 15; x++ {
+	for x := range 15 {
 		want := lineStyle
 		switch {
 		case x < 6:
@@ -1106,7 +1270,7 @@ func TestLine_RenderOnlyStylesFirstLine(t *testing.T) {
 	line.Render(buf.Area, buf)
 
 	assertTextLines(t, buf, []string{"Hello world!        ", "                    "})
-	for x := 0; x < 20; x++ {
+	for x := range 20 {
 		want := lineStyle
 		switch {
 		case x < 6:
@@ -1132,7 +1296,7 @@ func TestLine_RenderOnlyStylesLineArea(t *testing.T) {
 	line.Render(layout.NewRect(0, 0, 15, 1), buf)
 
 	assertTextLines(t, buf, []string{"Hello world!        "})
-	for x := 0; x < 20; x++ {
+	for x := range 20 {
 		want := style.NewStyle()
 		if x < 15 {
 			want = lineStyle
@@ -1200,7 +1364,7 @@ func TestLine_Render_emptyLineAppliesStyleToFirstRowOnly(t *testing.T) {
 	text.NewLine().Style(lineStyle).Render(buf.Area, buf)
 
 	assertTextLines(t, buf, []string{"    ", "    "})
-	for x := 0; x < 4; x++ {
+	for x := range 4 {
 		assertTextCellStyle(t, buf, x, 0, lineStyle)
 		assertTextCellStyle(t, buf, x, 1, style.NewStyle())
 	}

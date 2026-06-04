@@ -34,9 +34,13 @@ func renderSpan(span Span, area layout.Rect, buf *buffer.Buffer, skipWidth int) 
 	if buf == nil {
 		return area.X
 	}
+	originalX := area.X
 	area = area.Intersection(buf.Area)
 	if area.Width == 0 || area.Height == 0 {
 		return area.X
+	}
+	if area.X > originalX {
+		skipWidth += area.X - originalX
 	}
 
 	x := area.X

@@ -21,6 +21,25 @@ func StyledSpan(content string, spanStyle style.Style) Span {
 	return Span{Content: content, Style: spanStyle}
 }
 
+func (s Span) SetContent(content string) Span {
+	s.Content = content
+	return s
+}
+
+func (s Span) SetStyle(spanStyle style.Style) Span {
+	s.Style = spanStyle
+	return s
+}
+
+func (s Span) Add(other Span) Span {
+	s.Content += other.Content
+	return s
+}
+
+func (s Span) ToSpan() Span {
+	return s
+}
+
 func (s Span) PatchStyle(spanStyle style.Style) Span {
 	s.Style = s.Style.Patch(spanStyle)
 	return s
