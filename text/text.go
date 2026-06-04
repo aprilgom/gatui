@@ -18,6 +18,10 @@ func NewText(lines ...Line) Text {
 	return Text{Lines: append([]Line(nil), lines...), Style: style.NewStyle()}
 }
 
+func TextFromLines(lines []Line) Text {
+	return NewText(lines...)
+}
+
 func TextFromSpan(span Span) Text {
 	return NewText(NewLine(span))
 }
@@ -48,6 +52,10 @@ func (t Text) PatchStyle(textStyle style.Style) Text {
 
 func (t Text) ResetStyle() Text {
 	return t.PatchStyle(style.ResetStyle())
+}
+
+func (t Text) ToText() Text {
+	return t
 }
 
 func (t Text) String() string {

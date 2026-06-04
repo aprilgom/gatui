@@ -783,6 +783,53 @@ func TestTextFromLine_shouldCreateSingleLineText(t *testing.T) {
 	}
 }
 
+func TestText_fromVecLine(t *testing.T) {
+	lines := []text.Line{
+		text.LineFromString("The first line"),
+		text.LineFromString("The second line").Right(),
+	}
+
+	got := text.TextFromLines(lines)
+
+	if !linesEqual(got.Lines, lines) {
+		t.Fatalf("lines = %#v, want %#v", got.Lines, lines)
+	}
+	lines[0] = text.LineFromString("changed")
+	if got.Lines[0].String() != "The first line" {
+		t.Fatalf("TextFromLines retained source slice alias; first line = %q", got.Lines[0].String())
+	}
+}
+
+func TestText_fromCow(t *testing.T) {
+	got := text.FromString("The first line\nThe second line")
+
+	want := []text.Line{
+		text.LineFromString("The first line"),
+		text.LineFromString("The second line"),
+	}
+	if !linesEqual(got.Lines, want) {
+		t.Fatalf("lines = %#v, want %#v", got.Lines, want)
+	}
+}
+
+func TestText_toText(t *testing.T) {
+	original := text.FromString("identity\ntext").
+		Cyan().
+		Center()
+
+	got := original.ToText()
+
+	if got.Style != original.Style {
+		t.Fatalf("style = %#v, want %#v", got.Style, original.Style)
+	}
+	if got.Alignment == nil || original.Alignment == nil || *got.Alignment != *original.Alignment {
+		t.Fatalf("alignment = %#v, want %#v", got.Alignment, original.Alignment)
+	}
+	if !linesEqual(got.Lines, original.Lines) {
+		t.Fatalf("lines = %#v, want %#v", got.Lines, original.Lines)
+	}
+}
+
 func TestText_String_shouldJoinLinesWithNewline(t *testing.T) {
 	got := text.NewText(
 		text.LineFromSpans(
@@ -867,6 +914,71 @@ func TestText_PushLine_shouldAppendLineAndPreserveTextStyle(t *testing.T) {
 	}
 	if got.Style != wantStyle {
 		t.Fatalf("style = %#v, want %#v", got.Style, wantStyle)
+	}
+}
+
+func TestText_pushLineEmpty(t *testing.T) {
+	got := text.NewText().PushLine(text.LineFromString(""))
+
+	if len(got.Lines) != 1 {
+		t.Fatalf("line count = %d, want 1", len(got.Lines))
+	}
+	if got.Lines[0].String() != "" {
+		t.Fatalf("line string = %q, want empty", got.Lines[0].String())
+	}
+	if got.Height() != 1 || got.Width() != 0 {
+		t.Fatalf("dimensions = %dx%d, want 0x1", got.Width(), got.Height())
+	}
+}
+
+func TestText_forLoopInto(t *testing.T) {
+	helloWorld := text.TextFromLines([]text.Line{
+		text.StyledLine("Hello ", style.NewStyle().Fg(style.Blue)),
+		text.StyledLine("world!", style.NewStyle().Fg(style.Green)),
+	})
+	var got strings.Builder
+
+	for _, line := range helloWorld.Lines {
+		got.WriteString(line.String())
+	}
+
+	if got.String() != "Hello world!" {
+		t.Fatalf("range content = %q, want Hello world!", got.String())
+	}
+}
+
+func TestText_forLoopMutRef(t *testing.T) {
+	helloWorld := text.TextFromLines([]text.Line{
+		text.LineFromString("Hello "),
+		text.LineFromString("world!"),
+	})
+
+	for i := range helloWorld.Lines {
+		helloWorld.Lines[i] = helloWorld.Lines[i].Cyan()
+	}
+
+	want := style.NewStyle().Fg(style.Cyan)
+	for i, line := range helloWorld.Lines {
+		if line.LineStyle != want {
+			t.Fatalf("line[%d].LineStyle = %#v, want %#v", i, line.LineStyle, want)
+		}
+	}
+}
+
+func TestText_forLoopRef(t *testing.T) {
+	helloWorld := text.TextFromLines([]text.Line{
+		text.LineFromString("Hello "),
+		text.LineFromString("world!"),
+	})
+	got := make([]string, 0, len(helloWorld.Lines))
+
+	for i := range helloWorld.Lines {
+		line := &helloWorld.Lines[i]
+		got = append(got, line.String())
+	}
+
+	if !slices.Equal(got, []string{"Hello ", "world!"}) {
+		t.Fatalf("range refs = %#v, want [Hello  world!]", got)
 	}
 }
 
@@ -980,6 +1092,87 @@ func TestText_ResetStyle_shouldResetTextStyleAndPreserveLinesAndAlignment(t *tes
 	}
 	if got.Style != wantStyle {
 		t.Fatalf("text style = %#v, want %#v", got.Style, wantStyle)
+	}
+}
+
+func TestText_renderCenteredEven(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 6, 1))
+
+	text.FromString("foo").Center().Render(buf.Area, buf)
+
+	assertTextLines(t, buf, []string{" foo  "})
+}
+
+func TestText_renderCenteredEvenWithTruncation(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 6, 1))
+
+	text.FromString("123456789").Center().Render(buf.Area, buf)
+
+	assertTextLines(t, buf, []string{"234567"})
+}
+
+func TestText_renderCenteredOddWithTruncation(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 5, 1))
+
+	text.FromString("123456789").Center().Render(buf.Area, buf)
+
+	assertTextLines(t, buf, []string{"34567"})
+}
+
+func TestText_renderOnlyStylesLineArea(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 5, 1))
+	textStyle := style.NewStyle().Bg(style.Blue)
+
+	text.StyledText("foo", textStyle).Render(buf.Area, buf)
+
+	assertTextLines(t, buf, []string{"foo  "})
+	for x := range 5 {
+		assertTextCellStyle(t, buf, x, 0, textStyle)
+	}
+}
+
+func TestText_renderOutOfBounds(t *testing.T) {
+	tests := []struct {
+		name string
+		area layout.Rect
+	}{
+		{name: "fully outside", area: layout.NewRect(20, 20, 10, 1)},
+		{name: "zero width", area: layout.NewRect(0, 0, 0, 1)},
+		{name: "zero height", area: layout.NewRect(0, 0, 5, 0)},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := buffer.Empty(layout.NewRect(0, 0, 5, 1))
+
+			text.FromString("Hello, world!").Render(tt.area, buf)
+
+			assertTextLines(t, buf, []string{"     "})
+		})
+	}
+}
+
+func TestText_renderRightAlignedWithTruncation(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 5, 1))
+
+	text.FromString("123456789").Right().Render(buf.Area, buf)
+
+	assertTextLines(t, buf, []string{"56789"})
+}
+
+func TestText_renderTruncates(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 6, 1))
+	textStyle := style.NewStyle().Bg(style.Blue)
+
+	text.StyledText("foobar", textStyle).Render(layout.NewRect(0, 0, 3, 1), buf)
+
+	assertTextLines(t, buf, []string{"foo   "})
+	for x := range 6 {
+		want := style.NewStyle()
+		if x < 3 {
+			want = textStyle
+		}
+		assertTextCellStyle(t, buf, x, 0, want)
 	}
 }
 
