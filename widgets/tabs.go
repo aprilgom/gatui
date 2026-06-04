@@ -57,6 +57,16 @@ func (t Tabs) Select(index int) Tabs {
 	return t
 }
 
+func (t Tabs) SelectOption(index *int) Tabs {
+	if index == nil {
+		t.selected = nil
+		return t
+	}
+	selected := *index
+	t.selected = &selected
+	return t
+}
+
 func (t Tabs) ClearSelection() Tabs {
 	t.selected = nil
 	return t

@@ -220,6 +220,75 @@ func TestTabs_shouldHighlightSelectedTab(t *testing.T) {
 	assertCellStyle(t, buf, 1, 0, style.NewStyle())
 }
 
+func TestTabs_selectOption_shouldClearSelection_whenNil(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 13, 1))
+	tabs := widgets.TabsFromStrings([]string{"Tab1", "Tab2"}).SelectOption(nil)
+
+	tabs.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{" Tab1 │ Tab2 "})
+	for x := range 13 {
+		assertCellStyle(t, buf, x, 0, style.NewStyle())
+	}
+}
+
+func TestTabs_selectOption_shouldSelectTab_whenNonNil(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 13, 1))
+	selected := 1
+	tabs := widgets.TabsFromStrings([]string{"Tab1", "Tab2"}).SelectOption(&selected)
+
+	tabs.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{" Tab1 │ Tab2 "})
+	for x := 8; x <= 11; x++ {
+		assertCellStyle(t, buf, x, 0, style.NewStyle().AddModifier(style.ModifierReversed))
+	}
+	assertCellStyle(t, buf, 1, 0, style.NewStyle())
+}
+
+func TestTabs_selectOption_shouldCopySelectedValue(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 13, 1))
+	selected := 1
+	tabs := widgets.TabsFromStrings([]string{"Tab1", "Tab2"}).SelectOption(&selected)
+	selected = 0
+
+	tabs.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{" Tab1 │ Tab2 "})
+	for x := 8; x <= 11; x++ {
+		assertCellStyle(t, buf, x, 0, style.NewStyle().AddModifier(style.ModifierReversed))
+	}
+	assertCellStyle(t, buf, 1, 0, style.NewStyle())
+}
+
+func TestTabs_selectOption_shouldRenderLikeSelectAndClearSelection(t *testing.T) {
+	selected := 1
+	selectOptionBuf := buffer.Empty(layout.NewRect(0, 0, 13, 1))
+	selectBuf := buffer.Empty(layout.NewRect(0, 0, 13, 1))
+	clearOptionBuf := buffer.Empty(layout.NewRect(0, 0, 13, 1))
+	clearBuf := buffer.Empty(layout.NewRect(0, 0, 13, 1))
+
+	widgets.TabsFromStrings([]string{"Tab1", "Tab2"}).SelectOption(&selected).Render(selectOptionBuf.Area, selectOptionBuf)
+	widgets.TabsFromStrings([]string{"Tab1", "Tab2"}).Select(1).Render(selectBuf.Area, selectBuf)
+	widgets.TabsFromStrings([]string{"Tab1", "Tab2"}).SelectOption(nil).Render(clearOptionBuf.Area, clearOptionBuf)
+	widgets.TabsFromStrings([]string{"Tab1", "Tab2"}).ClearSelection().Render(clearBuf.Area, clearBuf)
+
+	assertLines(t, selectOptionBuf, []string{" Tab1 │ Tab2 "})
+	assertLines(t, clearOptionBuf, []string{" Tab1 │ Tab2 "})
+	for x := range 13 {
+		selectCell, ok := selectBuf.CellAt(x, 0)
+		if !ok {
+			t.Fatalf("missing select cell at %d,0", x)
+		}
+		clearCell, ok := clearBuf.CellAt(x, 0)
+		if !ok {
+			t.Fatalf("missing clear cell at %d,0", x)
+		}
+		assertCellStyle(t, selectOptionBuf, x, 0, selectCell.Style)
+		assertCellStyle(t, clearOptionBuf, x, 0, clearCell.Style)
+	}
+}
+
 func TestTabs_shouldPatchHighlightStyleOverSelectedTitleSpans(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 5, 1))
 	tabs := widgets.NewTabs([]text.Line{
