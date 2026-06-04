@@ -1,6 +1,8 @@
 package widgets
 
 import (
+	"fmt"
+
 	"gatui/buffer"
 	"gatui/layout"
 	"gatui/style"
@@ -14,6 +16,28 @@ const (
 	RenderDirectionLeftToRight RenderDirection = iota
 	RenderDirectionRightToLeft
 )
+
+func (d RenderDirection) String() string {
+	switch d {
+	case RenderDirectionLeftToRight:
+		return "LeftToRight"
+	case RenderDirectionRightToLeft:
+		return "RightToLeft"
+	default:
+		return fmt.Sprintf("RenderDirection(%d)", d)
+	}
+}
+
+func ParseRenderDirection(value string) (RenderDirection, error) {
+	switch value {
+	case "LeftToRight":
+		return RenderDirectionLeftToRight, nil
+	case "RightToLeft":
+		return RenderDirectionRightToLeft, nil
+	default:
+		return RenderDirectionLeftToRight, fmt.Errorf("unknown RenderDirection %q", value)
+	}
+}
 
 type SparklineBar struct {
 	value   uint64

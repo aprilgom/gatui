@@ -10,6 +10,57 @@ import (
 	"gatui/widgets"
 )
 
+func TestRenderDirection_String_shouldMatchRatatui(t *testing.T) {
+	tests := []struct {
+		direction widgets.RenderDirection
+		want      string
+	}{
+		{direction: widgets.RenderDirectionLeftToRight, want: "LeftToRight"},
+		{direction: widgets.RenderDirectionRightToLeft, want: "RightToLeft"},
+	}
+
+	for _, tt := range tests {
+		if got := tt.direction.String(); got != tt.want {
+			t.Fatalf("%#v.String() = %q, want %q", tt.direction, got, tt.want)
+		}
+	}
+}
+
+func TestParseRenderDirection_shouldMatchRatatui(t *testing.T) {
+	tests := []struct {
+		value string
+		want  widgets.RenderDirection
+	}{
+		{value: "LeftToRight", want: widgets.RenderDirectionLeftToRight},
+		{value: "RightToLeft", want: widgets.RenderDirectionRightToLeft},
+	}
+
+	for _, tt := range tests {
+		got, err := widgets.ParseRenderDirection(tt.value)
+		if err != nil {
+			t.Fatalf("ParseRenderDirection(%q) returned error: %v", tt.value, err)
+		}
+		if got != tt.want {
+			t.Fatalf("ParseRenderDirection(%q) = %#v, want %#v", tt.value, got, tt.want)
+		}
+	}
+}
+
+func TestRenderDirection_String_unknownShouldBeStable(t *testing.T) {
+	got := widgets.RenderDirection(99).String()
+	if got != "RenderDirection(99)" {
+		t.Fatalf("RenderDirection(99).String() = %q, want %q", got, "RenderDirection(99)")
+	}
+}
+
+func TestParseRenderDirection_unknownShouldReturnError(t *testing.T) {
+	for _, value := range []string{"", "lefttoright", "Forward"} {
+		if got, err := widgets.ParseRenderDirection(value); err == nil {
+			t.Fatalf("ParseRenderDirection(%q) = %#v, want error", value, got)
+		}
+	}
+}
+
 func TestSparkline_canBeStylized(t *testing.T) {
 	buf := sparklineBuffer(1, 1)
 	sparkline := widgets.NewSparkline().
@@ -28,6 +79,17 @@ func TestSparkline_canBeStylized(t *testing.T) {
 		Fg(style.Cyan).
 		Bg(style.Blue).
 		AddModifier(style.ModifierBold|style.ModifierDim|style.ModifierItalic))
+}
+
+func TestSparkline_canBeCreatedFromSliceOfUint64(t *testing.T) {
+	buf := sparklineBuffer(4, 1)
+	data := []uint64{1, 2, 3}
+	sparkline := widgets.NewSparkline().Data(data)
+	data[1] = 99
+
+	sparkline.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"▂▅█x"})
 }
 
 func TestSparkline_canBeCreatedFromArrayOfUint64(t *testing.T) {
@@ -53,6 +115,21 @@ func TestSparkline_canBeCreatedFromVecOfUint64(t *testing.T) {
 	sparkline.Render(buf.Area, buf)
 
 	assertLines(t, buf, []string{" ▄█x"})
+}
+
+func TestSparkline_canBeCreatedFromSliceOfOptionalUint64(t *testing.T) {
+	buf := sparklineBuffer(4, 1)
+	bars := []widgets.SparklineBar{
+		widgets.NewSparklineBar(1),
+		widgets.NewAbsentSparklineBar(),
+		widgets.NewSparklineBar(3),
+	}
+	sparkline := widgets.NewSparkline().AbsentValueSymbol("*").Bars(bars)
+	bars[1] = widgets.NewSparklineBar(2)
+
+	sparkline.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"▂*█x"})
 }
 
 func TestSparkline_canBeCreatedFromArrayOfOptionalUint64(t *testing.T) {
