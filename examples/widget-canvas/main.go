@@ -77,7 +77,9 @@ func renderCanvas(frame *terminal.Frame, area layout.Rect) {
 			ctx.Draw(widgets.Map{Resolution: widgets.MapResolutionHigh, Color: style.White})
 			ctx.Layer()
 			ctx.Draw(widgets.NewCanvasLine(0, 10, 10, 10, style.Blue))
+			ctx.Marker(widgets.CanvasMarkerBlock)
 			ctx.Draw(widgets.NewRectangle(10, 20, 10, 10, style.Green))
+			ctx.Marker(widgets.CanvasMarkerDot)
 			ctx.Draw(widgets.NewPoints([]widgets.CanvasPoint{
 				{X: 2.3522, Y: 48.8566},    // Paris
 				{X: -122.3321, Y: 47.6062}, // Seattle
