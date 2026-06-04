@@ -19,17 +19,24 @@ type Tabs struct {
 	paddingRight   string
 }
 
-func NewTabs(titles []text.Line) Tabs {
-	selected := 0
+func DefaultTabs() Tabs {
 	return Tabs{
-		titles:         append([]text.Line(nil), titles...),
+		titles:         nil,
 		style:          style.NewStyle(),
 		highlightStyle: style.NewStyle().AddModifier(style.ModifierReversed),
-		selected:       &selected,
+		selected:       nil,
 		divider:        symbols.LineVertical,
 		paddingLeft:    " ",
 		paddingRight:   " ",
 	}
+}
+
+func NewTabs(titles []text.Line) Tabs {
+	selected := 0
+	tabs := DefaultTabs()
+	tabs.titles = append([]text.Line(nil), titles...)
+	tabs.selected = &selected
+	return tabs
 }
 
 func TabsFromStrings(titles []string) Tabs {

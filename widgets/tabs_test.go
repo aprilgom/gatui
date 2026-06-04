@@ -59,6 +59,41 @@ func TestTabs_newFromVecOfStr(t *testing.T) {
 	}
 }
 
+func TestTabs_collectStrings_shouldMatchRatatui(t *testing.T) {
+	titles := []string{"Tab0", "Tab1", "Tab2", "Tab3", "Tab4"}
+	tabs := widgets.TabsFromStrings(titles)
+	titles[0] = "Changed"
+	buf := buffer.Empty(layout.NewRect(0, 0, 34, 1))
+
+	tabs.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{" Tab0 │ Tab1 │ Tab2 │ Tab3 │ Tab4 "})
+	for x := 1; x <= 4; x++ {
+		assertCellStyle(t, buf, x, 0, style.NewStyle().AddModifier(style.ModifierReversed))
+	}
+	assertCellStyle(t, buf, 8, 0, style.NewStyle())
+}
+
+func TestDefaultTabs_shouldMatchRatatui(t *testing.T) {
+	baseStyle := style.NewStyle().Fg(style.Blue)
+	buf := buffer.Empty(layout.NewRect(0, 0, 6, 1))
+	buf.SetString(0, 0, "seeded", baseStyle)
+
+	widgets.DefaultTabs().Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"seeded"})
+	for x := range 6 {
+		assertCellStyle(t, buf, x, 0, baseStyle)
+	}
+
+	widgets.DefaultTabs().Select(0).Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"seeded"})
+	for x := range 6 {
+		assertCellStyle(t, buf, x, 0, baseStyle)
+	}
+}
+
 func TestTabs_renderNew(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 19, 1))
 	tabs := widgets.NewTabs([]text.Line{
