@@ -742,14 +742,7 @@ func (c Chart) renderDatasetPainter(buf *buffer.Buffer, area layout.Rect, painte
 }
 
 func isChartDatasetSymbol(symbol string) bool {
-	if symbol == "•" || symbol == "█" || symbol == "▄" {
-		return true
-	}
-	runes := []rune(symbol)
-	if len(runes) != 1 {
-		return false
-	}
-	return runes[0] >= 0x2800 && runes[0] <= 0x28ff
+	return symbols.IsCanvasDatasetSymbol(symbol)
 }
 
 func (c Chart) renderLabel(buf *buffer.Buffer, label text.Line, area layout.Rect, alignment layout.Alignment, baseStyle style.Style) {

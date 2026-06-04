@@ -544,9 +544,9 @@ func renderCanvasMarkerPixel(marker CanvasMarker, pixel canvasPixel) (string, st
 	}
 	switch marker.Kind() {
 	case CanvasMarkerBlock:
-		return "█", style.NewStyle().Fg(pixel.color).Bg(pixel.color), true
+		return symbols.CanvasBlockSymbol, style.NewStyle().Fg(pixel.color).Bg(pixel.color), true
 	case CanvasMarkerBar:
-		return "▄", style.NewStyle().Fg(pixel.color), true
+		return symbols.CanvasBarSymbol, style.NewStyle().Fg(pixel.color), true
 	case "custom":
 		return marker.CustomSymbol(), style.NewStyle().Fg(pixel.color), true
 	case CanvasMarkerBraille:
@@ -560,7 +560,7 @@ func renderCanvasMarkerPixel(marker CanvasMarker, pixel canvasPixel) (string, st
 	case CanvasMarkerOctant:
 		return symbols.OctantSymbol(pixel.pattern), style.NewStyle().Fg(pixel.color), pixel.pattern != 0
 	default:
-		return "•", style.NewStyle().Fg(pixel.color), true
+		return symbols.CanvasDotSymbol, style.NewStyle().Fg(pixel.color), true
 	}
 }
 
@@ -569,13 +569,13 @@ func halfBlockSymbol(pixel canvasPixel) (string, style.Style, bool) {
 	case pixel.upper == nil && pixel.lower == nil:
 		return "", style.NewStyle(), false
 	case pixel.upper != nil && pixel.lower == nil:
-		return "▀", style.NewStyle().Fg(*pixel.upper), true
+		return symbols.HalfBlockUpper, style.NewStyle().Fg(*pixel.upper), true
 	case pixel.upper == nil && pixel.lower != nil:
-		return "▄", style.NewStyle().Fg(*pixel.lower), true
+		return symbols.HalfBlockLower, style.NewStyle().Fg(*pixel.lower), true
 	case *pixel.upper == *pixel.lower:
-		return "█", style.NewStyle().Fg(*pixel.upper).Bg(*pixel.lower), true
+		return symbols.HalfBlockFull, style.NewStyle().Fg(*pixel.upper).Bg(*pixel.lower), true
 	default:
-		return "▀", style.NewStyle().Fg(*pixel.upper).Bg(*pixel.lower), true
+		return symbols.HalfBlockUpper, style.NewStyle().Fg(*pixel.upper).Bg(*pixel.lower), true
 	}
 }
 

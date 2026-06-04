@@ -553,8 +553,10 @@ func TestChart_shouldRenderOverlappingLineDatasetsWithDatasetMarkers(t *testing.
 		marker            widgets.CanvasMarker
 		expected          []string
 		redMarkerCells    []layout.Position
+		redMarkerStyle    style.Style
 		blueBlockCells    []layout.Position
 		centerOverlapCell layout.Position
+		centerStyle       style.Style
 	}{
 		{
 			name:   "dot",
@@ -572,6 +574,7 @@ func TestChart_shouldRenderOverlappingLineDatasetsWithDatasetMarkers(t *testing.
 				{X: 3, Y: 3},
 				{X: 4, Y: 4},
 			},
+			redMarkerStyle: style.NewStyle().Fg(style.Red),
 			blueBlockCells: []layout.Position{
 				{X: 4, Y: 0},
 				{X: 3, Y: 1},
@@ -579,6 +582,59 @@ func TestChart_shouldRenderOverlappingLineDatasetsWithDatasetMarkers(t *testing.
 				{X: 0, Y: 4},
 			},
 			centerOverlapCell: layout.Position{X: 2, Y: 2},
+			centerStyle:       style.NewStyle().Fg(style.Red).Bg(style.Blue),
+		},
+		{
+			name:   "block",
+			marker: widgets.CanvasMarkerBlock,
+			expected: []string{
+				"█   █",
+				" █ █ ",
+				"  █  ",
+				" █ █ ",
+				"█   █",
+			},
+			redMarkerCells: []layout.Position{
+				{X: 0, Y: 0},
+				{X: 1, Y: 1},
+				{X: 3, Y: 3},
+				{X: 4, Y: 4},
+			},
+			redMarkerStyle: style.NewStyle().Fg(style.Red).Bg(style.Red),
+			blueBlockCells: []layout.Position{
+				{X: 4, Y: 0},
+				{X: 3, Y: 1},
+				{X: 1, Y: 3},
+				{X: 0, Y: 4},
+			},
+			centerOverlapCell: layout.Position{X: 2, Y: 2},
+			centerStyle:       style.NewStyle().Fg(style.Red).Bg(style.Red),
+		},
+		{
+			name:   "bar",
+			marker: widgets.CanvasMarkerBar,
+			expected: []string{
+				"▄   █",
+				" ▄ █ ",
+				"  ▄  ",
+				" █ ▄ ",
+				"█   ▄",
+			},
+			redMarkerCells: []layout.Position{
+				{X: 0, Y: 0},
+				{X: 1, Y: 1},
+				{X: 3, Y: 3},
+				{X: 4, Y: 4},
+			},
+			redMarkerStyle: style.NewStyle().Fg(style.Red),
+			blueBlockCells: []layout.Position{
+				{X: 4, Y: 0},
+				{X: 3, Y: 1},
+				{X: 1, Y: 3},
+				{X: 0, Y: 4},
+			},
+			centerOverlapCell: layout.Position{X: 2, Y: 2},
+			centerStyle:       style.NewStyle().Fg(style.Red).Bg(style.Blue),
 		},
 		{
 			name:   "braille",
@@ -596,6 +652,7 @@ func TestChart_shouldRenderOverlappingLineDatasetsWithDatasetMarkers(t *testing.
 				{X: 3, Y: 3},
 				{X: 4, Y: 4},
 			},
+			redMarkerStyle: style.NewStyle().Fg(style.Red),
 			blueBlockCells: []layout.Position{
 				{X: 4, Y: 0},
 				{X: 3, Y: 1},
@@ -603,6 +660,7 @@ func TestChart_shouldRenderOverlappingLineDatasetsWithDatasetMarkers(t *testing.
 				{X: 0, Y: 4},
 			},
 			centerOverlapCell: layout.Position{X: 2, Y: 2},
+			centerStyle:       style.NewStyle().Fg(style.Red).Bg(style.Blue),
 		},
 	}
 
@@ -634,12 +692,12 @@ func TestChart_shouldRenderOverlappingLineDatasetsWithDatasetMarkers(t *testing.
 
 			assertLines(t, buf, tt.expected)
 			for _, point := range tt.redMarkerCells {
-				assertCellStyle(t, buf, point.X, point.Y, style.NewStyle().Fg(style.Red))
+				assertCellStyle(t, buf, point.X, point.Y, tt.redMarkerStyle)
 			}
 			for _, point := range tt.blueBlockCells {
 				assertCellStyle(t, buf, point.X, point.Y, style.NewStyle().Fg(style.Blue).Bg(style.Blue))
 			}
-			assertCellStyle(t, buf, tt.centerOverlapCell.X, tt.centerOverlapCell.Y, style.NewStyle().Fg(style.Red).Bg(style.Blue))
+			assertCellStyle(t, buf, tt.centerOverlapCell.X, tt.centerOverlapCell.Y, tt.centerStyle)
 		})
 	}
 }

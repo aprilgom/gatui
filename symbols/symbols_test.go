@@ -163,6 +163,44 @@ func TestCanvasMarker_renderSymbols(t *testing.T) {
 	}
 }
 
+func TestPixelSymbols_shouldExposeRatatuiPseudoPixelLookups(t *testing.T) {
+	if symbols.Quadrants[0] != ' ' || symbols.Quadrants[3] != '▀' || symbols.Quadrants[15] != '█' {
+		t.Fatalf("unexpected quadrant lookup: %q %q %q", symbols.Quadrants[0], symbols.Quadrants[3], symbols.Quadrants[15])
+	}
+	if symbols.Sextants[0] != " " || symbols.Sextants[21] != "▌" || symbols.Sextants[42] != "▐" || symbols.Sextants[63] != "█" {
+		t.Fatalf("unexpected sextant lookup")
+	}
+	if symbols.Octants[0] != " " || symbols.Octants[5] != "▘" || symbols.Octants[15] != "▀" || symbols.Octants[255] != "█" {
+		t.Fatalf("unexpected octant lookup")
+	}
+}
+
+func TestHalfBlockSymbols_shouldMatchRatatuiConstants(t *testing.T) {
+	if symbols.HalfBlockUpper != "▀" || symbols.HalfBlockLower != "▄" || symbols.HalfBlockFull != "█" {
+		t.Fatalf("unexpected half-block constants: %q %q %q", symbols.HalfBlockUpper, symbols.HalfBlockLower, symbols.HalfBlockFull)
+	}
+}
+
+func TestIsCanvasDatasetSymbol_shouldRecognizeOnlyDatasetMarkers(t *testing.T) {
+	tests := []struct {
+		symbol string
+		want   bool
+	}{
+		{symbol: symbols.CanvasDotSymbol, want: true},
+		{symbol: symbols.CanvasBlockSymbol, want: true},
+		{symbol: symbols.CanvasBarSymbol, want: true},
+		{symbol: string(symbols.BrailleSymbol(0xff)), want: true},
+		{symbol: "x", want: false},
+		{symbol: "xy", want: false},
+		{symbol: "", want: false},
+	}
+	for _, tt := range tests {
+		if got := symbols.IsCanvasDatasetSymbol(tt.symbol); got != tt.want {
+			t.Fatalf("IsCanvasDatasetSymbol(%q) = %v, want %v", tt.symbol, got, tt.want)
+		}
+	}
+}
+
 func TestScrollbarSymbols_defaults(t *testing.T) {
 	if symbols.HorizontalScrollbarSet.Track != "═" || symbols.HorizontalScrollbarSet.Begin != "◄" || symbols.HorizontalScrollbarSet.End != "►" || symbols.HorizontalScrollbarSet.Thumb != "█" {
 		t.Fatalf("unexpected horizontal scrollbar set: %+v", symbols.HorizontalScrollbarSet)
