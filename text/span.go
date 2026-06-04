@@ -52,6 +52,10 @@ func (s Span) Render(area layout.Rect, buf *buffer.Buffer) {
 	renderSpan(s, area, buf, 0)
 }
 
+func (s Span) ToLine() Line {
+	return LineFromSpan(s)
+}
+
 func (s Span) LeftLine() Line {
 	return NewLine(s).Left()
 }

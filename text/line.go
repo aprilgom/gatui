@@ -22,6 +22,10 @@ func LineFromSpans(spans ...Span) Line {
 	return NewLine(spans...)
 }
 
+func LineFromSpan(span Span) Line {
+	return NewLine(span)
+}
+
 func LineFromString(content string) Line {
 	return NewLine(NewSpan(content))
 }
@@ -59,6 +63,10 @@ func (l Line) PushSpan(span Span) Line {
 func (l Line) AppendSpans(spans ...Span) Line {
 	l.Spans = append(append([]Span(nil), l.Spans...), spans...)
 	return l
+}
+
+func (l Line) AddLine(other Line) Line {
+	return l.AppendSpans(other.Spans...)
 }
 
 func (l Line) Width() int {

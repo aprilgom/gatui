@@ -141,6 +141,23 @@ func TestStyledGrapheme_Stylize_shouldPatchStyle(t *testing.T) {
 	}
 }
 
+func TestStyledGrapheme_setStyle(t *testing.T) {
+	original := text.NewStyledGrapheme("a", style.NewStyle().Fg(style.Yellow))
+	replacement := style.NewStyle().Fg(style.Red).Bg(style.Blue).AddModifier(style.ModifierBold)
+
+	got := original.SetStyle(replacement)
+
+	if got.Symbol != "a" {
+		t.Fatalf("symbol = %q, want a", got.Symbol)
+	}
+	if got.Style != replacement {
+		t.Fatalf("style = %#v, want %#v", got.Style, replacement)
+	}
+	if original.Style == replacement {
+		t.Fatalf("SetStyle mutated original grapheme")
+	}
+}
+
 func TestSpan_StyledGraphemes_shouldPatchBaseStyleWithSpanStyle(t *testing.T) {
 	span := text.StyledSpan("Test", style.NewStyle().Fg(style.Green).AddModifier(style.ModifierItalic))
 	baseStyle := style.NewStyle().Fg(style.Red).Bg(style.Yellow)
@@ -328,6 +345,16 @@ func TestLine_Width_shouldSumSpanDisplayWidths(t *testing.T) {
 			),
 			want: 10,
 		},
+		{
+			name: "crab emoji",
+			line: text.LineFromString("🦀"),
+			want: 2,
+		},
+		{
+			name: "flag emoji",
+			line: text.LineFromString("🇺🇸"),
+			want: 2,
+		},
 	}
 
 	for _, tt := range tests {
@@ -336,6 +363,22 @@ func TestLine_Width_shouldSumSpanDisplayWidths(t *testing.T) {
 				t.Fatalf("Width() = %d, want %d", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestLine_crabEmojiWidth(t *testing.T) {
+	got := text.LineFromString("🦀")
+
+	if got.Width() != 2 {
+		t.Fatalf("Width() = %d, want 2", got.Width())
+	}
+}
+
+func TestLine_flagEmojiWidth(t *testing.T) {
+	got := text.LineFromString("🇺🇸")
+
+	if got.Width() != 2 {
+		t.Fatalf("Width() = %d, want 2", got.Width())
 	}
 }
 
@@ -360,6 +403,29 @@ func TestLineFromSpans_shouldCreateLineFromStyledSpans(t *testing.T) {
 	}
 	if got.Alignment != nil {
 		t.Fatalf("alignment = %#v, want nil", got.Alignment)
+	}
+}
+
+func TestLine_fromSpan(t *testing.T) {
+	span := text.StyledSpan("hello", style.NewStyle().Fg(style.Red))
+
+	got := text.LineFromSpan(span)
+
+	if len(got.Spans) != 1 || got.Spans[0] != span {
+		t.Fatalf("spans = %#v, want %#v", got.Spans, []text.Span{span})
+	}
+	if got.LineStyle != style.NewStyle() {
+		t.Fatalf("line style = %#v, want default", got.LineStyle)
+	}
+}
+
+func TestLine_toLine(t *testing.T) {
+	span := text.StyledSpan("hello", style.NewStyle().Fg(style.Green))
+
+	got := span.ToLine()
+
+	if len(got.Spans) != 1 || got.Spans[0] != span {
+		t.Fatalf("spans = %#v, want %#v", got.Spans, []text.Span{span})
 	}
 }
 
@@ -406,6 +472,32 @@ func TestLine_ResetStyle_shouldResetLineStyleAndPreserveSpansAndAlignment(t *tes
 	}
 	if got.LineStyle != wantStyle {
 		t.Fatalf("line style = %#v, want %#v", got.LineStyle, wantStyle)
+	}
+}
+
+func TestLine_addLine(t *testing.T) {
+	baseStyle := style.NewStyle().Fg(style.Yellow).AddModifier(style.ModifierBold)
+	left := text.LineFromSpans(text.NewSpan("A")).
+		Style(baseStyle).
+		Center()
+	right := text.LineFromSpans(
+		text.StyledSpan("B", style.NewStyle().Fg(style.Red)),
+		text.StyledSpan("C", style.NewStyle().Fg(style.Green)),
+	).Right()
+
+	got := left.AddLine(right)
+
+	if got.String() != "ABC" {
+		t.Fatalf("String() = %q, want ABC", got.String())
+	}
+	if got.LineStyle != baseStyle {
+		t.Fatalf("line style = %#v, want %#v", got.LineStyle, baseStyle)
+	}
+	if got.Alignment == nil || *got.Alignment != layout.Center {
+		t.Fatalf("alignment = %#v, want Center", got.Alignment)
+	}
+	if len(got.Spans) != 3 || got.Spans[1] != right.Spans[0] || got.Spans[2] != right.Spans[1] {
+		t.Fatalf("spans = %#v, want appended right spans", got.Spans)
 	}
 }
 
@@ -469,6 +561,74 @@ func TestLine_AppendSpans_shouldAppendMultipleSpans(t *testing.T) {
 	}
 	if got.Width() != 26 {
 		t.Fatalf("Width() = %d, want 26", got.Width())
+	}
+}
+
+func TestLine_forLoopInto(t *testing.T) {
+	line := text.LineFromSpans(text.NewSpan("a"), text.NewSpan("b"))
+	got := ""
+
+	for _, span := range line.Spans {
+		got += span.Content
+	}
+
+	if got != "ab" {
+		t.Fatalf("range content = %q, want ab", got)
+	}
+}
+
+func TestLine_forLoopMutRef(t *testing.T) {
+	line := text.LineFromSpans(text.NewSpan("a"), text.NewSpan("b"))
+
+	for i := range line.Spans {
+		line.Spans[i] = line.Spans[i].Fg(style.Cyan)
+	}
+
+	want := style.NewStyle().Fg(style.Cyan)
+	for i, span := range line.Spans {
+		if span.Style != want {
+			t.Fatalf("span[%d].Style = %#v, want %#v", i, span.Style, want)
+		}
+	}
+}
+
+func TestLine_forLoopRef(t *testing.T) {
+	line := text.LineFromSpans(text.NewSpan("a"), text.NewSpan("b"))
+	got := make([]string, 0, len(line.Spans))
+
+	for i := range line.Spans {
+		span := &line.Spans[i]
+		got = append(got, span.Content)
+	}
+
+	if !slices.Equal(got, []string{"a", "b"}) {
+		t.Fatalf("range refs = %#v, want [a b]", got)
+	}
+}
+
+func TestLine_styledCow(t *testing.T) {
+	lineStyle := style.NewStyle().Fg(style.Red).AddModifier(style.ModifierItalic)
+
+	got := text.StyledLine("hello", lineStyle)
+
+	if got.String() != "hello" {
+		t.Fatalf("String() = %q, want hello", got.String())
+	}
+	if got.LineStyle != lineStyle {
+		t.Fatalf("line style = %#v, want %#v", got.LineStyle, lineStyle)
+	}
+}
+
+func TestLine_styledString(t *testing.T) {
+	lineStyle := style.NewStyle().Bg(style.Blue).AddModifier(style.ModifierBold)
+
+	got := text.StyledLine("hello", lineStyle)
+
+	if len(got.Spans) != 1 || got.Spans[0].Content != "hello" {
+		t.Fatalf("spans = %#v, want one hello span", got.Spans)
+	}
+	if got.LineStyle != lineStyle {
+		t.Fatalf("line style = %#v, want %#v", got.LineStyle, lineStyle)
 	}
 }
 

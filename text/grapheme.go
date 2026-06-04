@@ -35,6 +35,11 @@ func (g StyledGrapheme) IsWhitespace() bool {
 	return true
 }
 
+func (g StyledGrapheme) SetStyle(graphemeStyle style.Style) StyledGrapheme {
+	g.Style = graphemeStyle
+	return g
+}
+
 func (g StyledGrapheme) Fg(color style.Color) StyledGrapheme {
 	g.Style = g.Style.Fg(color)
 	return g
