@@ -15,16 +15,16 @@ This document maps Ratatui Rust API paths to Gatui Go packages and types. It is 
 
 | Ratatui Rust path | Gatui Go path | Notes |
 | --- | --- | --- |
-| `ratatui` | `gatui` | Root package documentation and porting orientation. |
-| `ratatui::layout` | `gatui/layout` | Geometry, constraints, and area splitting. |
-| `ratatui::style` | `gatui/style` | Colors, modifiers, and style values. |
-| `ratatui::text` | `gatui/text` | Styled text primitives. |
-| `ratatui::buffer` | `gatui/buffer` | Off-screen cell grid and diffing. |
-| `ratatui::symbols` | `gatui/symbols` | Terminal glyph sets and drawing symbols. |
-| `ratatui::widgets` | `gatui/widgets` | Renderable UI components. |
-| `ratatui::Terminal` | `gatui/terminal` | Terminal drawing orchestration. |
-| `ratatui::Frame` | `gatui/terminal.Frame` | Single-frame rendering context. |
-| `ratatui::backend` | `gatui/terminal.Backend` plus backend packages | Backend interface and concrete implementations. |
+| `ratatui` | `github.com/aprilgom/gatui` | Root package documentation and porting orientation. |
+| `ratatui::layout` | `github.com/aprilgom/gatui/layout` | Geometry, constraints, and area splitting. |
+| `ratatui::style` | `github.com/aprilgom/gatui/style` | Colors, modifiers, and style values. |
+| `ratatui::text` | `github.com/aprilgom/gatui/text` | Styled text primitives. |
+| `ratatui::buffer` | `github.com/aprilgom/gatui/buffer` | Off-screen cell grid and diffing. |
+| `ratatui::symbols` | `github.com/aprilgom/gatui/symbols` | Terminal glyph sets and drawing symbols. |
+| `ratatui::widgets` | `github.com/aprilgom/gatui/widgets` | Renderable UI components. |
+| `ratatui::Terminal` | `github.com/aprilgom/gatui/terminal` | Terminal drawing orchestration. |
+| `ratatui::Frame` | `github.com/aprilgom/gatui/terminal.Frame` | Single-frame rendering context. |
+| `ratatui::backend` | `github.com/aprilgom/gatui/terminal.Backend` plus backend packages | Backend interface and concrete implementations. |
 | `ratatui_crossterm` | no direct Gatui package | Gatui currently provides a `tcell` backend instead of a crossterm backend. |
 | `ratatui::init`, `ratatui::restore`, `ratatui::run` | applications own setup and teardown | Use `backend/tcell` and `terminal` directly; input/event loops stay outside core. |
 
@@ -124,7 +124,7 @@ This document maps Ratatui Rust API paths to Gatui Go packages and types. It is 
 
 | Gatui Go path | Purpose | Notes |
 | --- | --- | --- |
-| `gatui/textbuffer` | Helper functions for rendering `text` values into `buffer.Buffer`. | This is a Gatui helper package, not a direct Ratatui module. |
+| `github.com/aprilgom/gatui/textbuffer` | Helper functions for rendering `text` values into `buffer.Buffer`. | This is a Gatui helper package, not a direct Ratatui module. |
 
 ## Common Translation Patterns
 

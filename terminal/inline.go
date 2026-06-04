@@ -1,8 +1,8 @@
 package terminal
 
 import (
-	"gatui/buffer"
-	"gatui/layout"
+	"github.com/aprilgom/gatui/buffer"
+	"github.com/aprilgom/gatui/layout"
 )
 
 func (t *Terminal) InsertBefore(height int, render func(*buffer.Buffer)) error {

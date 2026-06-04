@@ -3,15 +3,15 @@ package gatui_test
 import (
 	"testing"
 
-	"gatui/buffer"
-	"gatui/layout"
-	"gatui/style"
-	"gatui/symbols"
-	"gatui/terminal"
-	"gatui/terminal/testbackend"
-	"gatui/text"
-	"gatui/textbuffer"
-	"gatui/widgets"
+	"github.com/aprilgom/gatui/buffer"
+	"github.com/aprilgom/gatui/layout"
+	"github.com/aprilgom/gatui/style"
+	"github.com/aprilgom/gatui/symbols"
+	"github.com/aprilgom/gatui/terminal"
+	"github.com/aprilgom/gatui/terminal/testbackend"
+	"github.com/aprilgom/gatui/text"
+	"github.com/aprilgom/gatui/textbuffer"
+	"github.com/aprilgom/gatui/widgets"
 )
 
 func TestPublicAPISurface_shouldExposeInitialRatatuiPortTypes(t *testing.T) {

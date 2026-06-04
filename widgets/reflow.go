@@ -4,8 +4,8 @@ import (
 	"strings"
 	"unicode"
 
-	"gatui/buffer"
-	"gatui/layout"
+	"github.com/aprilgom/gatui/buffer"
+	"github.com/aprilgom/gatui/layout"
 )
 
 type wrappedLine struct {

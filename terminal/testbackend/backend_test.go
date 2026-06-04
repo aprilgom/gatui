@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"testing"
 
-	"gatui/buffer"
-	"gatui/layout"
-	"gatui/terminal"
+	"github.com/aprilgom/gatui/buffer"
+	"github.com/aprilgom/gatui/layout"
+	"github.com/aprilgom/gatui/terminal"
 )
 
 func TestTestBackend_WindowSize_shouldReturnBufferSizeAndDefaultPixels(t *testing.T) {

@@ -5,12 +5,12 @@ import (
 	"slices"
 	"testing"
 
-	"gatui/buffer"
-	"gatui/layout"
-	"gatui/terminal"
-	"gatui/terminal/testbackend"
-	"gatui/text"
-	"gatui/widgets"
+	"github.com/aprilgom/gatui/buffer"
+	"github.com/aprilgom/gatui/layout"
+	"github.com/aprilgom/gatui/terminal"
+	"github.com/aprilgom/gatui/terminal/testbackend"
+	"github.com/aprilgom/gatui/text"
+	"github.com/aprilgom/gatui/widgets"
 )
 
 type recordingBackend struct {

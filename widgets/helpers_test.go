@@ -3,8 +3,8 @@ package widgets
 import (
 	"testing"
 
-	"gatui/buffer"
-	"gatui/text"
+	"github.com/aprilgom/gatui/buffer"
+	"github.com/aprilgom/gatui/text"
 )
 
 func TestCellDisplayWidth_shouldMeasureASCIIAsOneColumn(t *testing.T) {

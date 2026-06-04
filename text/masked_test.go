@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"testing"
 
-	"gatui/buffer"
-	"gatui/layout"
-	"gatui/text"
+	"github.com/aprilgom/gatui/buffer"
+	"github.com/aprilgom/gatui/layout"
+	"github.com/aprilgom/gatui/text"
 )
 
 func TestMasked_New_shouldStoreMaskChar(t *testing.T) {

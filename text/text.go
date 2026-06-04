@@ -3,9 +3,9 @@ package text
 import (
 	"strings"
 
-	"gatui/buffer"
-	"gatui/layout"
-	"gatui/style"
+	"github.com/aprilgom/gatui/buffer"
+	"github.com/aprilgom/gatui/layout"
+	"github.com/aprilgom/gatui/style"
 )
 
 type Text struct {

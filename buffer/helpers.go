@@ -4,7 +4,7 @@ import (
 	"strings"
 	"unicode"
 
-	"gatui/layout"
+	"github.com/aprilgom/gatui/layout"
 )
 
 func unionRect(a, b layout.Rect) layout.Rect {

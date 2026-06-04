@@ -1,6 +1,6 @@
 package widgets
 
-import "gatui/symbols"
+import "github.com/aprilgom/gatui/symbols"
 
 type MergeStrategy = symbols.MergeStrategy
 

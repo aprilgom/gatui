@@ -3,7 +3,7 @@ package style_test
 import (
 	"testing"
 
-	"gatui/style"
+	"github.com/aprilgom/gatui/style"
 )
 
 func TestStylePatch_shouldMergeOnlySpecifiedColorsAndModifiers(t *testing.T) {

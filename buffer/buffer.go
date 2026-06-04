@@ -3,8 +3,8 @@ package buffer
 import (
 	"strings"
 
-	"gatui/layout"
-	"gatui/style"
+	"github.com/aprilgom/gatui/layout"
+	"github.com/aprilgom/gatui/style"
 
 	"github.com/rivo/uniseg"
 )

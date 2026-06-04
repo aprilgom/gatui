@@ -3,8 +3,8 @@ package terminal
 import (
 	"fmt"
 
-	"gatui/buffer"
-	"gatui/layout"
+	"github.com/aprilgom/gatui/buffer"
+	"github.com/aprilgom/gatui/layout"
 )
 
 type ClearType int

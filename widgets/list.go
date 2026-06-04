@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"gatui/buffer"
-	"gatui/layout"
-	"gatui/style"
-	"gatui/text"
+	"github.com/aprilgom/gatui/buffer"
+	"github.com/aprilgom/gatui/layout"
+	"github.com/aprilgom/gatui/style"
+	"github.com/aprilgom/gatui/text"
 )
 
 type ListItem struct {

@@ -3,7 +3,7 @@ package style_test
 import (
 	"testing"
 
-	"gatui/style"
+	"github.com/aprilgom/gatui/style"
 )
 
 func TestColor_String_shouldMatchRatatuiDisplay(t *testing.T) {

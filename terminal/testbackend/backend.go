@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"gatui/buffer"
-	"gatui/layout"
-	"gatui/terminal"
+	"github.com/aprilgom/gatui/buffer"
+	"github.com/aprilgom/gatui/layout"
+	"github.com/aprilgom/gatui/terminal"
 )
 
 const maxScrollbackLines = 65535

@@ -3,9 +3,9 @@ package widgets_test
 import (
 	"testing"
 
-	"gatui/buffer"
-	"gatui/layout"
-	"gatui/widgets"
+	"github.com/aprilgom/gatui/buffer"
+	"github.com/aprilgom/gatui/layout"
+	"github.com/aprilgom/gatui/widgets"
 )
 
 func TestList_StatefulRef_shouldRenderWithState(t *testing.T) {

@@ -3,10 +3,10 @@ package widgets_test
 import (
 	"testing"
 
-	"gatui/buffer"
-	"gatui/layout"
-	"gatui/style"
-	"gatui/widgets"
+	"github.com/aprilgom/gatui/buffer"
+	"github.com/aprilgom/gatui/layout"
+	"github.com/aprilgom/gatui/style"
+	"github.com/aprilgom/gatui/widgets"
 )
 
 func TestFill_shouldFillAreaWithSymbol(t *testing.T) {

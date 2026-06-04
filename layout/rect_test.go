@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"gatui/buffer"
-	"gatui/layout"
+	"github.com/aprilgom/gatui/buffer"
+	"github.com/aprilgom/gatui/layout"
 )
 
 func TestPosition_NewAndOffset_shouldMatchRatatui(t *testing.T) {

@@ -1,11 +1,11 @@
 package widgets
 
 import (
-	"gatui/buffer"
-	"gatui/layout"
-	"gatui/style"
-	"gatui/text"
-	"gatui/textbuffer"
+	"github.com/aprilgom/gatui/buffer"
+	"github.com/aprilgom/gatui/layout"
+	"github.com/aprilgom/gatui/style"
+	"github.com/aprilgom/gatui/text"
+	"github.com/aprilgom/gatui/textbuffer"
 )
 
 func writeString(buf *buffer.Buffer, x, y int, value string, width int, cellStyle style.Style) {

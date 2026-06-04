@@ -5,10 +5,10 @@ import (
 	"strings"
 	"testing"
 
-	"gatui/buffer"
-	"gatui/layout"
-	"gatui/style"
-	"gatui/text"
+	"github.com/aprilgom/gatui/buffer"
+	"github.com/aprilgom/gatui/layout"
+	"github.com/aprilgom/gatui/style"
+	"github.com/aprilgom/gatui/text"
 )
 
 func TestFromString_shouldSplitLinesAndPreserveContent(t *testing.T) {

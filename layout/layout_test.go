@@ -5,7 +5,7 @@ import (
 	"slices"
 	"testing"
 
-	"gatui/layout"
+	"github.com/aprilgom/gatui/layout"
 )
 
 func TestLayout_Split_shouldMatchRatatuiBasicConstraintPriority(t *testing.T) {

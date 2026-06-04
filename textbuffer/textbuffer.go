@@ -1,8 +1,8 @@
 package textbuffer
 
 import (
-	"gatui/buffer"
-	"gatui/text"
+	"github.com/aprilgom/gatui/buffer"
+	"github.com/aprilgom/gatui/text"
 )
 
 func SetSpan(buf *buffer.Buffer, x, y int, span text.Span, maxWidth int) (endX, endY int) {

@@ -1,7 +1,7 @@
 package buffer
 
 import (
-	"gatui/style"
+	"github.com/aprilgom/gatui/style"
 )
 
 type Cell struct {

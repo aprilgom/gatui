@@ -3,7 +3,7 @@ package symbols_test
 import (
 	"testing"
 
-	"gatui/symbols"
+	"github.com/aprilgom/gatui/symbols"
 )
 
 func TestBorderSet_defaults(t *testing.T) {

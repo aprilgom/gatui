@@ -3,7 +3,7 @@ package terminal
 import (
 	"fmt"
 
-	"gatui/layout"
+	"github.com/aprilgom/gatui/layout"
 )
 
 type viewportKind int

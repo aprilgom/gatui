@@ -3,10 +3,10 @@ package tcell
 import (
 	"testing"
 
-	"gatui/buffer"
-	"gatui/layout"
-	"gatui/style"
-	"gatui/terminal"
+	"github.com/aprilgom/gatui/buffer"
+	"github.com/aprilgom/gatui/layout"
+	"github.com/aprilgom/gatui/style"
+	"github.com/aprilgom/gatui/terminal"
 
 	tcelllib "github.com/gdamore/tcell/v2"
 )

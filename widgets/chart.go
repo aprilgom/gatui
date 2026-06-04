@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"math"
 
-	"gatui/buffer"
-	"gatui/layout"
-	"gatui/style"
-	"gatui/symbols"
-	"gatui/text"
+	"github.com/aprilgom/gatui/buffer"
+	"github.com/aprilgom/gatui/layout"
+	"github.com/aprilgom/gatui/style"
+	"github.com/aprilgom/gatui/symbols"
+	"github.com/aprilgom/gatui/text"
 )
 
 type GraphType int

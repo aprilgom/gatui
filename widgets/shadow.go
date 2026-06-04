@@ -1,10 +1,10 @@
 package widgets
 
 import (
-	"gatui/buffer"
-	"gatui/layout"
-	"gatui/style"
-	"gatui/symbols"
+	"github.com/aprilgom/gatui/buffer"
+	"github.com/aprilgom/gatui/layout"
+	"github.com/aprilgom/gatui/style"
+	"github.com/aprilgom/gatui/symbols"
 )
 
 type CellEffect interface {

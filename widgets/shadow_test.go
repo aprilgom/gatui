@@ -3,10 +3,10 @@ package widgets
 import (
 	"testing"
 
-	"gatui/buffer"
-	"gatui/layout"
-	"gatui/style"
-	"gatui/symbols"
+	"github.com/aprilgom/gatui/buffer"
+	"github.com/aprilgom/gatui/layout"
+	"github.com/aprilgom/gatui/style"
+	"github.com/aprilgom/gatui/symbols"
 )
 
 func renderTestShadow(shadow Shadow) *buffer.Buffer {

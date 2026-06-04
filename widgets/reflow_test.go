@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"gatui/buffer"
-	"gatui/layout"
-	"gatui/text"
+	"github.com/aprilgom/gatui/buffer"
+	"github.com/aprilgom/gatui/layout"
+	"github.com/aprilgom/gatui/text"
 )
 
 func TestWordWrapper_shouldKeepShortLines(t *testing.T) {

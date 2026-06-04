@@ -1,4 +1,4 @@
-module gatui
+module github.com/aprilgom/gatui
 
 go 1.26.3
 

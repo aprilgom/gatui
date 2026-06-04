@@ -3,7 +3,7 @@ package text
 import (
 	"unicode"
 
-	"gatui/style"
+	"github.com/aprilgom/gatui/style"
 )
 
 const (
