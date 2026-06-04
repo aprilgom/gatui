@@ -14,6 +14,10 @@ func NewLayout(direction Direction) Layout {
 	return Layout{direction: direction}
 }
 
+func DefaultLayout() Layout {
+	return NewLayout(Vertical)
+}
+
 func NewVerticalLayout(constraints ...Constraint) Layout {
 	return NewLayout(Vertical).Constraints(constraints...)
 }

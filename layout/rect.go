@@ -1,5 +1,7 @@
 package layout
 
+import "fmt"
+
 const MaxCoordinate = 65535
 
 type Rect struct {
@@ -13,6 +15,10 @@ func NewRect(x, y, width, height int) Rect {
 	width = clampRectExtent(x, width)
 	height = clampRectExtent(y, height)
 	return Rect{X: x, Y: y, Width: width, Height: height}
+}
+
+func (r Rect) String() string {
+	return fmt.Sprintf("%dx%d+%d+%d", r.Width, r.Height, r.X, r.Y)
 }
 
 func RectFromPositionAndSize(position Position, size Size) Rect {

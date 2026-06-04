@@ -78,6 +78,16 @@ func TestLayout_Split_shouldMatchRatatuiBasicConstraintPriority(t *testing.T) {
 	}
 }
 
+func TestLayout_Default_shouldMatchRatatui(t *testing.T) {
+	area := layout.NewRect(1, 2, 10, 20)
+	got := layout.DefaultLayout().Split(area)
+	want := layout.NewLayout(layout.Vertical).Split(area)
+
+	if !slices.Equal(got, want) {
+		t.Fatalf("DefaultLayout().Split(%#v) mismatch\nwant: %#v\n got: %#v", area, want, got)
+	}
+}
+
 func TestConstraint_shouldExposeMaxAndFillKinds(t *testing.T) {
 	maxConstraint := layout.Max(10)
 	if !maxConstraint.IsMax() {

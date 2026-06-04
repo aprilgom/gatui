@@ -96,6 +96,15 @@ func TestRect_FromSize(t *testing.T) {
 	}
 }
 
+func TestRect_String_shouldMatchRatatui(t *testing.T) {
+	got := layout.NewRect(1, 2, 3, 4).String()
+	want := "3x4+1+2"
+
+	if got != want {
+		t.Fatalf("Rect.String() = %q, want %q", got, want)
+	}
+}
+
 func TestRect_New_sizeTruncation(t *testing.T) {
 	got := layout.NewRect(layout.MaxCoordinate-100, layout.MaxCoordinate-1000, 200, 2000)
 	want := layout.Rect{X: layout.MaxCoordinate - 100, Y: layout.MaxCoordinate - 1000, Width: 100, Height: 1000}
@@ -216,6 +225,29 @@ func TestSize_Tuple(t *testing.T) {
 
 	if width != 10 || height != 20 {
 		t.Fatalf("Tuple() = (%d, %d), want (10, 20)", width, height)
+	}
+}
+
+func TestSize_FromTuple_shouldMatchRatatui(t *testing.T) {
+	got := layout.SizeFromTuple(10, 20)
+	want := layout.NewSize(10, 20)
+
+	if got != want {
+		t.Fatalf("SizeFromTuple(10, 20) = %#v, want %#v", got, want)
+	}
+
+	width, height := got.Tuple()
+	if width != 10 || height != 20 {
+		t.Fatalf("SizeFromTuple(10, 20).Tuple() = (%d, %d), want (10, 20)", width, height)
+	}
+}
+
+func TestSize_FromTuple_shouldUseGoClampPolicy(t *testing.T) {
+	got := layout.SizeFromTuple(-10, -20)
+	want := layout.NewSize(-10, -20)
+
+	if got != want {
+		t.Fatalf("SizeFromTuple(-10, -20) = %#v, want %#v", got, want)
 	}
 }
 

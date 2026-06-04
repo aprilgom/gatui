@@ -32,6 +32,10 @@ func NewSize(width, height int) Size {
 	return Size{Width: maxInt(0, width), Height: maxInt(0, height)}
 }
 
+func SizeFromTuple(width, height int) Size {
+	return NewSize(width, height)
+}
+
 func (s Size) Area() int {
 	return s.Width * s.Height
 }
