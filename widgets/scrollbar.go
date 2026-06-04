@@ -1,6 +1,8 @@
 package widgets
 
 import (
+	"fmt"
+
 	"gatui/buffer"
 	"gatui/layout"
 	"gatui/style"
@@ -16,6 +18,36 @@ const (
 	ScrollbarOrientationHorizontalTop
 )
 
+func (o ScrollbarOrientation) String() string {
+	switch o {
+	case ScrollbarOrientationVerticalRight:
+		return "VerticalRight"
+	case ScrollbarOrientationVerticalLeft:
+		return "VerticalLeft"
+	case ScrollbarOrientationHorizontalBottom:
+		return "HorizontalBottom"
+	case ScrollbarOrientationHorizontalTop:
+		return "HorizontalTop"
+	default:
+		return fmt.Sprintf("ScrollbarOrientation(%d)", o)
+	}
+}
+
+func ParseScrollbarOrientation(value string) (ScrollbarOrientation, error) {
+	switch value {
+	case "VerticalRight":
+		return ScrollbarOrientationVerticalRight, nil
+	case "VerticalLeft":
+		return ScrollbarOrientationVerticalLeft, nil
+	case "HorizontalBottom":
+		return ScrollbarOrientationHorizontalBottom, nil
+	case "HorizontalTop":
+		return ScrollbarOrientationHorizontalTop, nil
+	default:
+		return ScrollbarOrientationVerticalRight, fmt.Errorf("unknown ScrollbarOrientation %q", value)
+	}
+}
+
 func (o ScrollbarOrientation) isVertical() bool {
 	return o == ScrollbarOrientationVerticalRight || o == ScrollbarOrientationVerticalLeft
 }
@@ -26,6 +58,28 @@ const (
 	ScrollDirectionForward ScrollDirection = iota
 	ScrollDirectionBackward
 )
+
+func (d ScrollDirection) String() string {
+	switch d {
+	case ScrollDirectionForward:
+		return "Forward"
+	case ScrollDirectionBackward:
+		return "Backward"
+	default:
+		return fmt.Sprintf("ScrollDirection(%d)", d)
+	}
+}
+
+func ParseScrollDirection(value string) (ScrollDirection, error) {
+	switch value {
+	case "Forward":
+		return ScrollDirectionForward, nil
+	case "Backward":
+		return ScrollDirectionBackward, nil
+	default:
+		return ScrollDirectionForward, fmt.Errorf("unknown ScrollDirection %q", value)
+	}
+}
 
 type ScrollbarState struct {
 	contentLength         int

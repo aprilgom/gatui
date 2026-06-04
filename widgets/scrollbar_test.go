@@ -9,6 +9,112 @@ import (
 	"gatui/widgets"
 )
 
+func TestScrollDirection_String_shouldMatchRatatui(t *testing.T) {
+	tests := []struct {
+		direction widgets.ScrollDirection
+		want      string
+	}{
+		{direction: widgets.ScrollDirectionForward, want: "Forward"},
+		{direction: widgets.ScrollDirectionBackward, want: "Backward"},
+	}
+
+	for _, tt := range tests {
+		if got := tt.direction.String(); got != tt.want {
+			t.Fatalf("%#v.String() = %q, want %q", tt.direction, got, tt.want)
+		}
+	}
+}
+
+func TestParseScrollDirection_shouldMatchRatatui(t *testing.T) {
+	tests := []struct {
+		value string
+		want  widgets.ScrollDirection
+	}{
+		{value: "Forward", want: widgets.ScrollDirectionForward},
+		{value: "Backward", want: widgets.ScrollDirectionBackward},
+	}
+
+	for _, tt := range tests {
+		got, err := widgets.ParseScrollDirection(tt.value)
+		if err != nil {
+			t.Fatalf("ParseScrollDirection(%q) returned error: %v", tt.value, err)
+		}
+		if got != tt.want {
+			t.Fatalf("ParseScrollDirection(%q) = %#v, want %#v", tt.value, got, tt.want)
+		}
+	}
+}
+
+func TestScrollDirection_String_unknownShouldBeStable(t *testing.T) {
+	got := widgets.ScrollDirection(99).String()
+	if got != "ScrollDirection(99)" {
+		t.Fatalf("ScrollDirection(99).String() = %q, want %q", got, "ScrollDirection(99)")
+	}
+}
+
+func TestParseScrollDirection_unknownShouldReturnError(t *testing.T) {
+	for _, value := range []string{"", "forward", "Reverse"} {
+		if got, err := widgets.ParseScrollDirection(value); err == nil {
+			t.Fatalf("ParseScrollDirection(%q) = %#v, want error", value, got)
+		}
+	}
+}
+
+func TestScrollbarOrientation_String_shouldMatchRatatui(t *testing.T) {
+	tests := []struct {
+		orientation widgets.ScrollbarOrientation
+		want        string
+	}{
+		{orientation: widgets.ScrollbarOrientationVerticalRight, want: "VerticalRight"},
+		{orientation: widgets.ScrollbarOrientationVerticalLeft, want: "VerticalLeft"},
+		{orientation: widgets.ScrollbarOrientationHorizontalBottom, want: "HorizontalBottom"},
+		{orientation: widgets.ScrollbarOrientationHorizontalTop, want: "HorizontalTop"},
+	}
+
+	for _, tt := range tests {
+		if got := tt.orientation.String(); got != tt.want {
+			t.Fatalf("%#v.String() = %q, want %q", tt.orientation, got, tt.want)
+		}
+	}
+}
+
+func TestParseScrollbarOrientation_shouldMatchRatatui(t *testing.T) {
+	tests := []struct {
+		value string
+		want  widgets.ScrollbarOrientation
+	}{
+		{value: "VerticalRight", want: widgets.ScrollbarOrientationVerticalRight},
+		{value: "VerticalLeft", want: widgets.ScrollbarOrientationVerticalLeft},
+		{value: "HorizontalBottom", want: widgets.ScrollbarOrientationHorizontalBottom},
+		{value: "HorizontalTop", want: widgets.ScrollbarOrientationHorizontalTop},
+	}
+
+	for _, tt := range tests {
+		got, err := widgets.ParseScrollbarOrientation(tt.value)
+		if err != nil {
+			t.Fatalf("ParseScrollbarOrientation(%q) returned error: %v", tt.value, err)
+		}
+		if got != tt.want {
+			t.Fatalf("ParseScrollbarOrientation(%q) = %#v, want %#v", tt.value, got, tt.want)
+		}
+	}
+}
+
+func TestScrollbarOrientation_String_unknownShouldBeStable(t *testing.T) {
+	got := widgets.ScrollbarOrientation(99).String()
+	if got != "ScrollbarOrientation(99)" {
+		t.Fatalf("ScrollbarOrientation(99).String() = %q, want %q", got, "ScrollbarOrientation(99)")
+	}
+}
+
+func TestParseScrollbarOrientation_unknownShouldReturnError(t *testing.T) {
+	for _, value := range []string{"", "verticalright", "VerticalCenter"} {
+		if got, err := widgets.ParseScrollbarOrientation(value); err == nil {
+			t.Fatalf("ParseScrollbarOrientation(%q) = %#v, want error", value, got)
+		}
+	}
+}
+
 func TestScrollbar_shouldRenderSimplestHorizontalNoArrows(t *testing.T) {
 	tests := []struct {
 		name     string
