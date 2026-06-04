@@ -8,6 +8,7 @@ import (
 	"gatui/buffer"
 	"gatui/layout"
 	"gatui/style"
+	"gatui/symbols"
 	"gatui/text"
 )
 
@@ -316,6 +317,12 @@ func TestBorderType_string(t *testing.T) {
 		{BorderTypeHeavyQuadrupleDashed, "HeavyQuadrupleDashed"},
 		{BorderTypeQuadrantInside, "QuadrantInside"},
 		{BorderTypeQuadrantOutside, "QuadrantOutside"},
+		{BorderTypeOneEighthWide, "OneEighthWide"},
+		{BorderTypeOneEighthTall, "OneEighthTall"},
+		{BorderTypeProportionalWide, "ProportionalWide"},
+		{BorderTypeProportionalTall, "ProportionalTall"},
+		{BorderTypeFull, "Full"},
+		{BorderTypeEmpty, "Empty"},
 	}
 
 	for _, tt := range tests {
@@ -342,6 +349,12 @@ func TestParseBorderType(t *testing.T) {
 		{"HeavyQuadrupleDashed", BorderTypeHeavyQuadrupleDashed},
 		{"QuadrantInside", BorderTypeQuadrantInside},
 		{"QuadrantOutside", BorderTypeQuadrantOutside},
+		{"OneEighthWide", BorderTypeOneEighthWide},
+		{"OneEighthTall", BorderTypeOneEighthTall},
+		{"ProportionalWide", BorderTypeProportionalWide},
+		{"ProportionalTall", BorderTypeProportionalTall},
+		{"Full", BorderTypeFull},
+		{"Empty", BorderTypeEmpty},
 	}
 
 	for _, tt := range tests {
@@ -356,6 +369,38 @@ func TestParseBorderType(t *testing.T) {
 
 	if _, err := ParseBorderType(""); err == nil {
 		t.Fatal("ParseBorderType(\"\") returned nil error, want error")
+	}
+}
+
+func TestBorderType_extendedBorderSets(t *testing.T) {
+	tests := []struct {
+		name       string
+		borderType BorderType
+		want       BorderSet
+	}{
+		{"one eighth wide", BorderTypeOneEighthWide, symbols.OneEighthWideBorderSet},
+		{"one eighth tall", BorderTypeOneEighthTall, symbols.OneEighthTallBorderSet},
+		{"proportional wide", BorderTypeProportionalWide, symbols.ProportionalWideBorderSet},
+		{"proportional tall", BorderTypeProportionalTall, symbols.ProportionalTallBorderSet},
+		{"full", BorderTypeFull, symbols.FullBorderSet},
+		{"empty", BorderTypeEmpty, symbols.EmptyBorderSet},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.borderType.BorderSet(); got != tt.want {
+				t.Fatalf("%s.BorderSet() = %+v, want %+v", tt.borderType, got, tt.want)
+			}
+		})
+	}
+
+	if OneEighthWideBorderSet != symbols.OneEighthWideBorderSet ||
+		OneEighthTallBorderSet != symbols.OneEighthTallBorderSet ||
+		ProportionalWideBorderSet != symbols.ProportionalWideBorderSet ||
+		ProportionalTallBorderSet != symbols.ProportionalTallBorderSet ||
+		FullBorderSet != symbols.FullBorderSet ||
+		EmptyBorderSet != symbols.EmptyBorderSet {
+		t.Fatal("widget border set aliases should match symbols border sets")
 	}
 }
 
@@ -435,6 +480,79 @@ func TestBlock_renderBorderTypeDashedAndQuadrantBorders(t *testing.T) {
 				"▛▀▀▀▀▀▀▀▀▜",
 				"▌        ▐",
 				"▙▄▄▄▄▄▄▄▄▟",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := buffer.Empty(layout.NewRect(0, 0, 10, 3))
+
+			BorderedBlock().BorderType(tt.borderType).Render(buf.Area, buf)
+
+			assertBlockLines(t, buf, tt.want)
+		})
+	}
+}
+
+func TestBlock_renderExtendedBorderTypes(t *testing.T) {
+	tests := []struct {
+		name       string
+		borderType BorderType
+		want       []string
+	}{
+		{
+			name:       "one eighth wide",
+			borderType: BorderTypeOneEighthWide,
+			want: []string{
+				"▁▁▁▁▁▁▁▁▁▁",
+				"▏        ▕",
+				"▔▔▔▔▔▔▔▔▔▔",
+			},
+		},
+		{
+			name:       "one eighth tall",
+			borderType: BorderTypeOneEighthTall,
+			want: []string{
+				"▕▔▔▔▔▔▔▔▔▏",
+				"▕        ▏",
+				"▕▁▁▁▁▁▁▁▁▏",
+			},
+		},
+		{
+			name:       "proportional wide",
+			borderType: BorderTypeProportionalWide,
+			want: []string{
+				"▄▄▄▄▄▄▄▄▄▄",
+				"█        █",
+				"▀▀▀▀▀▀▀▀▀▀",
+			},
+		},
+		{
+			name:       "proportional tall",
+			borderType: BorderTypeProportionalTall,
+			want: []string{
+				"█▀▀▀▀▀▀▀▀█",
+				"█        █",
+				"█▄▄▄▄▄▄▄▄█",
+			},
+		},
+		{
+			name:       "full",
+			borderType: BorderTypeFull,
+			want: []string{
+				"██████████",
+				"█        █",
+				"██████████",
+			},
+		},
+		{
+			name:       "empty",
+			borderType: BorderTypeEmpty,
+			want: []string{
+				"          ",
+				"          ",
+				"          ",
 			},
 		},
 	}

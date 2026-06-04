@@ -12,6 +12,96 @@ func TestBorderSet_defaults(t *testing.T) {
 	}
 }
 
+func TestBorderSet_extendedSetsShouldMatchRatatui(t *testing.T) {
+	tests := []struct {
+		name string
+		set  symbols.BorderSet
+		want string
+	}{
+		{
+			name: "one eighth wide",
+			set:  symbols.OneEighthWideBorderSet,
+			want: "░░░░░░\n░▁▁▁▁░\n░▏░░▕░\n░▏░░▕░\n░▔▔▔▔░\n░░░░░░",
+		},
+		{
+			name: "one eighth tall",
+			set:  symbols.OneEighthTallBorderSet,
+			want: "░░░░░░\n░▕▔▔▏░\n░▕░░▏░\n░▕░░▏░\n░▕▁▁▏░\n░░░░░░",
+		},
+		{
+			name: "proportional wide",
+			set:  symbols.ProportionalWideBorderSet,
+			want: "░░░░░░\n░▄▄▄▄░\n░█░░█░\n░█░░█░\n░▀▀▀▀░\n░░░░░░",
+		},
+		{
+			name: "proportional tall",
+			set:  symbols.ProportionalTallBorderSet,
+			want: "░░░░░░\n░█▀▀█░\n░█░░█░\n░█░░█░\n░█▄▄█░\n░░░░░░",
+		},
+		{
+			name: "full",
+			set:  symbols.FullBorderSet,
+			want: "░░░░░░\n░████░\n░█░░█░\n░█░░█░\n░████░\n░░░░░░",
+		},
+		{
+			name: "empty",
+			set:  symbols.EmptyBorderSet,
+			want: "░░░░░░\n░    ░\n░ ░░ ░\n░ ░░ ░\n░    ░\n░░░░░░",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := renderBorderSet(tt.set); got != tt.want {
+				t.Fatalf("renderBorderSet(%s) =\n%s\nwant\n%s", tt.name, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestBorderSymbols_extendedConstantsShouldMatchRatatui(t *testing.T) {
+	tests := []struct {
+		name string
+		got  string
+		want string
+	}{
+		{"quadrant top left", symbols.BorderQuadrantTopLeft, "▘"},
+		{"quadrant top right", symbols.BorderQuadrantTopRight, "▝"},
+		{"quadrant bottom left", symbols.BorderQuadrantBottomLeft, "▖"},
+		{"quadrant bottom right", symbols.BorderQuadrantBottomRight, "▗"},
+		{"quadrant top half", symbols.BorderQuadrantTopHalf, "▀"},
+		{"quadrant bottom half", symbols.BorderQuadrantBottomHalf, "▄"},
+		{"quadrant left half", symbols.BorderQuadrantLeftHalf, "▌"},
+		{"quadrant right half", symbols.BorderQuadrantRightHalf, "▐"},
+		{"quadrant top left bottom left bottom right", symbols.BorderQuadrantTopLeftBottomLeftBottomRight, "▙"},
+		{"quadrant top left top right bottom left", symbols.BorderQuadrantTopLeftTopRightBottomLeft, "▛"},
+		{"quadrant top left top right bottom right", symbols.BorderQuadrantTopLeftTopRightBottomRight, "▜"},
+		{"quadrant top right bottom left bottom right", symbols.BorderQuadrantTopRightBottomLeftBottomRight, "▟"},
+		{"quadrant top left bottom right", symbols.BorderQuadrantTopLeftBottomRight, "▚"},
+		{"quadrant top right bottom left", symbols.BorderQuadrantTopRightBottomLeft, "▞"},
+		{"quadrant block", symbols.BorderQuadrantBlock, "█"},
+		{"one eighth top", symbols.BorderOneEighthTop, "▔"},
+		{"one eighth bottom", symbols.BorderOneEighthBottom, "▁"},
+		{"one eighth left", symbols.BorderOneEighthLeft, "▏"},
+		{"one eighth right", symbols.BorderOneEighthRight, "▕"},
+	}
+
+	for _, tt := range tests {
+		if tt.got != tt.want {
+			t.Fatalf("%s = %q, want %q", tt.name, tt.got, tt.want)
+		}
+	}
+}
+
+func renderBorderSet(set symbols.BorderSet) string {
+	return "░░░░░░\n" +
+		"░" + set.TopLeft + set.HorizontalTop + set.HorizontalTop + set.TopRight + "░\n" +
+		"░" + set.VerticalLeft + "░░" + set.VerticalRight + "░\n" +
+		"░" + set.VerticalLeft + "░░" + set.VerticalRight + "░\n" +
+		"░" + set.BottomLeft + set.HorizontalBottom + set.HorizontalBottom + set.BottomRight + "░\n" +
+		"░░░░░░"
+}
+
 func TestBorderSymbolMerge_matchesExistingMergedBorders(t *testing.T) {
 	tests := []struct {
 		name     string

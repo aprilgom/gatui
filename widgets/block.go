@@ -39,6 +39,12 @@ var (
 	HeavyQuadrupleDashedBorderSet = symbols.HeavyQuadrupleDashedBorderSet
 	QuadrantInsideBorderSet       = symbols.QuadrantInsideBorderSet
 	QuadrantOutsideBorderSet      = symbols.QuadrantOutsideBorderSet
+	OneEighthWideBorderSet        = symbols.OneEighthWideBorderSet
+	OneEighthTallBorderSet        = symbols.OneEighthTallBorderSet
+	ProportionalWideBorderSet     = symbols.ProportionalWideBorderSet
+	ProportionalTallBorderSet     = symbols.ProportionalTallBorderSet
+	FullBorderSet                 = symbols.FullBorderSet
+	EmptyBorderSet                = symbols.EmptyBorderSet
 )
 
 type BorderType uint8
@@ -56,6 +62,12 @@ const (
 	BorderTypeHeavyQuadrupleDashed
 	BorderTypeQuadrantInside
 	BorderTypeQuadrantOutside
+	BorderTypeOneEighthWide
+	BorderTypeOneEighthTall
+	BorderTypeProportionalWide
+	BorderTypeProportionalTall
+	BorderTypeFull
+	BorderTypeEmpty
 )
 
 func (t BorderType) BorderSet() BorderSet {
@@ -84,6 +96,18 @@ func (t BorderType) BorderSet() BorderSet {
 		return QuadrantInsideBorderSet
 	case BorderTypeQuadrantOutside:
 		return QuadrantOutsideBorderSet
+	case BorderTypeOneEighthWide:
+		return OneEighthWideBorderSet
+	case BorderTypeOneEighthTall:
+		return OneEighthTallBorderSet
+	case BorderTypeProportionalWide:
+		return ProportionalWideBorderSet
+	case BorderTypeProportionalTall:
+		return ProportionalTallBorderSet
+	case BorderTypeFull:
+		return FullBorderSet
+	case BorderTypeEmpty:
+		return EmptyBorderSet
 	default:
 		return PlainBorderSet
 	}
@@ -115,6 +139,18 @@ func (t BorderType) String() string {
 		return "QuadrantInside"
 	case BorderTypeQuadrantOutside:
 		return "QuadrantOutside"
+	case BorderTypeOneEighthWide:
+		return "OneEighthWide"
+	case BorderTypeOneEighthTall:
+		return "OneEighthTall"
+	case BorderTypeProportionalWide:
+		return "ProportionalWide"
+	case BorderTypeProportionalTall:
+		return "ProportionalTall"
+	case BorderTypeFull:
+		return "Full"
+	case BorderTypeEmpty:
+		return "Empty"
 	default:
 		return fmt.Sprintf("BorderType(%d)", t)
 	}
@@ -146,6 +182,18 @@ func ParseBorderType(value string) (BorderType, error) {
 		return BorderTypeQuadrantInside, nil
 	case "QuadrantOutside":
 		return BorderTypeQuadrantOutside, nil
+	case "OneEighthWide":
+		return BorderTypeOneEighthWide, nil
+	case "OneEighthTall":
+		return BorderTypeOneEighthTall, nil
+	case "ProportionalWide":
+		return BorderTypeProportionalWide, nil
+	case "ProportionalTall":
+		return BorderTypeProportionalTall, nil
+	case "Full":
+		return BorderTypeFull, nil
+	case "Empty":
+		return BorderTypeEmpty, nil
 	default:
 		return BorderTypePlain, fmt.Errorf("unknown border type %q", value)
 	}
