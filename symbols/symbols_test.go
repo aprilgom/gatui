@@ -49,6 +49,96 @@ func TestBarSet_presets(t *testing.T) {
 	}
 }
 
+func TestLineSet_shouldMatchRatatuiNormalRoundedDoubleThickAndDashed(t *testing.T) {
+	tests := []struct {
+		name string
+		got  symbols.LineSet
+		want symbols.LineSet
+	}{
+		{name: "normal", got: symbols.NormalLineSet, want: symbols.LineSet{
+			Vertical: "│", Horizontal: "─", TopRight: "┐", TopLeft: "┌", BottomRight: "┘", BottomLeft: "└",
+			VerticalLeft: "┤", VerticalRight: "├", HorizontalDown: "┬", HorizontalUp: "┴", Cross: "┼",
+		}},
+		{name: "rounded", got: symbols.RoundedLineSet, want: symbols.LineSet{
+			Vertical: "│", Horizontal: "─", TopRight: "╮", TopLeft: "╭", BottomRight: "╯", BottomLeft: "╰",
+			VerticalLeft: "┤", VerticalRight: "├", HorizontalDown: "┬", HorizontalUp: "┴", Cross: "┼",
+		}},
+		{name: "double", got: symbols.DoubleLineSet, want: symbols.LineSet{
+			Vertical: "║", Horizontal: "═", TopRight: "╗", TopLeft: "╔", BottomRight: "╝", BottomLeft: "╚",
+			VerticalLeft: "╣", VerticalRight: "╠", HorizontalDown: "╦", HorizontalUp: "╩", Cross: "╬",
+		}},
+		{name: "thick", got: symbols.ThickLineSet, want: symbols.LineSet{
+			Vertical: "┃", Horizontal: "━", TopRight: "┓", TopLeft: "┏", BottomRight: "┛", BottomLeft: "┗",
+			VerticalLeft: "┫", VerticalRight: "┣", HorizontalDown: "┳", HorizontalUp: "┻", Cross: "╋",
+		}},
+		{name: "light double dashed", got: symbols.LightDoubleDashedLineSet, want: symbols.LineSet{
+			Vertical: "╎", Horizontal: "╌", TopRight: "┐", TopLeft: "┌", BottomRight: "┘", BottomLeft: "└",
+			VerticalLeft: "┤", VerticalRight: "├", HorizontalDown: "┬", HorizontalUp: "┴", Cross: "┼",
+		}},
+		{name: "heavy double dashed", got: symbols.HeavyDoubleDashedLineSet, want: symbols.LineSet{
+			Vertical: "╏", Horizontal: "╍", TopRight: "┓", TopLeft: "┏", BottomRight: "┛", BottomLeft: "┗",
+			VerticalLeft: "┫", VerticalRight: "┣", HorizontalDown: "┳", HorizontalUp: "┻", Cross: "╋",
+		}},
+		{name: "light triple dashed", got: symbols.LightTripleDashedLineSet, want: symbols.LineSet{
+			Vertical: "┆", Horizontal: "┄", TopRight: "┐", TopLeft: "┌", BottomRight: "┘", BottomLeft: "└",
+			VerticalLeft: "┤", VerticalRight: "├", HorizontalDown: "┬", HorizontalUp: "┴", Cross: "┼",
+		}},
+		{name: "heavy triple dashed", got: symbols.HeavyTripleDashedLineSet, want: symbols.LineSet{
+			Vertical: "┇", Horizontal: "┅", TopRight: "┓", TopLeft: "┏", BottomRight: "┛", BottomLeft: "┗",
+			VerticalLeft: "┫", VerticalRight: "┣", HorizontalDown: "┳", HorizontalUp: "┻", Cross: "╋",
+		}},
+		{name: "light quadruple dashed", got: symbols.LightQuadrupleDashedLineSet, want: symbols.LineSet{
+			Vertical: "┊", Horizontal: "┈", TopRight: "┐", TopLeft: "┌", BottomRight: "┘", BottomLeft: "└",
+			VerticalLeft: "┤", VerticalRight: "├", HorizontalDown: "┬", HorizontalUp: "┴", Cross: "┼",
+		}},
+		{name: "heavy quadruple dashed", got: symbols.HeavyQuadrupleDashedLineSet, want: symbols.LineSet{
+			Vertical: "┋", Horizontal: "┉", TopRight: "┓", TopLeft: "┏", BottomRight: "┛", BottomLeft: "┗",
+			VerticalLeft: "┫", VerticalRight: "┣", HorizontalDown: "┳", HorizontalUp: "┻", Cross: "╋",
+		}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.got != tt.want {
+				t.Fatalf("LineSet = %+v, want %+v", tt.got, tt.want)
+			}
+		})
+	}
+	if symbols.LineVertical != symbols.NormalLineSet.Vertical || symbols.LineHorizontal != symbols.NormalLineSet.Horizontal || symbols.LineBottomLeft != symbols.NormalLineSet.BottomLeft {
+		t.Fatalf("normal line constants should match NormalLineSet: %+v", symbols.NormalLineSet)
+	}
+}
+
+func TestBlockSymbols_shouldMatchRatatuiNineLevelBlocks(t *testing.T) {
+	want := []string{" ", "▏", "▎", "▍", "▌", "▋", "▊", "▉", "█"}
+	got := []string{
+		symbols.BlockEmpty,
+		symbols.BlockOneEighth,
+		symbols.BlockOneQuarter,
+		symbols.BlockThreeEighths,
+		symbols.BlockHalf,
+		symbols.BlockFiveEighths,
+		symbols.BlockThreeQuarters,
+		symbols.BlockSevenEighths,
+		symbols.BlockFull,
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("block symbol %d = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestShadeSymbols_shouldMatchRatatuiShadeConstants(t *testing.T) {
+	got := []string{symbols.ShadeEmpty, symbols.ShadeLight, symbols.ShadeMedium, symbols.ShadeDark, symbols.ShadeFull}
+	want := []string{" ", "░", "▒", "▓", "█"}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("shade symbol %d = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
 func TestSparklineBarSet_presets(t *testing.T) {
 	if symbols.NineLevelSparklineBarSet().OneEighth != "▁" || symbols.NineLevelSparklineBarSet().Full != "█" {
 		t.Fatalf("unexpected nine-level sparkline set: %+v", symbols.NineLevelSparklineBarSet())

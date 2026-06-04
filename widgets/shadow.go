@@ -4,6 +4,7 @@ import (
 	"gatui/buffer"
 	"gatui/layout"
 	"gatui/style"
+	"gatui/symbols"
 )
 
 type CellEffect interface {
@@ -28,19 +29,19 @@ func NewShadowSymbol(symbol string) Shadow {
 }
 
 func NewShadowBlock() Shadow {
-	return NewShadowSymbol("█")
+	return NewShadowSymbol(symbols.ShadeFull)
 }
 
 func NewShadowLightShade() Shadow {
-	return NewShadowSymbol("░")
+	return NewShadowSymbol(symbols.ShadeLight)
 }
 
 func NewShadowMediumShade() Shadow {
-	return NewShadowSymbol("▒")
+	return NewShadowSymbol(symbols.ShadeMedium)
 }
 
 func NewShadowDarkShade() Shadow {
-	return NewShadowSymbol("▓")
+	return NewShadowSymbol(symbols.ShadeDark)
 }
 
 func NewShadowCustom(effect CellEffect) Shadow {

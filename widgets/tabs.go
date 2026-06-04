@@ -4,6 +4,7 @@ import (
 	"gatui/buffer"
 	"gatui/layout"
 	"gatui/style"
+	"gatui/symbols"
 	"gatui/text"
 )
 
@@ -25,7 +26,7 @@ func NewTabs(titles []text.Line) Tabs {
 		style:          style.NewStyle(),
 		highlightStyle: style.NewStyle().AddModifier(style.ModifierReversed),
 		selected:       &selected,
-		divider:        "│",
+		divider:        symbols.LineVertical,
 		paddingLeft:    " ",
 		paddingRight:   " ",
 	}

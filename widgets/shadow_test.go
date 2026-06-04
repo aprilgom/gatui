@@ -6,6 +6,7 @@ import (
 	"gatui/buffer"
 	"gatui/layout"
 	"gatui/style"
+	"gatui/symbols"
 )
 
 func renderTestShadow(shadow Shadow) *buffer.Buffer {
@@ -44,6 +45,27 @@ func TestShadow_symbolFiltersFillOnlyVisibleShadowCells(t *testing.T) {
 			assertShadowCell(t, buf, 1, 2, tt.symbol, style.NewStyle())
 			assertShadowCell(t, buf, 2, 2, tt.symbol, style.NewStyle())
 			assertShadowCell(t, buf, 1, 1, " ", style.NewStyle())
+		})
+	}
+}
+
+func TestShadow_shadeConstructorsShouldUseShadeSymbols(t *testing.T) {
+	tests := []struct {
+		name   string
+		shadow Shadow
+		want   string
+	}{
+		{name: "block", shadow: NewShadowBlock(), want: symbols.ShadeFull},
+		{name: "light", shadow: NewShadowLightShade(), want: symbols.ShadeLight},
+		{name: "medium", shadow: NewShadowMediumShade(), want: symbols.ShadeMedium},
+		{name: "dark", shadow: NewShadowDarkShade(), want: symbols.ShadeDark},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := renderTestShadow(tt.shadow)
+
+			assertShadowCell(t, buf, 2, 1, tt.want, style.NewStyle())
 		})
 	}
 }

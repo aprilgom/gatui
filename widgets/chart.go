@@ -6,6 +6,7 @@ import (
 	"gatui/buffer"
 	"gatui/layout"
 	"gatui/style"
+	"gatui/symbols"
 	"gatui/text"
 )
 
@@ -386,7 +387,7 @@ func (c Chart) renderYAxis(buf *buffer.Buffer, l chartAxisLayout) {
 		return
 	}
 	for y := l.area.Y; y <= l.axisY && y < l.area.Y+l.area.Height; y++ {
-		c.setCell(buf, l.axisX, y, "│", c.yAxis.axisStyle)
+		c.setCell(buf, l.axisX, y, symbols.LineVertical, c.yAxis.axisStyle)
 	}
 }
 
@@ -396,10 +397,10 @@ func (c Chart) renderXAxis(buf *buffer.Buffer, l chartAxisLayout) {
 	}
 	start := l.graphLeft
 	if l.hasYAxis {
-		c.setCell(buf, l.axisX, l.axisY, "└", c.yAxis.axisStyle.Patch(c.xAxis.axisStyle))
+		c.setCell(buf, l.axisX, l.axisY, symbols.LineBottomLeft, c.yAxis.axisStyle.Patch(c.xAxis.axisStyle))
 	}
 	for x := start; x < l.graphRight; x++ {
-		c.setCell(buf, x, l.axisY, "─", c.xAxis.axisStyle)
+		c.setCell(buf, x, l.axisY, symbols.LineHorizontal, c.xAxis.axisStyle)
 	}
 }
 

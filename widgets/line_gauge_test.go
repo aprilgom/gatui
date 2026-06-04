@@ -6,6 +6,7 @@ import (
 	"gatui/buffer"
 	"gatui/layout"
 	"gatui/style"
+	"gatui/symbols"
 	"gatui/text"
 	"gatui/widgets"
 )
@@ -51,6 +52,16 @@ func TestLineGauge_shouldRenderProgressLines(t *testing.T) {
 	}
 	for x := 6; x < 8; x++ {
 		assertCellStyle(t, buf, x, 2, style.NewStyle().Fg(style.Green))
+	}
+}
+
+func TestLineGauge_defaultSymbolsShouldUseLineHorizontal(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 8, 1))
+
+	widgets.NewLineGauge().LabelString("").Ratio(0.50).Render(buf.Area, buf)
+
+	for x := 1; x < 8; x++ {
+		assertCellSymbol(t, buf, x, 0, symbols.LineHorizontal)
 	}
 }
 

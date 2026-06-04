@@ -6,6 +6,7 @@ import (
 	"gatui/buffer"
 	"gatui/layout"
 	"gatui/style"
+	"gatui/symbols"
 	"gatui/text"
 	"gatui/widgets"
 )
@@ -43,6 +44,33 @@ func TestGauge_shouldRenderPercentAndRatioWithUnicode(t *testing.T) {
 	}
 	for x := 18; x < 20; x++ {
 		assertCellStyle(t, buf, x, 4, style.NewStyle().Fg(style.Blue).Bg(style.Red))
+	}
+}
+
+func TestGauge_unicodeBlocksShouldUseBlockSymbols(t *testing.T) {
+	tests := []struct {
+		name  string
+		ratio float64
+		want  string
+	}{
+		{name: "one eighth", ratio: 0.125, want: symbols.BlockOneEighth},
+		{name: "one quarter", ratio: 0.25, want: symbols.BlockOneQuarter},
+		{name: "three eighths", ratio: 0.375, want: symbols.BlockThreeEighths},
+		{name: "half", ratio: 0.5, want: symbols.BlockHalf},
+		{name: "five eighths", ratio: 0.625, want: symbols.BlockFiveEighths},
+		{name: "three quarters", ratio: 0.75, want: symbols.BlockThreeQuarters},
+		{name: "seven eighths", ratio: 0.875, want: symbols.BlockSevenEighths},
+		{name: "full", ratio: 1, want: symbols.BlockFull},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := buffer.Empty(layout.NewRect(0, 0, 1, 1))
+
+			widgets.NewGauge().UseUnicode(true).Ratio(tt.ratio).LabelString("").Render(buf.Area, buf)
+
+			assertCellSymbol(t, buf, 0, 0, tt.want)
+		})
 	}
 }
 

@@ -7,6 +7,7 @@ import (
 	"gatui/buffer"
 	"gatui/layout"
 	"gatui/style"
+	"gatui/symbols"
 	"gatui/text"
 )
 
@@ -137,7 +138,7 @@ func (g Gauge) renderGauge(area layout.Rect, buf *buffer.Buffer) {
 				buf.SetCell(x, y, buffer.Cell{Symbol: " ", Style: g.swappedGaugeStyle()})
 				continue
 			}
-			buf.SetCell(x, y, buffer.Cell{Symbol: "█", Style: g.gaugeStyle})
+			buf.SetCell(x, y, buffer.Cell{Symbol: symbols.BlockFull, Style: g.gaugeStyle})
 		}
 		if g.useUnicode && g.ratio < 1 && end < area.X+area.Width {
 			buf.SetCell(end, y, buffer.Cell{Symbol: unicodeBlock(filledWidth - math.Floor(filledWidth)), Style: g.gaugeStyle})
@@ -171,22 +172,22 @@ func (g Gauge) swappedGaugeStyle() style.Style {
 func unicodeBlock(frac float64) string {
 	switch int(math.Round(frac * 8)) {
 	case 1:
-		return "▏"
+		return symbols.BlockOneEighth
 	case 2:
-		return "▎"
+		return symbols.BlockOneQuarter
 	case 3:
-		return "▍"
+		return symbols.BlockThreeEighths
 	case 4:
-		return "▌"
+		return symbols.BlockHalf
 	case 5:
-		return "▋"
+		return symbols.BlockFiveEighths
 	case 6:
-		return "▊"
+		return symbols.BlockThreeQuarters
 	case 7:
-		return "▉"
+		return symbols.BlockSevenEighths
 	case 8:
-		return "█"
+		return symbols.BlockFull
 	default:
-		return " "
+		return symbols.BlockEmpty
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"gatui/buffer"
 	"gatui/layout"
 	"gatui/style"
+	"gatui/symbols"
 	"gatui/text"
 	"gatui/textbuffer"
 )
@@ -27,8 +28,8 @@ func NewLineGauge() LineGauge {
 		style:          style.NewStyle(),
 		filledStyle:    style.NewStyle(),
 		unfilledStyle:  style.NewStyle(),
-		filledSymbol:   "─",
-		unfilledSymbol: "─",
+		filledSymbol:   symbols.LineHorizontal,
+		unfilledSymbol: symbols.LineHorizontal,
 	}
 }
 
