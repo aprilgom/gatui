@@ -621,6 +621,33 @@ func TestTable_collectRows(t *testing.T) {
 	})
 }
 
+func TestTableRow_collectCells_shouldMatchRatatui(t *testing.T) {
+	cells := []widgets.TableCell{
+		widgets.TableCellFromString("one"),
+		widgets.TableCellFromString("two"),
+	}
+	row := widgets.NewTableRow(cells)
+	cells[0] = widgets.TableCellFromString("mutated")
+
+	got := row.Cells()
+	if len(got) != 2 {
+		t.Fatalf("len(Cells()) = %d, want 2", len(got))
+	}
+	if got[0].Content().String() != "one" || got[1].Content().String() != "two" {
+		t.Fatalf("Cells() content = %q, %q; want one, two", got[0].Content().String(), got[1].Content().String())
+	}
+
+	buf := buffer.Empty(layout.NewRect(0, 0, 7, 1))
+	table := widgets.NewTable([]widgets.TableRow{row}, []layout.Constraint{
+		layout.Length(3),
+		layout.Length(3),
+	})
+
+	table.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"one two"})
+}
+
 func TestTable_rows(t *testing.T) {
 	rows := []widgets.TableRow{
 		widgets.TableRowFromStrings([]string{"A"}),
