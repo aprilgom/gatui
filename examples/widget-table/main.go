@@ -10,7 +10,7 @@ import (
 	"github.com/aprilgom/gatui/terminal"
 	"github.com/aprilgom/gatui/text"
 	"github.com/aprilgom/gatui/widgets"
-	tcell "github.com/gdamore/tcell/v2"
+	tcell "github.com/gdamore/tcell/v3"
 )
 
 func main() {
@@ -53,7 +53,7 @@ func run() error {
 	}
 
 	for {
-		switch event := screen.PollEvent().(type) {
+		switch event := (<-screen.EventQ()).(type) {
 		case *tcell.EventResize:
 			screen.Sync()
 		case *tcell.EventKey:
@@ -69,20 +69,20 @@ func run() error {
 			case tcell.KeyLeft:
 				tableState.SelectPreviousColumn()
 			default:
-				switch event.Rune() {
-				case 'q':
+				switch event.Str() {
+				case "q":
 					return nil
-				case 'j':
+				case "j":
 					tableState.SelectNext()
-				case 'k':
+				case "k":
 					tableState.SelectPrevious()
-				case 'l':
+				case "l":
 					tableState.SelectNextColumn()
-				case 'h':
+				case "h":
 					tableState.SelectPreviousColumn()
-				case 'g':
+				case "g":
 					tableState.SelectFirst()
-				case 'G':
+				case "G":
 					tableState.SelectLast()
 				}
 			}

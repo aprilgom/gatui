@@ -9,7 +9,7 @@ import (
 	"github.com/aprilgom/gatui/terminal"
 	"github.com/aprilgom/gatui/text"
 	"github.com/aprilgom/gatui/widgets"
-	tcell "github.com/gdamore/tcell/v2"
+	tcell "github.com/gdamore/tcell/v3"
 )
 
 type app struct {
@@ -43,7 +43,7 @@ func main() {
 	}
 
 	for {
-		event := screen.PollEvent()
+		event := <-screen.EventQ()
 		switch event := event.(type) {
 		case *tcell.EventResize:
 			screen.Sync()
@@ -63,11 +63,11 @@ func main() {
 
 func (a *app) handleKey(event *tcell.EventKey) bool {
 	switch {
-	case event.Rune() == 'q' || event.Key() == tcell.KeyEsc || event.Key() == tcell.KeyCtrlC:
+	case event.Str() == "q" || event.Key() == tcell.KeyEsc || event.Key() == tcell.KeyCtrlC:
 		return true
-	case event.Rune() == 'j' || event.Key() == tcell.KeyDown:
+	case event.Str() == "j" || event.Key() == tcell.KeyDown:
 		a.listState.SelectNext()
-	case event.Rune() == 'k' || event.Key() == tcell.KeyUp:
+	case event.Str() == "k" || event.Key() == tcell.KeyUp:
 		a.listState.SelectPrevious()
 	}
 	return false

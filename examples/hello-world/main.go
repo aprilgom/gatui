@@ -7,7 +7,7 @@ import (
 	"github.com/aprilgom/gatui/terminal"
 	"github.com/aprilgom/gatui/text"
 	"github.com/aprilgom/gatui/widgets"
-	tcell "github.com/gdamore/tcell/v2"
+	tcell "github.com/gdamore/tcell/v3"
 )
 
 func main() {
@@ -32,7 +32,7 @@ func main() {
 	}
 
 	for {
-		event := screen.PollEvent()
+		event := <-screen.EventQ()
 		switch event := event.(type) {
 		case *tcell.EventResize:
 			screen.Sync()
@@ -40,7 +40,7 @@ func main() {
 				panic(fmt.Errorf("draw resized frame: %w", err))
 			}
 		case *tcell.EventKey:
-			if event.Rune() == 'q' || event.Key() == tcell.KeyCtrlC {
+			if event.Str() == "q" || event.Key() == tcell.KeyCtrlC {
 				return
 			}
 		}

@@ -8,17 +8,19 @@ import (
 	"github.com/aprilgom/gatui/style"
 	"github.com/aprilgom/gatui/terminal"
 
-	tcelllib "github.com/gdamore/tcell/v2"
+	tcelllib "github.com/gdamore/tcell/v3"
+	"github.com/gdamore/tcell/v3/color"
 )
 
 type spyScreen struct {
-	tcelllib.SimulationScreen
-
 	initCount       int
 	finiCount       int
 	clearCount      int
 	showCount       int
 	hideCursorCount int
+	width           int
+	height          int
+	events          chan tcelllib.Event
 	showCursorCalls []layout.Position
 	contentCalls    []contentCall
 }
@@ -32,39 +34,33 @@ type contentCall struct {
 }
 
 func newSpyScreen(width, height int) *spyScreen {
-	screen := tcelllib.NewSimulationScreen("UTF-8")
-	screen.SetSize(width, height)
-	return &spyScreen{SimulationScreen: screen}
+	return &spyScreen{width: width, height: height, events: make(chan tcelllib.Event, 1)}
 }
 
 func (s *spyScreen) Init() error {
 	s.initCount++
-	return s.SimulationScreen.Init()
+	return nil
 }
 
 func (s *spyScreen) Fini() {
 	s.finiCount++
-	s.SimulationScreen.Fini()
+	close(s.events)
 }
 
 func (s *spyScreen) Clear() {
 	s.clearCount++
-	s.SimulationScreen.Clear()
 }
 
 func (s *spyScreen) Show() {
 	s.showCount++
-	s.SimulationScreen.Show()
 }
 
 func (s *spyScreen) HideCursor() {
 	s.hideCursorCount++
-	s.SimulationScreen.HideCursor()
 }
 
 func (s *spyScreen) ShowCursor(x, y int) {
 	s.showCursorCalls = append(s.showCursorCalls, layout.Position{X: x, Y: y})
-	s.SimulationScreen.ShowCursor(x, y)
 }
 
 func (s *spyScreen) SetContent(x int, y int, primary rune, combining []rune, cellStyle tcelllib.Style) {
@@ -76,7 +72,103 @@ func (s *spyScreen) SetContent(x int, y int, primary rune, combining []rune, cel
 		combining: copiedCombining,
 		style:     cellStyle,
 	})
-	s.SimulationScreen.SetContent(x, y, primary, combining, cellStyle)
+}
+
+func (s *spyScreen) Fill(rune, tcelllib.Style) {}
+
+func (s *spyScreen) Put(x int, y int, str string, style tcelllib.Style) (string, int) {
+	return "", 0
+}
+
+func (s *spyScreen) PutStr(x int, y int, str string) {}
+
+func (s *spyScreen) PutStrStyled(x int, y int, str string, style tcelllib.Style) {}
+
+func (s *spyScreen) Get(x, y int) (string, tcelllib.Style, int) {
+	return "", tcelllib.StyleDefault, 0
+}
+
+func (s *spyScreen) SetStyle(style tcelllib.Style) {}
+
+func (s *spyScreen) SetCursorStyle(tcelllib.CursorStyle, ...color.Color) {}
+
+func (s *spyScreen) Size() (int, int) {
+	return s.width, s.height
+}
+
+func (s *spyScreen) EventQ() chan tcelllib.Event {
+	return s.events
+}
+
+func (s *spyScreen) EnableMouse(...tcelllib.MouseFlags) {}
+
+func (s *spyScreen) DisableMouse() {}
+
+func (s *spyScreen) EnablePaste() {}
+
+func (s *spyScreen) DisablePaste() {}
+
+func (s *spyScreen) EnableFocus() {}
+
+func (s *spyScreen) DisableFocus() {}
+
+func (s *spyScreen) Colors() int {
+	return 256
+}
+
+func (s *spyScreen) Sync() {}
+
+func (s *spyScreen) CharacterSet() string {
+	return "UTF-8"
+}
+
+func (s *spyScreen) RegisterRuneFallback(r rune, subst string) {}
+
+func (s *spyScreen) UnregisterRuneFallback(r rune) {}
+
+func (s *spyScreen) Resize(int, int, int, int) {}
+
+func (s *spyScreen) Suspend() error {
+	return nil
+}
+
+func (s *spyScreen) Resume() error {
+	return nil
+}
+
+func (s *spyScreen) Beep() error {
+	return nil
+}
+
+func (s *spyScreen) SetSize(width, height int) {
+	s.width = width
+	s.height = height
+}
+
+func (s *spyScreen) LockRegion(x, y, width, height int, lock bool) {}
+
+func (s *spyScreen) Tty() (tcelllib.Tty, bool) {
+	return nil, false
+}
+
+func (s *spyScreen) SetTitle(string) {}
+
+func (s *spyScreen) SetClipboard([]byte) {}
+
+func (s *spyScreen) GetClipboard() {}
+
+func (s *spyScreen) HasClipboard() bool {
+	return false
+}
+
+func (s *spyScreen) ShowNotification(title string, body string) {}
+
+func (s *spyScreen) KeyboardProtocol() tcelllib.KeyProtocol {
+	return tcelllib.LegacyKeyboard
+}
+
+func (s *spyScreen) Terminal() (string, string) {
+	return "", ""
 }
 
 func TestBackend_NewWithScreen_shouldInitInjectedScreen(t *testing.T) {
@@ -293,16 +385,23 @@ func TestBackend_Draw_shouldMapStyle(t *testing.T) {
 		t.Fatalf("SetContent calls = %d, want 1", len(screen.contentCalls))
 	}
 	gotStyle := screen.contentCalls[0].style
-	fg, bg, attrs := gotStyle.Decompose()
-	if fg != tcelllib.ColorRed {
-		t.Fatalf("foreground = %v, want %v", fg, tcelllib.ColorRed)
+	if fg := gotStyle.GetForeground(); fg != color.Red {
+		t.Fatalf("foreground = %v, want %v", fg, color.Red)
 	}
-	if bg != tcelllib.ColorBlue {
-		t.Fatalf("background = %v, want %v", bg, tcelllib.ColorBlue)
+	if bg := gotStyle.GetBackground(); bg != color.Blue {
+		t.Fatalf("background = %v, want %v", bg, color.Blue)
 	}
-	wantAttrs := tcelllib.AttrBold | tcelllib.AttrItalic | tcelllib.AttrUnderline | tcelllib.AttrReverse
-	if attrs&wantAttrs != wantAttrs {
-		t.Fatalf("attrs = %v, want to include %v", attrs, wantAttrs)
+	if !gotStyle.HasBold() {
+		t.Fatal("style should include bold")
+	}
+	if !gotStyle.HasItalic() {
+		t.Fatal("style should include italic")
+	}
+	if !gotStyle.HasUnderline() {
+		t.Fatal("style should include underline")
+	}
+	if !gotStyle.HasReverse() {
+		t.Fatal("style should include reverse")
 	}
 }
 

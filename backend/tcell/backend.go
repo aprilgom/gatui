@@ -6,7 +6,8 @@ import (
 	"github.com/aprilgom/gatui/style"
 	"github.com/aprilgom/gatui/terminal"
 
-	tcelllib "github.com/gdamore/tcell/v2"
+	tcelllib "github.com/gdamore/tcell/v3"
+	tcellcolor "github.com/gdamore/tcell/v3/color"
 )
 
 var _ terminal.Backend = (*Backend)(nil)
@@ -197,26 +198,26 @@ func convertStyle(cellStyle style.Style) tcelllib.Style {
 func convertColor(color style.Color) tcelllib.Color {
 	switch color {
 	case style.Black:
-		return tcelllib.ColorBlack
+		return tcellcolor.Black
 	case style.Red:
-		return tcelllib.ColorRed
+		return tcellcolor.Red
 	case style.Green:
-		return tcelllib.ColorGreen
+		return tcellcolor.Green
 	case style.Yellow:
-		return tcelllib.ColorYellow
+		return tcellcolor.Yellow
 	case style.Blue:
-		return tcelllib.ColorBlue
+		return tcellcolor.Blue
 	case style.Magenta:
-		return tcelllib.ColorFuchsia
+		return tcellcolor.Fuchsia
 	case style.Cyan:
-		return tcelllib.ColorAqua
+		return tcellcolor.Aqua
 	case style.White:
-		return tcelllib.ColorWhite
+		return tcellcolor.White
 	case style.LightBlue:
-		return tcelllib.ColorLightBlue
+		return tcellcolor.LightBlue
 	case style.LightGreen:
-		return tcelllib.ColorLightGreen
+		return tcellcolor.LightGreen
 	default:
-		return tcelllib.ColorDefault
+		return tcellcolor.Default
 	}
 }

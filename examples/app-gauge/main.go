@@ -11,7 +11,7 @@ import (
 	"github.com/aprilgom/gatui/terminal"
 	"github.com/aprilgom/gatui/text"
 	"github.com/aprilgom/gatui/widgets"
-	tcell "github.com/gdamore/tcell/v2"
+	tcell "github.com/gdamore/tcell/v3"
 )
 
 var (
@@ -68,7 +68,7 @@ func (a *app) run(term *terminal.Terminal, screen tcell.Screen) error {
 	events := make(chan tcell.Event)
 	go func() {
 		for {
-			events <- screen.PollEvent()
+			events <- <-screen.EventQ()
 		}
 	}()
 
@@ -110,9 +110,9 @@ func (a *app) handleEvent(event tcell.Event, term *terminal.Terminal, screen tce
 		}
 	case *tcell.EventKey:
 		switch {
-		case event.Rune() == ' ' || event.Key() == tcell.KeyEnter:
+		case event.Str() == " " || event.Key() == tcell.KeyEnter:
 			a.start()
-		case event.Rune() == 'q' || event.Key() == tcell.KeyEsc || event.Key() == tcell.KeyCtrlC:
+		case event.Str() == "q" || event.Key() == tcell.KeyEsc || event.Key() == tcell.KeyCtrlC:
 			a.quit()
 		}
 	}

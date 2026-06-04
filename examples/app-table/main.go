@@ -12,7 +12,7 @@ import (
 	"github.com/aprilgom/gatui/terminal"
 	"github.com/aprilgom/gatui/text"
 	"github.com/aprilgom/gatui/widgets"
-	tcell "github.com/gdamore/tcell/v2"
+	tcell "github.com/gdamore/tcell/v3"
 )
 
 const itemHeight = 4
@@ -141,7 +141,7 @@ func (a *app) run(term *terminal.Terminal, screen tcell.Screen) error {
 			return err
 		}
 
-		switch ev := screen.PollEvent().(type) {
+		switch ev := (<-screen.EventQ()).(type) {
 		case *tcell.EventResize:
 			screen.Sync()
 		case *tcell.EventKey:
@@ -173,20 +173,20 @@ func (a *app) handleKey(ev *tcell.EventKey) bool {
 			a.nextColumn()
 		}
 	case tcell.KeyRune:
-		switch ev.Rune() {
-		case 'q':
+		switch ev.Str() {
+		case "q":
 			return true
-		case 'j':
+		case "j":
 			a.nextRow()
-		case 'k':
+		case "k":
 			a.previousRow()
-		case 'h':
+		case "h":
 			a.previousColumn()
-		case 'l':
+		case "l":
 			a.nextColumn()
-		case 'H':
+		case "H":
 			a.previousColor()
-		case 'L':
+		case "L":
 			a.nextColor()
 		}
 	}

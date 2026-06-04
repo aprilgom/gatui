@@ -10,7 +10,7 @@ import (
 	"github.com/aprilgom/gatui/terminal"
 	"github.com/aprilgom/gatui/text"
 	"github.com/aprilgom/gatui/widgets"
-	tcell "github.com/gdamore/tcell/v2"
+	tcell "github.com/gdamore/tcell/v3"
 )
 
 type App struct {
@@ -63,7 +63,7 @@ func (a *App) Run(term *terminal.Terminal, screen tcell.Screen) error {
 	events := make(chan tcell.Event)
 	go func() {
 		for {
-			events <- screen.PollEvent()
+			events <- <-screen.EventQ()
 		}
 	}()
 
@@ -100,7 +100,7 @@ func (a *App) HandleEvent(term *terminal.Terminal, event tcell.Event) bool {
 }
 
 func (a *App) HandleKeyEvent(event *tcell.EventKey) bool {
-	if event.Key() == tcell.KeyEsc || event.Rune() == 'q' {
+	if event.Key() == tcell.KeyEsc || event.Str() == "q" {
 		return true
 	}
 
@@ -117,14 +117,14 @@ func (a *App) HandleKeyEvent(event *tcell.EventKey) bool {
 		a.CycleMarker()
 	}
 
-	switch event.Rune() {
-	case 'j':
+	switch event.Str() {
+	case "j":
 		a.y += 1
-	case 'k':
+	case "k":
 		a.y -= 1
-	case 'l':
+	case "l":
 		a.x += 1
-	case 'h':
+	case "h":
 		a.x -= 1
 	}
 

@@ -8,7 +8,7 @@ import (
 	"github.com/aprilgom/gatui/terminal"
 	"github.com/aprilgom/gatui/text"
 	"github.com/aprilgom/gatui/widgets"
-	tcelllib "github.com/gdamore/tcell/v2"
+	tcelllib "github.com/gdamore/tcell/v3"
 )
 
 func main() {
@@ -42,7 +42,7 @@ func run() error {
 			return err
 		}
 
-		if _, ok := screen.PollEvent().(*tcelllib.EventKey); ok {
+		if _, ok := (<-screen.EventQ()).(*tcelllib.EventKey); ok {
 			break
 		}
 	}
