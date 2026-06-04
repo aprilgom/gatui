@@ -53,6 +53,11 @@ The app examples demonstrate small interactive terminal programs. The widget
 examples focus on individual widget rendering. Most examples exit with `q`,
 `Esc`, or `Ctrl+C`; list and table examples also support arrow keys or `hjkl`.
 
+For LLMs, coding agents, and humans building a new app, start with
+[docs/llm-usage.md](docs/llm-usage.md). It includes the minimal app skeleton,
+widget cookbook snippets, common pitfalls, and Ratatui-to-Gatui translation
+rules.
+
 ## Current Status
 
 Implemented slices:
