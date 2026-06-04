@@ -172,13 +172,79 @@ func ParseDirection(value string) (Direction, error) {
 	}
 }
 
-type Alignment int
+type HorizontalAlignment int
 
 const (
-	Left Alignment = iota
+	Left HorizontalAlignment = iota
 	Center
 	Right
 )
+
+type Alignment = HorizontalAlignment
+
+func (a HorizontalAlignment) String() string {
+	switch a {
+	case Left:
+		return "Left"
+	case Center:
+		return "Center"
+	case Right:
+		return "Right"
+	default:
+		return fmt.Sprintf("HorizontalAlignment(%d)", a)
+	}
+}
+
+func ParseHorizontalAlignment(value string) (HorizontalAlignment, error) {
+	switch value {
+	case "Left":
+		return Left, nil
+	case "Center":
+		return Center, nil
+	case "Right":
+		return Right, nil
+	default:
+		return Left, fmt.Errorf("invalid horizontal alignment: %q", value)
+	}
+}
+
+func ParseAlignment(value string) (Alignment, error) {
+	return ParseHorizontalAlignment(value)
+}
+
+type VerticalAlignment int
+
+const (
+	Top VerticalAlignment = iota
+	VerticalCenter
+	Bottom
+)
+
+func (a VerticalAlignment) String() string {
+	switch a {
+	case Top:
+		return "Top"
+	case VerticalCenter:
+		return "Center"
+	case Bottom:
+		return "Bottom"
+	default:
+		return fmt.Sprintf("VerticalAlignment(%d)", a)
+	}
+}
+
+func ParseVerticalAlignment(value string) (VerticalAlignment, error) {
+	switch value {
+	case "Top":
+		return Top, nil
+	case "Center":
+		return VerticalCenter, nil
+	case "Bottom":
+		return Bottom, nil
+	default:
+		return Top, fmt.Errorf("invalid vertical alignment: %q", value)
+	}
+}
 
 type Flex int
 

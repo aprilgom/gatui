@@ -284,6 +284,124 @@ func TestDirection_String_unknownShouldBeStable(t *testing.T) {
 	}
 }
 
+func TestHorizontalAlignment_String_shouldMatchRatatui(t *testing.T) {
+	tests := []struct {
+		alignment layout.HorizontalAlignment
+		want      string
+	}{
+		{alignment: layout.Left, want: "Left"},
+		{alignment: layout.Center, want: "Center"},
+		{alignment: layout.Right, want: "Right"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			if got := tt.alignment.String(); got != tt.want {
+				t.Fatalf("HorizontalAlignment.String() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseHorizontalAlignment_shouldMatchRatatui(t *testing.T) {
+	tests := []struct {
+		input string
+		want  layout.HorizontalAlignment
+	}{
+		{input: "Left", want: layout.Left},
+		{input: "Center", want: layout.Center},
+		{input: "Right", want: layout.Right},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got, err := layout.ParseHorizontalAlignment(tt.input)
+			if err != nil {
+				t.Fatalf("ParseHorizontalAlignment(%q) returned error: %v", tt.input, err)
+			}
+			if got != tt.want {
+				t.Fatalf("ParseHorizontalAlignment(%q) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+
+	for _, input := range []string{"", "left", "Top"} {
+		t.Run("invalid "+input, func(t *testing.T) {
+			if got, err := layout.ParseHorizontalAlignment(input); err == nil {
+				t.Fatalf("ParseHorizontalAlignment(%q) = %v, nil error; want error", input, got)
+			}
+		})
+	}
+}
+
+func TestAlignment_shouldRemainCompatibleWithHorizontalAlignment(t *testing.T) {
+	alignmentString := func(alignment layout.Alignment) string {
+		return alignment.String()
+	}
+
+	if got := alignmentString(layout.Center); got != "Center" {
+		t.Fatalf("Alignment compatibility String() = %q, want %q", got, "Center")
+	}
+
+	got, err := layout.ParseAlignment("Right")
+	if err != nil {
+		t.Fatalf("ParseAlignment(%q) returned error: %v", "Right", err)
+	}
+	if got != layout.Right {
+		t.Fatalf("ParseAlignment(%q) = %v, want %v", "Right", got, layout.Right)
+	}
+}
+
+func TestVerticalAlignment_String_shouldMatchRatatui(t *testing.T) {
+	tests := []struct {
+		alignment layout.VerticalAlignment
+		want      string
+	}{
+		{alignment: layout.Top, want: "Top"},
+		{alignment: layout.VerticalCenter, want: "Center"},
+		{alignment: layout.Bottom, want: "Bottom"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			if got := tt.alignment.String(); got != tt.want {
+				t.Fatalf("VerticalAlignment.String() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseVerticalAlignment_shouldMatchRatatui(t *testing.T) {
+	tests := []struct {
+		input string
+		want  layout.VerticalAlignment
+	}{
+		{input: "Top", want: layout.Top},
+		{input: "Center", want: layout.VerticalCenter},
+		{input: "Bottom", want: layout.Bottom},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got, err := layout.ParseVerticalAlignment(tt.input)
+			if err != nil {
+				t.Fatalf("ParseVerticalAlignment(%q) returned error: %v", tt.input, err)
+			}
+			if got != tt.want {
+				t.Fatalf("ParseVerticalAlignment(%q) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+
+	for _, input := range []string{"", "top", "Left"} {
+		t.Run("invalid "+input, func(t *testing.T) {
+			if got, err := layout.ParseVerticalAlignment(input); err == nil {
+				t.Fatalf("ParseVerticalAlignment(%q) = %v, nil error; want error", input, got)
+			}
+		})
+	}
+}
+
 func TestNewVerticalLayout_shouldMatchRatatuiVerticalConstructor(t *testing.T) {
 	got := layout.NewVerticalLayout(layout.Min(0)).
 		Split(layout.NewRect(0, 0, 5, 10))
