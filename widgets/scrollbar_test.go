@@ -6,6 +6,7 @@ import (
 	"github.com/aprilgom/gatui/buffer"
 	"github.com/aprilgom/gatui/layout"
 	"github.com/aprilgom/gatui/style"
+	"github.com/aprilgom/gatui/symbols"
 	"github.com/aprilgom/gatui/widgets"
 )
 
@@ -252,6 +253,46 @@ func TestScrollbar_shouldRenderVerticalRightWithCustomSymbols(t *testing.T) {
 	}
 }
 
+func TestScrollbar_Symbols_shouldSetAllSymbolsAtOnce(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 6, 1))
+	state := widgets.NewScrollbarState(10)
+	set := symbols.ScrollbarSet{
+		Begin: "[",
+		Track: ".",
+		Thumb: "#",
+		End:   "]",
+	}
+
+	widgets.NewScrollbar(widgets.ScrollbarOrientationHorizontalTop).
+		Symbols(set).
+		RenderStateful(buf.Area, buf, &state)
+
+	assertLines(t, buf, []string{"[##..]"})
+}
+
+func TestNewScrollbarWithSymbols_shouldSetOrientationAndSymbols(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 4, 6))
+	state := widgets.NewScrollbarState(10)
+	set := symbols.ScrollbarSet{
+		Begin: "[",
+		Track: ".",
+		Thumb: "#",
+		End:   "]",
+	}
+
+	widgets.NewScrollbarWithSymbols(widgets.ScrollbarOrientationVerticalRight, set).
+		RenderStateful(buf.Area, buf, &state)
+
+	assertLines(t, buf, []string{
+		"   [",
+		"   #",
+		"   #",
+		"   .",
+		"   .",
+		"   ]",
+	})
+}
+
 func TestScrollbarState_shouldNavigate(t *testing.T) {
 	state := widgets.NewScrollbarState(3)
 
@@ -265,6 +306,11 @@ func TestScrollbarState_shouldNavigate(t *testing.T) {
 	state.Previous()
 	if got := state.PositionValue(); got != 1 {
 		t.Fatalf("position after previous = %d, want 1", got)
+	}
+
+	state.Prev()
+	if got := state.PositionValue(); got != 0 {
+		t.Fatalf("position after prev = %d, want 0", got)
 	}
 
 	state.First()
@@ -285,6 +331,14 @@ func TestScrollbarState_shouldNavigate(t *testing.T) {
 	state.Scroll(widgets.ScrollDirectionForward)
 	if got := state.PositionValue(); got != 2 {
 		t.Fatalf("position after forward scroll = %d, want 2", got)
+	}
+}
+
+func TestScrollbarState_ViewportContentLengthValue_shouldReturnViewportContentLength(t *testing.T) {
+	state := widgets.NewScrollbarState(10).ViewportContentLength(3)
+
+	if got := state.ViewportContentLengthValue(); got != 3 {
+		t.Fatalf("ViewportContentLengthValue() = %d, want 3", got)
 	}
 }
 

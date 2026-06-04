@@ -129,6 +129,10 @@ func (s *ScrollbarState) Previous() {
 	s.position = maxInt(0, s.position-1)
 }
 
+func (s *ScrollbarState) Prev() {
+	s.Previous()
+}
+
 func (s *ScrollbarState) First() {
 	if s == nil {
 		return
@@ -161,6 +165,10 @@ func (s ScrollbarState) PositionValue() int {
 
 func (s ScrollbarState) ContentLengthValue() int {
 	return s.contentLength
+}
+
+func (s ScrollbarState) ViewportContentLengthValue() int {
+	return s.viewportContentLength
 }
 
 type Scrollbar struct {
@@ -196,6 +204,10 @@ func NewScrollbar(orientation ScrollbarOrientation) Scrollbar {
 	}
 }
 
+func NewScrollbarWithSymbols(orientation ScrollbarOrientation, symbolSet symbols.ScrollbarSet) Scrollbar {
+	return NewScrollbar(orientation).Symbols(symbolSet)
+}
+
 func (s Scrollbar) BeginSymbol(symbol string) Scrollbar {
 	s.beginSymbol = &symbol
 	return s
@@ -228,6 +240,14 @@ func (s Scrollbar) ClearTrackSymbol() Scrollbar {
 
 func (s Scrollbar) ThumbSymbol(symbol string) Scrollbar {
 	s.thumbSymbol = symbol
+	return s
+}
+
+func (s Scrollbar) Symbols(symbolSet symbols.ScrollbarSet) Scrollbar {
+	s.thumbSymbol = symbolSet.Thumb
+	s.trackSymbol = &symbolSet.Track
+	s.beginSymbol = &symbolSet.Begin
+	s.endSymbol = &symbolSet.End
 	return s
 }
 
