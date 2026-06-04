@@ -566,14 +566,14 @@ func TestLine_AppendSpans_shouldAppendMultipleSpans(t *testing.T) {
 
 func TestLine_forLoopInto(t *testing.T) {
 	line := text.LineFromSpans(text.NewSpan("a"), text.NewSpan("b"))
-	got := ""
+	var got strings.Builder
 
 	for _, span := range line.Spans {
-		got += span.Content
+		got.WriteString(span.Content)
 	}
 
-	if got != "ab" {
-		t.Fatalf("range content = %q, want ab", got)
+	if got.String() != "ab" {
+		t.Fatalf("range content = %q, want ab", got.String())
 	}
 }
 
@@ -1065,6 +1065,144 @@ func TestLine_Render_shouldRespectAlignmentAndTruncation(t *testing.T) {
 
 			assertTextLines(t, buf, []string{tt.want})
 		})
+	}
+}
+
+func TestLine_Render(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 15, 1))
+	lineStyle := style.NewStyle().AddModifier(style.ModifierItalic)
+	blue := style.NewStyle().Fg(style.Blue)
+	green := style.NewStyle().Fg(style.Green)
+	line := text.LineFromSpans(
+		text.StyledSpan("Hello ", blue),
+		text.StyledSpan("world!", green),
+	).Style(lineStyle)
+
+	line.Render(buf.Area, buf)
+
+	assertTextLines(t, buf, []string{"Hello world!   "})
+	for x := 0; x < 15; x++ {
+		want := lineStyle
+		switch {
+		case x < 6:
+			want = lineStyle.Patch(blue)
+		case x < 12:
+			want = lineStyle.Patch(green)
+		}
+		assertTextCellStyle(t, buf, x, 0, want)
+	}
+}
+
+func TestLine_RenderOnlyStylesFirstLine(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 20, 2))
+	lineStyle := style.NewStyle().AddModifier(style.ModifierItalic)
+	blue := style.NewStyle().Fg(style.Blue)
+	green := style.NewStyle().Fg(style.Green)
+	line := text.LineFromSpans(
+		text.StyledSpan("Hello ", blue),
+		text.StyledSpan("world!", green),
+	).Style(lineStyle)
+
+	line.Render(buf.Area, buf)
+
+	assertTextLines(t, buf, []string{"Hello world!        ", "                    "})
+	for x := 0; x < 20; x++ {
+		want := lineStyle
+		switch {
+		case x < 6:
+			want = lineStyle.Patch(blue)
+		case x < 12:
+			want = lineStyle.Patch(green)
+		}
+		assertTextCellStyle(t, buf, x, 0, want)
+		assertTextCellStyle(t, buf, x, 1, style.NewStyle())
+	}
+}
+
+func TestLine_RenderOnlyStylesLineArea(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 20, 1))
+	lineStyle := style.NewStyle().AddModifier(style.ModifierItalic)
+	blue := style.NewStyle().Fg(style.Blue)
+	green := style.NewStyle().Fg(style.Green)
+	line := text.LineFromSpans(
+		text.StyledSpan("Hello ", blue),
+		text.StyledSpan("world!", green),
+	).Style(lineStyle)
+
+	line.Render(layout.NewRect(0, 0, 15, 1), buf)
+
+	assertTextLines(t, buf, []string{"Hello world!        "})
+	for x := 0; x < 20; x++ {
+		want := style.NewStyle()
+		if x < 15 {
+			want = lineStyle
+		}
+		switch {
+		case x < 6:
+			want = lineStyle.Patch(blue)
+		case x < 12:
+			want = lineStyle.Patch(green)
+		}
+		assertTextCellStyle(t, buf, x, 0, want)
+	}
+}
+
+func TestLine_RenderOutOfBounds(t *testing.T) {
+	line := text.LineFromSpans(
+		text.StyledSpan("Hello ", style.NewStyle().Fg(style.Blue)),
+		text.StyledSpan("world!", style.NewStyle().Fg(style.Green)),
+	).Style(style.NewStyle().AddModifier(style.ModifierItalic))
+
+	tests := []struct {
+		name string
+		area layout.Rect
+		want string
+	}{
+		{name: "fully outside", area: layout.NewRect(20, 20, 10, 1), want: "     "},
+		{name: "zero width", area: layout.NewRect(0, 0, 0, 1), want: "     "},
+		{name: "zero height", area: layout.NewRect(0, 0, 5, 0), want: "     "},
+		{name: "partially overlapping", area: layout.NewRect(3, 0, 10, 1), want: "   He"},
+		{name: "wide grapheme clipped", area: layout.NewRect(4, 0, 1, 1), want: "     "},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := buffer.Empty(layout.NewRect(0, 0, 5, 1))
+			renderLine := line
+			if tt.name == "wide grapheme clipped" {
+				renderLine = text.LineFromString("🦀")
+			}
+
+			renderLine.Render(tt.area, buf)
+
+			assertTextLines(t, buf, []string{tt.want})
+		})
+	}
+}
+
+func TestLine_Regression1032(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 83, 1))
+	line := text.LineFromString(
+		"🦀 RFC8628 OAuth 2.0 Device Authorization GrantでCLIからGithubのaccess tokenを取得する",
+	)
+
+	line.Render(buf.Area, buf)
+
+	assertTextLines(t, buf, []string{
+		"🦀 RFC8628 OAuth 2.0 Device Authorization GrantでCLIからGithubのaccess tokenを取得 ",
+	})
+}
+
+func TestLine_Render_emptyLineAppliesStyleToFirstRowOnly(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 4, 2))
+	lineStyle := style.NewStyle().Fg(style.Red)
+
+	text.NewLine().Style(lineStyle).Render(buf.Area, buf)
+
+	assertTextLines(t, buf, []string{"    ", "    "})
+	for x := 0; x < 4; x++ {
+		assertTextCellStyle(t, buf, x, 0, lineStyle)
+		assertTextCellStyle(t, buf, x, 1, style.NewStyle())
 	}
 }
 

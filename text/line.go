@@ -99,12 +99,12 @@ func (l Line) RenderWithAlignment(area layout.Rect, buf *buffer.Buffer, fallback
 		return
 	}
 	area.Height = 1
+	buf.SetStyle(area, l.LineStyle)
+
 	lineWidth := l.Width()
 	if lineWidth == 0 {
 		return
 	}
-
-	buf.SetStyle(area, l.LineStyle)
 
 	alignment := l.Alignment
 	if alignment == nil {
