@@ -11,6 +11,68 @@ import (
 	"gatui/widgets"
 )
 
+func TestGraphType_String_shouldMatchRatatui(t *testing.T) {
+	tests := []struct {
+		graphType widgets.GraphType
+		expected  string
+	}{
+		{widgets.GraphTypeScatter, "Scatter"},
+		{widgets.GraphTypeLine, "Line"},
+		{widgets.GraphTypeBar, "Bar"},
+		{widgets.GraphTypeArea, "Area"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.expected, func(t *testing.T) {
+			if actual := tt.graphType.String(); actual != tt.expected {
+				t.Fatalf("GraphType.String() = %q, want %q", actual, tt.expected)
+			}
+		})
+	}
+}
+
+func TestParseGraphType_shouldMatchRatatui(t *testing.T) {
+	tests := []struct {
+		value    string
+		expected widgets.GraphType
+	}{
+		{"Scatter", widgets.GraphTypeScatter},
+		{"Line", widgets.GraphTypeLine},
+		{"Bar", widgets.GraphTypeBar},
+		{"Area", widgets.GraphTypeArea},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.value, func(t *testing.T) {
+			actual, err := widgets.ParseGraphType(tt.value)
+			if err != nil {
+				t.Fatalf("ParseGraphType(%q) returned error: %v", tt.value, err)
+			}
+			if actual != tt.expected {
+				t.Fatalf("ParseGraphType(%q) = %v, want %v", tt.value, actual, tt.expected)
+			}
+		})
+	}
+}
+
+func TestGraphType_String_unknownShouldBeStable(t *testing.T) {
+	graphType := widgets.GraphType(99)
+
+	if actual := graphType.String(); actual != "GraphType(99)" {
+		t.Fatalf("GraphType.String() = %q, want %q", actual, "GraphType(99)")
+	}
+}
+
+func TestParseGraphType_unknownShouldReturnError(t *testing.T) {
+	for _, value := range []string{"", "Point", "scatter"} {
+		t.Run(value, func(t *testing.T) {
+			if actual, err := widgets.ParseGraphType(value); err == nil {
+				t.Fatalf("ParseGraphType(%q) = %v, want error", value, actual)
+			}
+		})
+	}
+}
+
 func TestChart_shouldNotPanicOnSmallAreas(t *testing.T) {
 	for _, size := range []layout.Size{
 		{Width: 0, Height: 0},

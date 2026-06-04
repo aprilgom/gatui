@@ -1,6 +1,7 @@
 package widgets
 
 import (
+	"fmt"
 	"math"
 
 	"gatui/buffer"
@@ -18,6 +19,36 @@ const (
 	GraphTypeBar
 	GraphTypeArea
 )
+
+func (g GraphType) String() string {
+	switch g {
+	case GraphTypeScatter:
+		return "Scatter"
+	case GraphTypeLine:
+		return "Line"
+	case GraphTypeBar:
+		return "Bar"
+	case GraphTypeArea:
+		return "Area"
+	default:
+		return fmt.Sprintf("GraphType(%d)", g)
+	}
+}
+
+func ParseGraphType(value string) (GraphType, error) {
+	switch value {
+	case "Scatter":
+		return GraphTypeScatter, nil
+	case "Line":
+		return GraphTypeLine, nil
+	case "Bar":
+		return GraphTypeBar, nil
+	case "Area":
+		return GraphTypeArea, nil
+	default:
+		return GraphTypeScatter, fmt.Errorf("unknown GraphType %q", value)
+	}
+}
 
 type LegendPosition int
 
