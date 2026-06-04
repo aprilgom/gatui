@@ -197,6 +197,45 @@ func TestCanvas_shouldApplyForegroundAndBackgroundForBlockMarker(t *testing.T) {
 	assertCellStyle(t, buf, 0, 0, style.NewStyle().Fg(style.Blue).Bg(style.Blue))
 }
 
+func TestCanvasContext_shouldUseMarkerForSubsequentShapes(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 2, 1))
+
+	widgets.NewCanvas().
+		Marker(widgets.CanvasMarkerDot).
+		XBounds(0, 1).
+		YBounds(0, 1).
+		Paint(func(ctx *widgets.CanvasContext) {
+			ctx.Draw(widgets.NewPoints([]widgets.CanvasPoint{{X: 0, Y: 0}}, style.Red))
+			ctx.Marker(widgets.CanvasMarkerBlock)
+			ctx.Draw(widgets.NewPoints([]widgets.CanvasPoint{{X: 1, Y: 0}}, style.Blue))
+		}).
+		Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"•█"})
+	assertCellStyle(t, buf, 0, 0, style.NewStyle().Fg(style.Red))
+	assertCellStyle(t, buf, 1, 0, style.NewStyle().Fg(style.Blue).Bg(style.Blue))
+}
+
+func TestCanvasContext_shouldPreserveLayerMarkerState(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 2, 1))
+
+	widgets.NewCanvas().
+		Marker(widgets.CanvasMarkerBlock).
+		XBounds(0, 1).
+		YBounds(0, 1).
+		Paint(func(ctx *widgets.CanvasContext) {
+			ctx.Draw(widgets.NewPoints([]widgets.CanvasPoint{{X: 0, Y: 0}}, style.Red))
+			ctx.Layer()
+			ctx.Marker(widgets.CanvasMarkerDot)
+			ctx.Draw(widgets.NewPoints([]widgets.CanvasPoint{{X: 1, Y: 0}}, style.Blue))
+		}).
+		Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"█•"})
+	assertCellStyle(t, buf, 0, 0, style.NewStyle().Fg(style.Red).Bg(style.Red))
+	assertCellStyle(t, buf, 1, 0, style.NewStyle().Fg(style.Blue))
+}
+
 func TestCanvas_shouldRenderBlockAndDrawInsideInnerArea(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 7, 5))
 
