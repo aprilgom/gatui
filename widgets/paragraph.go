@@ -11,6 +11,11 @@ type Wrap struct {
 	Trim bool
 }
 
+type ParagraphScroll struct {
+	Y int
+	X int
+}
+
 type Paragraph struct {
 	text      text.Text
 	style     style.Style
@@ -44,6 +49,14 @@ func (p Paragraph) Scroll(y, x int) Paragraph {
 	p.scrollY = y
 	p.scrollX = x
 	return p
+}
+
+func (p Paragraph) ScrollPosition(position ParagraphScroll) Paragraph {
+	return p.Scroll(position.Y, position.X)
+}
+
+func (p Paragraph) ScrollOffset(offset ParagraphScroll) Paragraph {
+	return p.Scroll(offset.Y, offset.X)
 }
 
 func (p Paragraph) Style(paragraphStyle style.Style) Paragraph {
