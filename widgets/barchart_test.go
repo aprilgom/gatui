@@ -132,6 +132,27 @@ func TestBarChart_constructorsIgnoreEmptyGroups(t *testing.T) {
 	})
 }
 
+func TestBarChart_constructorAliases(t *testing.T) {
+	bars := []widgets.Bar{widgets.NewBar(1).Label("A")}
+	groups := []widgets.BarGroup{widgets.NewBarGroup(bars).Label("G")}
+
+	vertical := widgets.NewVerticalBarChart(bars)
+	horizontal := widgets.NewHorizontalBarChart(bars)
+	grouped := widgets.NewGroupedBarChart(groups)
+
+	buf := buffer.Empty(layout.NewRect(0, 0, 3, 3))
+	vertical.Render(buf.Area, buf)
+	assertLines(t, buf, []string{"█  ", "1  ", "A  "})
+
+	buf = buffer.Empty(layout.NewRect(0, 0, 4, 1))
+	horizontal.Render(buf.Area, buf)
+	assertLines(t, buf, []string{"A 1█"})
+
+	buf = buffer.Empty(layout.NewRect(0, 0, 3, 3))
+	grouped.Render(buf.Area, buf)
+	assertLines(t, buf, []string{"█  ", "A  ", "G  "})
+}
+
 func TestBarChart_block(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 10, 5))
 	barchart := widgets.NewBarChart().
@@ -323,6 +344,42 @@ func TestBarChart_shouldApplyLabelStyle(t *testing.T) {
 	barchart.Render(buf.Area, buf)
 
 	assertCellStyle(t, buf, 0, 2, style.NewStyle().Fg(style.Blue))
+}
+
+func TestBarChart_shouldRenderStyledBarLabelLine(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 5, 3))
+	label := text.NewLine(
+		text.StyledSpan("A", style.NewStyle().Fg(style.Red)),
+		text.StyledSpan("B", style.NewStyle().Fg(style.Green)),
+	)
+	barchart := widgets.NewBarChartWithBars([]widgets.Bar{
+		widgets.NewBar(1).Label("fallback").LabelLine(label),
+	}).BarWidth(2)
+
+	barchart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"██   ", "1█   ", "AB   "})
+	assertCellStyle(t, buf, 0, 2, style.NewStyle().Fg(style.Red))
+	assertCellStyle(t, buf, 1, 2, style.NewStyle().Fg(style.Green))
+}
+
+func TestBarChart_shouldRenderStyledGroupLabelLine(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 5, 3))
+	label := text.NewLine(
+		text.StyledSpan("G", style.NewStyle().Fg(style.Red)),
+		text.StyledSpan("1", style.NewStyle().Fg(style.Green)),
+	)
+	barchart := widgets.NewBarChart().
+		Data(widgets.NewBarGroup([]widgets.Bar{
+			widgets.NewBar(1),
+		}).Label("fallback").LabelLine(label)).
+		BarWidth(2)
+
+	barchart.Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"██   ", "1█   ", "G1   "})
+	assertCellStyle(t, buf, 0, 2, style.NewStyle().Fg(style.Red))
+	assertCellStyle(t, buf, 1, 2, style.NewStyle().Fg(style.Green))
 }
 
 func TestBarChart_shouldApplyChartAreaStyle(t *testing.T) {

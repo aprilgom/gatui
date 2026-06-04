@@ -8,6 +8,7 @@ import (
 	"github.com/aprilgom/gatui/layout"
 	"github.com/aprilgom/gatui/style"
 	"github.com/aprilgom/gatui/symbols"
+	"github.com/aprilgom/gatui/text"
 )
 
 type BarData struct {
@@ -17,6 +18,7 @@ type BarData struct {
 
 type Bar struct {
 	label      string
+	labelLine  *text.Line
 	value      uint64
 	textValue  string
 	style      style.Style
@@ -34,6 +36,13 @@ func BarWithLabel(label string, value uint64) Bar {
 
 func (b Bar) Label(label string) Bar {
 	b.label = label
+	b.labelLine = nil
+	return b
+}
+
+func (b Bar) LabelLine(label text.Line) Bar {
+	b.label = label.String()
+	b.labelLine = &label
 	return b
 }
 
@@ -59,6 +68,7 @@ func (b Bar) LabelStyle(labelStyle style.Style) Bar {
 
 type BarGroup struct {
 	label          string
+	labelLine      *text.Line
 	labelStyle     style.Style
 	labelAlignment layout.Alignment
 	bars           []Bar
@@ -74,6 +84,13 @@ func NewBarGroup(bars []Bar) BarGroup {
 
 func (g BarGroup) Label(label string) BarGroup {
 	g.label = label
+	g.labelLine = nil
+	return g
+}
+
+func (g BarGroup) LabelLine(label text.Line) BarGroup {
+	g.label = label.String()
+	g.labelLine = &label
 	return g
 }
 
@@ -129,6 +146,22 @@ func NewBarChart() BarChart {
 
 func NewBarChartWithBars(bars []Bar) BarChart {
 	return NewBarChart().Data(NewBarGroup(bars))
+}
+
+func NewVerticalBarChart(bars []Bar) BarChart {
+	return NewBarChartWithBars(bars).Direction(layout.Vertical)
+}
+
+func NewHorizontalBarChart(bars []Bar) BarChart {
+	return NewBarChartWithBars(bars).Direction(layout.Horizontal)
+}
+
+func NewGroupedBarChart(groups []BarGroup) BarChart {
+	chart := NewBarChart()
+	for _, group := range groups {
+		chart = chart.Data(group)
+	}
+	return chart
 }
 
 func (c BarChart) Data(group BarGroup) BarChart {
@@ -284,14 +317,14 @@ func (c BarChart) renderVertical(chartArea layout.Rect, buf *buffer.Buffer) {
 			}
 			c.renderBar(buf, x, chartArea.Y, width, barHeight, max, bar, totalBars, hasGroupLabels)
 			if hasBarLabels {
-				c.renderCentered(buf, x, barLabelY, width, bar.label, c.style.Patch(c.labelStyle).Patch(bar.labelStyle))
+				c.renderLabelLineCentered(buf, x, barLabelY, width, bar.label, bar.labelLine, c.style.Patch(c.labelStyle).Patch(bar.labelStyle))
 			}
 			x += c.barWidth
 		}
 		if group.label != "" && groupStart < right {
 			groupEnd := minInt(x, right)
 			if groupEnd > groupStart {
-				c.renderAligned(buf, groupStart, groupLabelY, groupEnd-groupStart, group.label, group.labelAlignment, c.style.Patch(c.labelStyle).Patch(group.labelStyle))
+				c.renderLabelLineAligned(buf, groupStart, groupLabelY, groupEnd-groupStart, group.label, group.labelLine, group.labelAlignment, c.style.Patch(c.labelStyle).Patch(group.labelStyle))
 			}
 		}
 	}
@@ -322,13 +355,13 @@ func (c BarChart) renderHorizontal(chartArea layout.Rect, buf *buffer.Buffer) {
 				height = bottom - y
 			}
 			if labelWidth > 0 && bar.label != "" {
-				writeStringWithin(buf, chartArea.X, y+height/2, chartArea.X+labelWidth-1, bar.label, c.style.Patch(c.labelStyle).Patch(bar.labelStyle))
+				c.renderHorizontalLabel(buf, chartArea.X, y+height/2, labelWidth-1, bar.label, bar.labelLine, c.style.Patch(c.labelStyle).Patch(bar.labelStyle))
 			}
 			c.renderHorizontalBar(buf, chartArea.X+labelWidth, y, barAreaWidth, height, max, bar)
 			y += c.barWidth
 		}
 		if c.groupGap > 0 && group.label != "" && y < bottom {
-			c.renderAligned(buf, chartArea.X, y, chartArea.Width, group.label, group.labelAlignment, c.style.Patch(c.labelStyle).Patch(group.labelStyle))
+			c.renderLabelLineAligned(buf, chartArea.X, y, chartArea.Width, group.label, group.labelLine, group.labelAlignment, c.style.Patch(c.labelStyle).Patch(group.labelStyle))
 		}
 	}
 }
@@ -337,7 +370,11 @@ func (c BarChart) horizontalLabelWidth(area layout.Rect) int {
 	maxLabelWidth := 0
 	for _, group := range c.groups {
 		for _, bar := range group.bars {
-			if width := buffer.CellWidth(bar.label); width > maxLabelWidth {
+			width := buffer.CellWidth(bar.label)
+			if bar.labelLine != nil {
+				width = bar.labelLine.Width()
+			}
+			if width > maxLabelWidth {
 				maxLabelWidth = width
 			}
 		}
@@ -443,6 +480,36 @@ func (c BarChart) renderBar(buf *buffer.Buffer, x, y, width, height int, max uin
 
 func (c BarChart) renderCentered(buf *buffer.Buffer, x, y, width int, value string, cellStyle style.Style) {
 	c.renderAligned(buf, x, y, width, value, layout.Center, cellStyle)
+}
+
+func (c BarChart) renderLabelLineCentered(buf *buffer.Buffer, x, y, width int, value string, line *text.Line, cellStyle style.Style) {
+	c.renderLabelLineAligned(buf, x, y, width, value, line, layout.Center, cellStyle)
+}
+
+func (c BarChart) renderLabelLineAligned(buf *buffer.Buffer, x, y, width int, value string, line *text.Line, alignment layout.Alignment, cellStyle style.Style) {
+	if width <= 0 || value == "" {
+		return
+	}
+	if line == nil {
+		c.renderAligned(buf, x, y, width, value, alignment, cellStyle)
+		return
+	}
+	renderLine := *line
+	renderLine.LineStyle = cellStyle.Patch(renderLine.LineStyle)
+	renderLine.RenderWithAlignment(layout.NewRect(x, y, width, 1), buf, &alignment)
+}
+
+func (c BarChart) renderHorizontalLabel(buf *buffer.Buffer, x, y, width int, value string, line *text.Line, cellStyle style.Style) {
+	if width <= 0 || value == "" {
+		return
+	}
+	if line == nil {
+		writeStringWithin(buf, x, y, x+width, value, cellStyle)
+		return
+	}
+	renderLine := *line
+	renderLine.LineStyle = cellStyle.Patch(renderLine.LineStyle)
+	renderLine.Render(layout.NewRect(x, y, width, 1), buf)
 }
 
 func (c BarChart) renderAligned(buf *buffer.Buffer, x, y, width int, value string, alignment layout.Alignment, cellStyle style.Style) {
