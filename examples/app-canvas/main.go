@@ -267,7 +267,7 @@ func (a *App) BoxesCanvas(area layout.Rect) widgets.Widget {
 					ctx.Draw(widgets.NewRectangle(x, 2, size, size, style.Red))
 					ctx.Draw(widgets.NewRectangle(x, 21, size, size, style.Blue))
 				}
-				for i := 0; i < 100; i++ {
+				for i := range 100 {
 					if i%10 != 0 {
 						ctx.Print(float64(i)+1, 0, text.NewSpan(fmt.Sprintf("%d", i%10)))
 					}

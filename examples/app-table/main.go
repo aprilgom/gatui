@@ -299,7 +299,7 @@ func constraintLens(items []data) [3]int {
 	var lens [3]int
 	for _, item := range items {
 		lens[0] = max(lens[0], buffer.CellWidth(item.name))
-		for _, line := range strings.Split(item.address, "\n") {
+		for line := range strings.SplitSeq(item.address, "\n") {
 			lens[1] = max(lens[1], buffer.CellWidth(line))
 		}
 		lens[2] = max(lens[2], buffer.CellWidth(item.email))
