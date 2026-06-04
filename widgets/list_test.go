@@ -69,6 +69,126 @@ func TestList_canBeStylized(t *testing.T) {
 	}
 }
 
+func TestListItem_style(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 4, 1))
+	itemStyle := style.NewStyle().Fg(style.Red).Bg(style.Blue).AddModifier(style.ModifierItalic)
+
+	widgets.NewList([]widgets.ListItem{
+		widgets.ListItemFromString("ab").Style(itemStyle),
+	}).Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{"ab  "})
+	assertCellStyle(t, buf, 0, 0, itemStyle)
+	assertCellStyle(t, buf, 1, 0, itemStyle)
+	assertCellStyle(t, buf, 2, 0, itemStyle)
+}
+
+func TestListItem_canBeStylized(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 2, 1))
+	item := widgets.ListItemFromString("x").
+		Fg(style.Black).
+		Bg(style.White).
+		Bold().
+		Dim().
+		Italic().
+		Cyan()
+
+	widgets.NewList([]widgets.ListItem{item}).Render(buf.Area, buf)
+
+	want := style.NewStyle().
+		Fg(style.Cyan).
+		Bg(style.White).
+		AddModifier(style.ModifierBold | style.ModifierDim | style.ModifierItalic)
+	assertLines(t, buf, []string{"x "})
+	assertCellStyle(t, buf, 0, 0, want)
+	assertCellStyle(t, buf, 1, 0, want)
+}
+
+func TestListItem_height(t *testing.T) {
+	tests := []struct {
+		name string
+		item widgets.ListItem
+		want int
+	}{
+		{name: "single", item: widgets.ListItemFromString("a"), want: 1},
+		{name: "multi", item: widgets.ListItemFromString("a\nb"), want: 2},
+		{name: "empty text", item: widgets.ListItemFromText(text.NewText()), want: 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.item.Height(); got != tt.want {
+				t.Fatalf("Height() = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestListItem_width(t *testing.T) {
+	tests := []struct {
+		name string
+		item widgets.ListItem
+		want int
+	}{
+		{name: "single", item: widgets.ListItemFromString("12345"), want: 5},
+		{name: "multi", item: widgets.ListItemFromString("12345\n1234567"), want: 7},
+		{name: "wide grapheme", item: widgets.ListItemFromString("aコb"), want: 4},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.item.Width(); got != tt.want {
+				t.Fatalf("Width() = %d, want %d", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestListItem_constructors(t *testing.T) {
+	tests := []struct {
+		name string
+		item widgets.ListItem
+		want []string
+	}{
+		{name: "string", item: widgets.ListItemFromString("ab"), want: []string{"ab  "}},
+		{name: "span", item: widgets.ListItemFromSpan(text.NewSpan("ab")), want: []string{"ab  "}},
+		{name: "line", item: widgets.ListItemFromLine(text.LineFromString("ab")), want: []string{"ab  "}},
+		{name: "spans", item: widgets.ListItemFromSpans(text.NewSpan("a"), text.NewSpan("b")), want: []string{"ab  "}},
+		{name: "text", item: widgets.ListItemFromText(text.FromString("ab")), want: []string{"ab  "}},
+		{name: "lines", item: widgets.ListItemFromLines(text.LineFromString("a"), text.LineFromString("b")), want: []string{"a   ", "b   "}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := buffer.Empty(layout.NewRect(0, 0, 4, len(tt.want)))
+
+			widgets.NewList([]widgets.ListItem{tt.item}).Render(buf.Area, buf)
+
+			assertLines(t, buf, tt.want)
+		})
+	}
+}
+
+func TestList_renderItemStylePatchesBeforeTextStyle(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 5, 1))
+	listStyle := style.NewStyle().Fg(style.White).Bg(style.Black)
+	itemStyle := style.NewStyle().Fg(style.Red).AddModifier(style.ModifierBold)
+	textStyle := style.NewStyle().Bg(style.Blue).AddModifier(style.ModifierDim)
+	lineStyle := style.NewStyle().Fg(style.Green).AddModifier(style.ModifierItalic)
+	spanStyle := style.NewStyle().Fg(style.Yellow)
+	content := text.NewText(
+		text.NewLine(text.StyledSpan("ab", spanStyle)).Style(lineStyle),
+	).PatchStyle(textStyle)
+
+	widgets.NewList([]widgets.ListItem{
+		widgets.ListItemFromText(content).Style(itemStyle),
+	}).Style(listStyle).Render(buf.Area, buf)
+
+	wantText := listStyle.Patch(itemStyle).Patch(textStyle).Patch(lineStyle).Patch(spanStyle)
+	wantFill := listStyle.Patch(itemStyle).Patch(textStyle).Patch(lineStyle)
+	assertLines(t, buf, []string{"ab   "})
+	assertCellStyle(t, buf, 0, 0, wantText)
+	assertCellStyle(t, buf, 1, 0, wantText)
+	assertCellStyle(t, buf, 2, 0, wantFill)
+}
+
 func TestList_renderingCanBeStylized(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 7, 3))
 	blockStyle := style.NewStyle().Fg(style.Blue)

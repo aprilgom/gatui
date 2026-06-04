@@ -11,10 +11,11 @@ import (
 
 type ListItem struct {
 	content text.Text
+	style   style.Style
 }
 
 func NewListItem(content text.Text) ListItem {
-	return ListItem{content: content}
+	return ListItem{content: content, style: style.NewStyle()}
 }
 
 func ListItemFromString(content string) ListItem {
@@ -25,12 +26,70 @@ func ListItemFromLines(lines ...text.Line) ListItem {
 	return NewListItem(text.NewText(lines...))
 }
 
-func (i ListItem) height() int {
-	height := len(i.content.Lines)
+func ListItemFromSpan(span text.Span) ListItem {
+	return NewListItem(text.TextFromSpan(span))
+}
+
+func ListItemFromLine(line text.Line) ListItem {
+	return NewListItem(text.TextFromLine(line))
+}
+
+func ListItemFromSpans(spans ...text.Span) ListItem {
+	return NewListItem(text.NewText(text.LineFromSpans(spans...)))
+}
+
+func ListItemFromText(content text.Text) ListItem {
+	return NewListItem(content)
+}
+
+func (i ListItem) Style(itemStyle style.Style) ListItem {
+	i.style = itemStyle
+	return i
+}
+
+func (i ListItem) Fg(color style.Color) ListItem {
+	i.style = i.style.Fg(color)
+	return i
+}
+
+func (i ListItem) Bg(color style.Color) ListItem {
+	i.style = i.style.Bg(color)
+	return i
+}
+
+func (i ListItem) Bold() ListItem {
+	i.style = i.style.AddModifier(style.ModifierBold)
+	return i
+}
+
+func (i ListItem) Dim() ListItem {
+	i.style = i.style.AddModifier(style.ModifierDim)
+	return i
+}
+
+func (i ListItem) Italic() ListItem {
+	i.style = i.style.AddModifier(style.ModifierItalic)
+	return i
+}
+
+func (i ListItem) Cyan() ListItem {
+	return i.Fg(style.Cyan)
+}
+
+func (i ListItem) Height() int {
+	height := i.content.Height()
 	if height == 0 {
 		return 1
 	}
 	return height
+}
+
+func (i ListItem) Width() int {
+	return i.content.Width()
+}
+
+func (i ListItem) height() int {
+	return i.Height()
 }
 
 type ListState struct {
@@ -337,6 +396,8 @@ func (l List) renderItem(item ListItem, area layout.Rect, buf *buffer.Buffer) {
 	if area.Width == 0 || area.Height == 0 {
 		return
 	}
+	baseStyle := l.style.Patch(item.style)
+	buf.SetStyle(area, baseStyle)
 	lines := item.content.Lines
 	if len(lines) == 0 {
 		lines = []text.Line{text.LineFromString("")}
@@ -349,6 +410,7 @@ func (l List) renderItem(item ListItem, area layout.Rect, buf *buffer.Buffer) {
 		if alignment == nil {
 			alignment = l.alignment
 		}
-		renderLineAligned(layout.NewRect(area.X, area.Y+y, area.Width, 1), buf, lines[y], l.style, alignment)
+		line := lines[y].PatchStyle(item.content.Style)
+		line.RenderWithAlignment(layout.NewRect(area.X, area.Y+y, area.Width, 1), buf, alignment)
 	}
 }
