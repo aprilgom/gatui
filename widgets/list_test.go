@@ -1,6 +1,7 @@
 package widgets_test
 
 import (
+	"math"
 	"slices"
 	"testing"
 
@@ -10,6 +11,123 @@ import (
 	"gatui/text"
 	"gatui/widgets"
 )
+
+func TestListState_selected(t *testing.T) {
+	state := widgets.ListState{}
+	if selected, ok := state.Selected(); ok || selected != 0 {
+		t.Fatalf("initial Selected() = (%d, %v), want (0, false)", selected, ok)
+	}
+
+	state.Select(1)
+	if selected, ok := state.Selected(); !ok || selected != 1 {
+		t.Fatalf("after Select(1), Selected() = (%d, %v), want (1, true)", selected, ok)
+	}
+
+	state.ClearSelection()
+	if selected, ok := state.Selected(); ok || selected != 0 {
+		t.Fatalf("after ClearSelection(), Selected() = (%d, %v), want (0, false)", selected, ok)
+	}
+}
+
+func TestListState_select(t *testing.T) {
+	state := widgets.ListState{}
+	state.SetOffset(4)
+
+	state.Select(2)
+	if selected, ok := state.Selected(); !ok || selected != 2 {
+		t.Fatalf("after Select(2), Selected() = (%d, %v), want (2, true)", selected, ok)
+	}
+	if got := state.Offset(); got != 4 {
+		t.Fatalf("after Select(2), Offset() = %d, want 4", got)
+	}
+
+	state.ClearSelection()
+	if _, ok := state.Selected(); ok {
+		t.Fatal("after ClearSelection(), Selected() ok = true, want false")
+	}
+	if got := state.Offset(); got != 0 {
+		t.Fatalf("after ClearSelection(), Offset() = %d, want 0", got)
+	}
+}
+
+func TestListState_stateNavigation(t *testing.T) {
+	state := widgets.ListState{}
+	state.SelectFirst()
+	assertListStateSelected(t, state, 0)
+
+	state.SelectPrevious()
+	assertListStateSelected(t, state, 0)
+
+	state.SelectNext()
+	assertListStateSelected(t, state, 1)
+
+	state.SelectPrevious()
+	assertListStateSelected(t, state, 0)
+
+	state.SelectLast()
+	assertListStateSelected(t, state, math.MaxInt)
+
+	state.SelectNext()
+	assertListStateSelected(t, state, math.MaxInt)
+
+	state.SelectPrevious()
+	assertListStateSelected(t, state, math.MaxInt-1)
+
+	state.SelectNext()
+	assertListStateSelected(t, state, math.MaxInt)
+
+	state.ClearSelection()
+	state.SelectNext()
+	assertListStateSelected(t, state, 0)
+
+	state.ClearSelection()
+	state.SelectPrevious()
+	assertListStateSelected(t, state, math.MaxInt)
+
+	state = widgets.ListState{}
+	state.Select(2)
+	state.ScrollDownBy(4)
+	assertListStateSelected(t, state, 6)
+
+	state = widgets.ListState{}
+	state.ScrollUpBy(3)
+	assertListStateSelected(t, state, 0)
+
+	state.Select(6)
+	state.ScrollUpBy(4)
+	assertListStateSelected(t, state, 2)
+
+	state.ScrollUpBy(4)
+	assertListStateSelected(t, state, 0)
+
+	state.ScrollDownBy(-3)
+	assertListStateSelected(t, state, 0)
+}
+
+func TestListState_withHelpers(t *testing.T) {
+	state := widgets.NewListState().WithOffset(3).WithSelected(2)
+
+	if got := state.Offset(); got != 3 {
+		t.Fatalf("Offset() = %d, want 3", got)
+	}
+	assertListStateSelected(t, state, 2)
+
+	state = state.WithoutSelected()
+	if selected, ok := state.Selected(); ok || selected != 0 {
+		t.Fatalf("WithoutSelected().Selected() = (%d, %v), want (0, false)", selected, ok)
+	}
+	if got := state.Offset(); got != 0 {
+		t.Fatalf("WithoutSelected().Offset() = %d, want 0", got)
+	}
+}
+
+func assertListStateSelected(t *testing.T, state widgets.ListState, want int) {
+	t.Helper()
+	selected, ok := state.Selected()
+	if !ok || selected != want {
+		t.Fatalf("Selected() = (%d, %v), want (%d, true)", selected, ok, want)
+	}
+}
 
 func TestList_shouldShowLength(t *testing.T) {
 	list := widgets.NewList([]widgets.ListItem{

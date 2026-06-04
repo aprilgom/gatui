@@ -97,6 +97,25 @@ type ListState struct {
 	selected *int
 }
 
+func NewListState() ListState {
+	return ListState{}
+}
+
+func (s ListState) WithOffset(offset int) ListState {
+	s.SetOffset(offset)
+	return s
+}
+
+func (s ListState) WithSelected(index int) ListState {
+	s.Select(index)
+	return s
+}
+
+func (s ListState) WithoutSelected() ListState {
+	s.ClearSelection()
+	return s
+}
+
 func (s *ListState) Select(index int) {
 	s.selected = &index
 }
@@ -122,6 +141,52 @@ func (s *ListState) SetOffset(offset int) {
 		offset = 0
 	}
 	s.offset = offset
+}
+
+func (s *ListState) SelectNext() {
+	selected := 0
+	if s.selected != nil {
+		selected = saturatingAdd(*s.selected, 1)
+	}
+	s.Select(selected)
+}
+
+func (s *ListState) SelectPrevious() {
+	selected := maxIntValue
+	if s.selected != nil {
+		selected = saturatingSub(*s.selected, 1)
+	}
+	s.Select(selected)
+}
+
+func (s *ListState) SelectFirst() {
+	s.Select(0)
+}
+
+func (s *ListState) SelectLast() {
+	s.Select(maxIntValue)
+}
+
+func (s *ListState) ScrollDownBy(amount int) {
+	if amount < 0 {
+		amount = 0
+	}
+	selected := 0
+	if s.selected != nil {
+		selected = *s.selected
+	}
+	s.Select(saturatingAdd(selected, amount))
+}
+
+func (s *ListState) ScrollUpBy(amount int) {
+	if amount < 0 {
+		amount = 0
+	}
+	selected := 0
+	if s.selected != nil {
+		selected = *s.selected
+	}
+	s.Select(saturatingSub(selected, amount))
 }
 
 type HighlightSpacing int
