@@ -58,6 +58,12 @@ For LLMs, coding agents, and humans building a new app, start with
 widget cookbook snippets, common pitfalls, and Ratatui-to-Gatui translation
 rules.
 
+For porting Ratatui examples or asking an LLM to generate Gatui code, also keep
+[docs/ratatui-correspondence.md](docs/ratatui-correspondence.md) in context.
+It maps Ratatui paths and common builder shapes to Gatui packages, including
+recent parity helpers such as `Canvas.Block`, `Table.Flex`,
+`Bar.LabelLine`, `Scrollbar.Symbols`, and `Tabs.SelectOption`.
+
 ## Current Status
 
 Implemented slices:

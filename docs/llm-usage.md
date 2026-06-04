@@ -17,6 +17,10 @@ code mechanically.
   terminal.
 - Check [ratatui-correspondence.md](ratatui-correspondence.md) before porting a
   Ratatui path or method name.
+- Prefer Gatui's Ratatui-parity helpers before inventing compatibility wrappers:
+  `Canvas.Block`, `CanvasContext.Marker`, `Table.Flex`, `Bar.LabelLine`,
+  `BarGroup.LabelLine`, `Scrollbar.Symbols`, `ScrollbarState.Prev`,
+  `Paragraph.ScrollPosition`, and `Tabs.SelectOption`.
 
 ## Minimal App Skeleton
 
@@ -101,6 +105,14 @@ paragraph := widgets.NewParagraph(text.FromString("Status: ready"))
 frame.RenderWidget(paragraph, area)
 ```
 
+When porting Ratatui `scroll((y, x))`, use either `Scroll(y, x)` or the
+struct-style helper:
+
+```go
+paragraph := widgets.NewParagraph(text.FromString("one\ntwo\nthree")).
+	ScrollPosition(widgets.ParagraphScroll{Y: 1, X: 0})
+```
+
 ### Block
 
 Use `Block` to frame another widget or mark an area with a title.
@@ -164,6 +176,7 @@ table := widgets.NewTable(rows, []layout.Constraint{
 	layout.Percentage(50),
 	layout.Percentage(50),
 }).
+	Flex(layout.FlexStart).
 	Header(header).
 	Block(widgets.NewBlock().
 		Title(text.NewLine(text.NewSpan("People"))).
@@ -173,24 +186,75 @@ state := widgets.NewTableState().WithSelected(0)
 frame.RenderStatefulWidget(table, area, &state)
 ```
 
+When porting `Table::flex(Flex::Center)` or similar, use `Table.Flex` with
+`layout.FlexCenter`, `layout.FlexEnd`, `layout.FlexSpaceBetween`, and related
+layout constants.
+
 ### Canvas
 
 Use `Canvas` when drawing shapes, maps, points, or simple animations.
 
 ```go
 canvas := widgets.NewCanvas().
+	Block(widgets.BorderedBlock().Title(text.LineFromString("Map"))).
 	XBounds(-180, 180).
 	YBounds(-90, 90).
 	Marker(widgets.CanvasMarkerBraille).
 	Paint(func(ctx *widgets.CanvasContext) {
 		ctx.Draw(widgets.Map{Resolution: widgets.MapResolutionHigh, Color: style.Green})
+		ctx.Marker(widgets.CanvasMarkerBlock)
 		ctx.Draw(widgets.NewPoints([]widgets.CanvasPoint{{X: -74, Y: 40.7}}, style.Red))
 	})
 frame.RenderWidget(canvas, area)
 ```
 
-Canvas does not own a `Block`; render a title or border in a neighboring layout
-area if the screen needs framing. See `examples/widget-canvas/main.go`.
+Use `Canvas.Block` for Ratatui-style framed canvas rendering. Use
+`CanvasContext.Marker` when a Ratatui canvas context switches marker before
+drawing later shapes. See `examples/widget-canvas/main.go`.
+
+### BarChart
+
+Use constructor aliases when porting Ratatui examples that call
+`BarChart::vertical`, `BarChart::horizontal`, or grouped constructors.
+
+```go
+bars := []widgets.Bar{
+	widgets.NewBar(10).LabelLine(text.LineFromString("A")),
+	widgets.NewBar(20).Label("B"),
+}
+chart := widgets.NewVerticalBarChart(bars).
+	Block(widgets.BorderedBlock().Title(text.LineFromString("Scores")))
+frame.RenderWidget(chart, area)
+```
+
+Use `Bar.LabelLine` and `BarGroup.LabelLine` for styled or multispan labels.
+
+### Scrollbar
+
+Use `Scrollbar.Symbols` when porting Ratatui scrollbar symbol sets.
+
+```go
+state := widgets.NewScrollbarState(100).
+	Position(20).
+	ViewportContentLength(10)
+scrollbar := widgets.NewScrollbar(widgets.ScrollbarOrientationVerticalRight).
+	Symbols(symbols.VerticalScrollbarSet)
+frame.RenderStatefulWidget(scrollbar, area, &state)
+```
+
+Use `state.Prev()` as the compatibility alias for Ratatui `prev()`.
+
+### Tabs
+
+Use `Select(index)` and `ClearSelection()` in ordinary Go code. When porting a
+Ratatui `select(Some(index))` / `select(None)` path, use `SelectOption`.
+
+```go
+selected := 1
+tabs := widgets.TabsFromStrings([]string{"Logs", "Metrics"}).
+	SelectOption(&selected)
+tabs = tabs.SelectOption(nil) // clear selection
+```
 
 ## Choosing an Example
 
@@ -217,6 +281,10 @@ area if the screen needs framing. See `examples/widget-canvas/main.go`.
 - Ratatui builder chains usually become Go constructor and method chains, but
   names and argument shapes differ. Inspect the target Gatui type before
   porting method names.
+- Ratatui `Option<usize>` setters usually map to explicit Go methods or pointer
+  helpers. For tabs, use `Tabs.SelectOption(*int)`.
+- Ratatui `Line` labels usually map to `text.Line`; use `LabelLine` helpers
+  where available instead of flattening styled labels to strings.
 
 For a broader path-by-path mapping, see
 [ratatui-correspondence.md](ratatui-correspondence.md).

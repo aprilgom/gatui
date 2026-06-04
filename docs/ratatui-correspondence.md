@@ -40,7 +40,7 @@ This document maps Ratatui Rust API paths to Gatui Go packages and types. It is 
 | `ratatui::layout::Constraint` | `layout.Constraint` | Length, min, max, percentage, ratio, and fill-like layout constraints as implemented by Gatui. |
 | `ratatui::layout::Layout` | `layout.Layout` | Splits a `Rect` into child areas. |
 | `ratatui::layout::Direction` | `layout.Direction` | Horizontal or vertical splitting. |
-| `ratatui::layout::Flex` | check `layout` | Use only if exported in Gatui. |
+| `ratatui::layout::Flex` | `layout.Flex` | Use with `layout.Layout.Flex` and `widgets.Table.Flex`. |
 | `ratatui::layout::Alignment` | check `layout` or widget-specific APIs | Some alignment behavior may live on widgets. |
 
 ## Style
@@ -90,20 +90,20 @@ This document maps Ratatui Rust API paths to Gatui Go packages and types. It is 
 | `ratatui::widgets::Widget` | `widgets.Widget` | Interface for renderable widgets. |
 | `ratatui::widgets::StatefulWidget` | `widgets.StatefulWidget` or state-specific APIs | Check widget package interfaces before porting. |
 | `ratatui::widgets::Block` | `widgets.Block` | Borders, titles, padding, and visual framing. |
-| `ratatui::widgets::Paragraph` | `widgets.Paragraph` | Text rendering widget. |
+| `ratatui::widgets::Paragraph` | `widgets.Paragraph` | Text rendering widget. Use `Scroll(y, x)` or `ScrollPosition(ParagraphScroll{Y, X})` for Ratatui `scroll((y, x))`. |
 | `ratatui::widgets::Clear` | `widgets.Clear` | Clears an area before drawing. |
 | `ratatui::widgets::Gauge` | `widgets.Gauge` | Progress gauge. |
 | `ratatui::widgets::LineGauge` | `widgets.LineGauge` | Compact line gauge. |
-| `ratatui::widgets::BarChart` | `widgets.BarChart` | Bar chart widget. |
+| `ratatui::widgets::BarChart` | `widgets.BarChart` | Bar chart widget. Use `NewVerticalBarChart`, `NewHorizontalBarChart`, `NewGroupedBarChart`, `Bar.LabelLine`, and `BarGroup.LabelLine` for Ratatui parity. |
 | `ratatui::widgets::Sparkline` | `widgets.Sparkline` | Sparkline widget. |
 | `ratatui::widgets::List` | `widgets.List` | List widget. |
 | `ratatui::widgets::ListState` | `widgets.ListState` | List selection/scroll state where exported. |
-| `ratatui::widgets::Table` | `widgets.Table` | Table widget. |
+| `ratatui::widgets::Table` | `widgets.Table` | Table widget. Use `Table.Flex(layout.Flex...)` for Ratatui `Table::flex`. |
 | `ratatui::widgets::TableState` | `widgets.TableState` | Table selection/scroll state where exported. |
-| `ratatui::widgets::Tabs` | `widgets.Tabs` | Tabs widget. |
-| `ratatui::widgets::Scrollbar` | `widgets.Scrollbar` | Scrollbar widget. |
-| `ratatui::widgets::ScrollbarState` | `widgets.ScrollbarState` | Scrollbar state where exported. |
-| `ratatui::widgets::Canvas` | `widgets.Canvas` | Canvas widget and drawing world. |
+| `ratatui::widgets::Tabs` | `widgets.Tabs` | Tabs widget. Use `SelectOption(*int)` for Ratatui `select(Some(...))` / `select(None)` style paths. |
+| `ratatui::widgets::Scrollbar` | `widgets.Scrollbar` | Scrollbar widget. Use `Symbols(symbols.ScrollbarSet)` or `NewScrollbarWithSymbols`. |
+| `ratatui::widgets::ScrollbarState` | `widgets.ScrollbarState` | Scrollbar state. Use `PositionValue`, `ContentLengthValue`, `ViewportContentLengthValue`, `Prev`, `Next`, `First`, `Last`, and `Scroll`. |
+| `ratatui::widgets::Canvas` | `widgets.Canvas` | Canvas widget and drawing world. Use `Canvas.Block` and `CanvasContext.Marker` for Ratatui canvas block/marker parity. |
 | `ratatui::widgets::Calendar` | `widgets.Calendar` | Calendar widget. |
 | `ratatui::widgets::Fill` | `widgets.Fill` | Fills an area with a symbol/style. |
 | `ratatui::widgets::Shadow` | `widgets.Shadow` | Shadow rendering helper/widget. |
@@ -141,6 +141,26 @@ Paragraph::new("hello").block(Block::bordered())
 ```
 
 Do not assume Gatui has the same chain. Check the Go type and use the exported constructor, fields, or methods that already exist.
+
+### Recent Ratatui-Parity Helpers
+
+Use these helpers directly when porting Ratatui examples:
+
+| Ratatui API shape | Gatui API |
+| --- | --- |
+| `Canvas::block(Block)` | `Canvas.Block(widgets.Block)` |
+| `canvas::Context::marker(Marker)` | `CanvasContext.Marker(widgets.CanvasMarker...)` |
+| `Table::flex(Flex)` | `Table.Flex(layout.Flex...)` |
+| `Paragraph::scroll((y, x))` | `Paragraph.Scroll(y, x)` or `Paragraph.ScrollPosition(widgets.ParagraphScroll{Y, X})` |
+| `BarChart::vertical(bars)` | `widgets.NewVerticalBarChart(bars)` |
+| `BarChart::horizontal(bars)` | `widgets.NewHorizontalBarChart(bars)` |
+| `BarChart::grouped(groups)` | `widgets.NewGroupedBarChart(groups)` |
+| `Bar::label(Line)` | `Bar.LabelLine(text.Line)` |
+| `BarGroup::label(Line)` | `BarGroup.LabelLine(text.Line)` |
+| `Scrollbar::symbols(Set)` | `Scrollbar.Symbols(symbols.ScrollbarSet)` |
+| `ScrollbarState::prev()` | `(*ScrollbarState).Prev()` |
+| `Tabs::select(Some(index))` | `Tabs.SelectOption(&index)` |
+| `Tabs::select(None)` | `Tabs.SelectOption(nil)` |
 
 ### Traits and Interfaces
 
