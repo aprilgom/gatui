@@ -1,13 +1,51 @@
 package buffer_test
 
 import (
+	"fmt"
 	"slices"
+	"strconv"
+	"strings"
 	"testing"
 
 	"gatui/buffer"
 	"gatui/layout"
 	"gatui/style"
 )
+
+func assertBufferEqual(t testing.TB, got, want *buffer.Buffer) {
+	t.Helper()
+	if message := bufferEqualFailure(got, want); message != "" {
+		t.Fatal(message)
+	}
+}
+
+func bufferEqualFailure(got, want *buffer.Buffer) string {
+	if got.Area != want.Area {
+		return "buffer areas not equal\n" +
+			"got:  " + formatBuffer(got) + "\n" +
+			"want: " + formatBuffer(want)
+	}
+
+	for i := range got.Cells {
+		if got.Cells[i].Equal(want.Cells[i]) {
+			continue
+		}
+		pos, _ := got.PosOf(i)
+		return "buffer contents not equal\n" +
+			"first difference at (" + strconv.Itoa(pos.X) + ", " + strconv.Itoa(pos.Y) + ")\n" +
+			"got:  " + formatCell(got.Cells[i]) + "\n" +
+			"want: " + formatCell(want.Cells[i])
+	}
+	return ""
+}
+
+func formatBuffer(buf *buffer.Buffer) string {
+	return fmt.Sprintf("%#v", buf)
+}
+
+func formatCell(cell buffer.Cell) string {
+	return fmt.Sprintf("%#v", cell)
+}
 
 func TestWithLines_shouldCreateBlankPaddedBuffer(t *testing.T) {
 	buf := buffer.WithLines([]string{"ab", "c"})
@@ -51,6 +89,115 @@ func TestCell_Equal_shouldTreatSameSymbolAsEqual(t *testing.T) {
 
 	if !cell1.Equal(cell2) {
 		t.Fatalf("Equal = false, want true for %#v and %#v", cell1, cell2)
+	}
+}
+
+func TestAssertBufferEqual_doesNotFailOnEqualBuffers(t *testing.T) {
+	got := buffer.Empty(layout.NewRect(0, 0, 5, 1))
+	want := buffer.Empty(layout.NewRect(0, 0, 5, 1))
+
+	assertBufferEqual(t, got, want)
+}
+
+func TestAssertBufferEqual_failsOnUnequalArea(t *testing.T) {
+	got := buffer.Empty(layout.NewRect(0, 0, 5, 1))
+	want := buffer.Empty(layout.NewRect(0, 0, 6, 1))
+
+	message := bufferEqualFailure(got, want)
+
+	if !strings.Contains(message, "buffer areas not equal") {
+		t.Fatalf("failure message = %q, want area mismatch", message)
+	}
+	if !strings.Contains(message, "got:") || !strings.Contains(message, "want:") {
+		t.Fatalf("failure message = %q, want got and want buffers", message)
+	}
+}
+
+func TestAssertBufferEqual_failsOnUnequalStyle(t *testing.T) {
+	got := buffer.Empty(layout.NewRect(0, 0, 5, 1))
+	want := buffer.Empty(layout.NewRect(0, 0, 5, 1))
+	want.SetString(0, 0, " ", style.NewStyle().Fg(style.Red))
+
+	message := bufferEqualFailure(got, want)
+
+	if !strings.Contains(message, "buffer contents not equal") {
+		t.Fatalf("failure message = %q, want content mismatch", message)
+	}
+	if !strings.Contains(message, "first difference at (0, 0)") {
+		t.Fatalf("failure message = %q, want first differing coordinate", message)
+	}
+	if !strings.Contains(message, "got:") || !strings.Contains(message, "want:") {
+		t.Fatalf("failure message = %q, want got and want cells", message)
+	}
+}
+
+func TestCell_SetFg_shouldPatchForeground(t *testing.T) {
+	cell := buffer.NewCell("x")
+	cell.SetStyle(style.NewStyle().Bg(style.Blue).AddModifier(style.ModifierBold))
+
+	cell.SetFg(style.Red)
+
+	want := style.NewStyle().Fg(style.Red).Bg(style.Blue).AddModifier(style.ModifierBold)
+	if got := cell.Style; got != want {
+		t.Fatalf("style = %#v, want %#v", got, want)
+	}
+}
+
+func TestCell_SetBg_shouldPatchBackground(t *testing.T) {
+	cell := buffer.NewCell("x")
+	cell.SetStyle(style.NewStyle().Fg(style.Red).AddModifier(style.ModifierBold))
+
+	cell.SetBg(style.Blue)
+
+	want := style.NewStyle().Fg(style.Red).Bg(style.Blue).AddModifier(style.ModifierBold)
+	if got := cell.Style; got != want {
+		t.Fatalf("style = %#v, want %#v", got, want)
+	}
+}
+
+func TestCell_StyleValue_shouldReturnCurrentStyle(t *testing.T) {
+	cell := buffer.NewCell("x")
+	want := style.NewStyle().Fg(style.Red).Bg(style.Blue).AddModifier(style.ModifierBold)
+	cell.SetStyle(want)
+
+	if got := cell.StyleValue(); got != want {
+		t.Fatalf("StyleValue = %#v, want %#v", got, want)
+	}
+}
+
+func TestCell_Equal_shouldTreatIdenticalCellsAsEqual(t *testing.T) {
+	cell1 := buffer.NewCell("x")
+	cell1.SetStyle(style.NewStyle().Fg(style.Red).Bg(style.Blue).AddModifier(style.ModifierBold))
+	cell1.SetDiffOption(buffer.CellDiffAlwaysUpdate)
+	cell1.SetForcedWidth(2)
+	cell2 := cell1
+
+	if !cell1.Equal(cell2) {
+		t.Fatalf("Equal = false, want true for %#v and %#v", cell1, cell2)
+	}
+}
+
+func TestCell_Equal_shouldTreatDifferentCellsAsNotEqual(t *testing.T) {
+	tests := []struct {
+		name string
+		edit func(*buffer.Cell)
+	}{
+		{name: "symbol", edit: func(cell *buffer.Cell) { cell.SetSymbol("y") }},
+		{name: "style", edit: func(cell *buffer.Cell) { cell.SetStyle(style.NewStyle().Fg(style.Red)) }},
+		{name: "diff option", edit: func(cell *buffer.Cell) { cell.SetDiffOption(buffer.CellDiffAlwaysUpdate) }},
+		{name: "forced width", edit: func(cell *buffer.Cell) { cell.SetForcedWidth(2) }},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cell1 := buffer.NewCell("x")
+			cell2 := buffer.NewCell("x")
+			tt.edit(&cell2)
+
+			if cell1.Equal(cell2) {
+				t.Fatalf("Equal = true, want false for %#v and %#v", cell1, cell2)
+			}
+		})
 	}
 }
 

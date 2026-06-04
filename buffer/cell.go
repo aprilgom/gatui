@@ -61,6 +61,18 @@ func (c *Cell) SetStyle(cellStyle style.Style) {
 	c.Style = c.Style.Patch(cellStyle)
 }
 
+func (c *Cell) SetFg(color style.Color) {
+	c.SetStyle(style.NewStyle().Fg(color))
+}
+
+func (c *Cell) SetBg(color style.Color) {
+	c.SetStyle(style.NewStyle().Bg(color))
+}
+
+func (c Cell) StyleValue() style.Style {
+	return c.Style
+}
+
 func (c *Cell) Reset() {
 	*c = NewCell(" ")
 }
