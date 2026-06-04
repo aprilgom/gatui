@@ -228,6 +228,30 @@ func NewList(items []ListItem) List {
 	}
 }
 
+func NewListFromStrings(items []string) List {
+	listItems := make([]ListItem, 0, len(items))
+	for _, item := range items {
+		listItems = append(listItems, ListItemFromString(item))
+	}
+	return NewList(listItems)
+}
+
+func NewListFromLines(items []text.Line) List {
+	listItems := make([]ListItem, 0, len(items))
+	for _, item := range items {
+		listItems = append(listItems, ListItemFromLine(item))
+	}
+	return NewList(listItems)
+}
+
+func NewListFromText(items []text.Text) List {
+	listItems := make([]ListItem, 0, len(items))
+	for _, item := range items {
+		listItems = append(listItems, ListItemFromText(item))
+	}
+	return NewList(listItems)
+}
+
 func (l List) Len() int {
 	return len(l.items)
 }

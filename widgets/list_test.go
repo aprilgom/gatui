@@ -29,6 +29,16 @@ func TestListState_selected(t *testing.T) {
 	}
 }
 
+func renderListLines(list widgets.List, width, height int) []string {
+	return renderList(list, width, height).Lines()
+}
+
+func renderList(list widgets.List, width, height int) *buffer.Buffer {
+	buf := buffer.Empty(layout.NewRect(0, 0, width, height))
+	list.Render(buf.Area, buf)
+	return buf
+}
+
 func TestListState_select(t *testing.T) {
 	state := widgets.ListState{}
 	state.SetOffset(4)
@@ -150,6 +160,62 @@ func TestList_shouldShowLength(t *testing.T) {
 	if !empty.IsEmpty() {
 		t.Fatal("empty IsEmpty() = false, want true")
 	}
+}
+
+func TestNewListFromStrings_shouldMatchExplicitListItems(t *testing.T) {
+	actual := renderListLines(widgets.NewListFromStrings([]string{"one", "two"}), 6, 2)
+	expected := renderListLines(widgets.NewList([]widgets.ListItem{
+		widgets.ListItemFromString("one"),
+		widgets.ListItemFromString("two"),
+	}), 6, 2)
+
+	if !slices.Equal(actual, expected) {
+		t.Fatalf("lines mismatch\nactual:   %#v\nexpected: %#v", actual, expected)
+	}
+}
+
+func TestNewListFromLines_shouldMatchExplicitListItems(t *testing.T) {
+	lines := []text.Line{
+		text.LineFromString("one"),
+		text.NewLine(text.StyledSpan("two", style.NewStyle().Fg(style.Red))),
+	}
+	actual := renderListLines(widgets.NewListFromLines(lines), 6, 2)
+	expected := renderListLines(widgets.NewList([]widgets.ListItem{
+		widgets.ListItemFromLine(lines[0]),
+		widgets.ListItemFromLine(lines[1]),
+	}), 6, 2)
+
+	if !slices.Equal(actual, expected) {
+		t.Fatalf("lines mismatch\nactual:   %#v\nexpected: %#v", actual, expected)
+	}
+}
+
+func TestNewListFromText_shouldMatchExplicitListItems(t *testing.T) {
+	items := []text.Text{
+		text.FromString("one"),
+		text.NewText(text.LineFromString("two"), text.LineFromString("three")),
+	}
+	actual := renderListLines(widgets.NewListFromText(items), 6, 3)
+	expected := renderListLines(widgets.NewList([]widgets.ListItem{
+		widgets.ListItemFromText(items[0]),
+		widgets.ListItemFromText(items[1]),
+	}), 6, 3)
+
+	if !slices.Equal(actual, expected) {
+		t.Fatalf("lines mismatch\nactual:   %#v\nexpected: %#v", actual, expected)
+	}
+}
+
+func TestNewListFromStrings_shouldNotAliasCallerSlice(t *testing.T) {
+	items := []string{"one", "two"}
+	list := widgets.NewListFromStrings(items)
+
+	items[0] = "changed"
+
+	assertLines(t, renderList(list, 8, 2), []string{
+		"one     ",
+		"two     ",
+	})
 }
 
 func TestList_canBeStylized(t *testing.T) {
