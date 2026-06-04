@@ -31,6 +31,46 @@ func TestBlock_new(t *testing.T) {
 	}
 }
 
+func TestBordersOf_emptyShouldReturnNoBorders(t *testing.T) {
+	if got := BordersOf(); got != NoBorders {
+		t.Fatalf("BordersOf() = %v, want %v", got, NoBorders)
+	}
+}
+
+func TestBordersOf_allShouldReturnAllBorders(t *testing.T) {
+	if got := BordersOf(AllBorders); got != AllBorders {
+		t.Fatalf("BordersOf(AllBorders) = %v, want %v", got, AllBorders)
+	}
+	if got := BordersOf(TopBorder, BottomBorder, LeftBorder, RightBorder); got != AllBorders {
+		t.Fatalf("BordersOf(TopBorder, BottomBorder, LeftBorder, RightBorder) = %v, want %v", got, AllBorders)
+	}
+}
+
+func TestBordersOf_leftRightShouldMatchBitwiseCombination(t *testing.T) {
+	want := LeftBorder | RightBorder
+	if got := BordersOf(RightBorder, LeftBorder); got != want {
+		t.Fatalf("BordersOf(RightBorder, LeftBorder) = %v, want %v", got, want)
+	}
+}
+
+func TestBorders_HasShouldMatchRatatuiContainsSemantics(t *testing.T) {
+	if NoBorders.Has(TopBorder) {
+		t.Fatal("NoBorders.Has(TopBorder) = true, want false")
+	}
+	if !AllBorders.Has(TopBorder) {
+		t.Fatal("AllBorders.Has(TopBorder) = false, want true")
+	}
+	if !AllBorders.Has(RightBorder) {
+		t.Fatal("AllBorders.Has(RightBorder) = false, want true")
+	}
+	if !AllBorders.Has(BottomBorder) {
+		t.Fatal("AllBorders.Has(BottomBorder) = false, want true")
+	}
+	if !AllBorders.Has(LeftBorder) {
+		t.Fatal("AllBorders.Has(LeftBorder) = false, want true")
+	}
+}
+
 func TestBlock_titleStyle(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 7, 3))
 	block := BorderedBlock().

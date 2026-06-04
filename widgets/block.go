@@ -736,6 +736,14 @@ const (
 	AllBorders   Borders = TopBorder | RightBorder | BottomBorder | LeftBorder
 )
 
+func BordersOf(borders ...Borders) Borders {
+	var combined Borders
+	for _, border := range borders {
+		combined |= border
+	}
+	return combined
+}
+
 func (b Borders) Has(border Borders) bool {
 	return b&border != 0
 }
