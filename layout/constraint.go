@@ -1,5 +1,7 @@
 package layout
 
+import "fmt"
+
 type Constraint struct {
 	kind        constraintKind
 	value       int
@@ -39,6 +41,29 @@ func Ratio(numerator, denominator int) Constraint {
 
 func Fill(weight int) Constraint {
 	return Constraint{kind: constraintFill, value: weight}
+}
+
+func DefaultConstraint() Constraint {
+	return Percentage(100)
+}
+
+func (c Constraint) String() string {
+	switch c.kind {
+	case constraintLength:
+		return fmt.Sprintf("Length(%d)", c.value)
+	case constraintMin:
+		return fmt.Sprintf("Min(%d)", c.value)
+	case constraintPercentage:
+		return fmt.Sprintf("Percentage(%d)", c.value)
+	case constraintRatio:
+		return fmt.Sprintf("Ratio(%d, %d)", c.value, c.denominator)
+	case constraintMax:
+		return fmt.Sprintf("Max(%d)", c.value)
+	case constraintFill:
+		return fmt.Sprintf("Fill(%d)", c.value)
+	default:
+		return fmt.Sprintf("Constraint(%d)", c.kind)
+	}
 }
 
 func FromLengths(values ...int) []Constraint {

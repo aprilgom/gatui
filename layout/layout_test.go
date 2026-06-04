@@ -150,12 +150,100 @@ func TestConstraint_FromRatios(t *testing.T) {
 	}
 }
 
+func TestConstraint_Default_shouldMatchRatatui(t *testing.T) {
+	got := layout.DefaultConstraint()
+	want := layout.Percentage(100)
+
+	if got != want {
+		t.Fatalf("DefaultConstraint() = %#v, want %#v", got, want)
+	}
+}
+
+func TestConstraint_String_shouldMatchRatatui(t *testing.T) {
+	tests := []struct {
+		constraint layout.Constraint
+		want       string
+	}{
+		{constraint: layout.Percentage(50), want: "Percentage(50)"},
+		{constraint: layout.Ratio(1, 2), want: "Ratio(1, 2)"},
+		{constraint: layout.Length(10), want: "Length(10)"},
+		{constraint: layout.Max(10), want: "Max(10)"},
+		{constraint: layout.Min(10), want: "Min(10)"},
+		{constraint: layout.Fill(10), want: "Fill(10)"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			if got := tt.constraint.String(); got != tt.want {
+				t.Fatalf("Constraint.String() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestDirection_Other(t *testing.T) {
 	if got := layout.Horizontal.Other(); got != layout.Vertical {
 		t.Fatalf("Horizontal.Other() = %v, want %v", got, layout.Vertical)
 	}
 	if got := layout.Vertical.Other(); got != layout.Horizontal {
 		t.Fatalf("Vertical.Other() = %v, want %v", got, layout.Horizontal)
+	}
+}
+
+func TestDirection_String_shouldMatchRatatui(t *testing.T) {
+	tests := []struct {
+		direction layout.Direction
+		want      string
+	}{
+		{direction: layout.Horizontal, want: "Horizontal"},
+		{direction: layout.Vertical, want: "Vertical"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			if got := tt.direction.String(); got != tt.want {
+				t.Fatalf("Direction.String() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseDirection_shouldMatchRatatui(t *testing.T) {
+	tests := []struct {
+		input string
+		want  layout.Direction
+	}{
+		{input: "Horizontal", want: layout.Horizontal},
+		{input: "Vertical", want: layout.Vertical},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got, err := layout.ParseDirection(tt.input)
+			if err != nil {
+				t.Fatalf("ParseDirection(%q) returned error: %v", tt.input, err)
+			}
+			if got != tt.want {
+				t.Fatalf("ParseDirection(%q) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+
+	for _, input := range []string{"", "Diagonal"} {
+		t.Run("invalid "+input, func(t *testing.T) {
+			if got, err := layout.ParseDirection(input); err == nil {
+				t.Fatalf("ParseDirection(%q) = %v, nil error; want error", input, got)
+			}
+		})
+	}
+}
+
+func TestDirection_String_unknownShouldBeStable(t *testing.T) {
+	got := layout.Direction(99).String()
+	want := "Direction(99)"
+
+	if got != want {
+		t.Fatalf("Direction(99).String() = %q, want %q", got, want)
 	}
 }
 

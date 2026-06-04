@@ -1,5 +1,7 @@
 package layout
 
+import "fmt"
+
 type Position struct {
 	X int
 	Y int
@@ -72,6 +74,28 @@ func (d Direction) Other() Direction {
 		return Vertical
 	}
 	return Horizontal
+}
+
+func (d Direction) String() string {
+	switch d {
+	case Horizontal:
+		return "Horizontal"
+	case Vertical:
+		return "Vertical"
+	default:
+		return fmt.Sprintf("Direction(%d)", d)
+	}
+}
+
+func ParseDirection(value string) (Direction, error) {
+	switch value {
+	case "Horizontal":
+		return Horizontal, nil
+	case "Vertical":
+		return Vertical, nil
+	default:
+		return Horizontal, fmt.Errorf("invalid direction: %q", value)
+	}
 }
 
 type Alignment int
