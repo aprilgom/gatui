@@ -13,6 +13,7 @@ import (
 
 type Canvas struct {
 	backgroundColor style.Color
+	block           *Block
 	marker          CanvasMarker
 	xMin            float64
 	xMax            float64
@@ -155,6 +156,11 @@ func NewMap() Map {
 
 func (c Canvas) BackgroundColor(color style.Color) Canvas {
 	c.backgroundColor = color
+	return c
+}
+
+func (c Canvas) Block(block Block) Canvas {
+	c.block = &block
 	return c
 }
 
@@ -312,7 +318,16 @@ func (c Canvas) Render(area layout.Rect, buf *buffer.Buffer) {
 		return
 	}
 
-	buf.SetBg(area, c.backgroundColor)
+	canvasArea := area
+	if c.block != nil {
+		c.block.Render(area, buf)
+		canvasArea = c.block.Inner(area)
+	}
+	if canvasArea.Width == 0 || canvasArea.Height == 0 {
+		return
+	}
+
+	buf.SetBg(canvasArea, c.backgroundColor)
 	if c.xMin >= c.xMax || c.yMin >= c.yMax {
 		return
 	}
@@ -323,14 +338,14 @@ func (c Canvas) Render(area layout.Rect, buf *buffer.Buffer) {
 	}
 	ctx.finishLayer()
 	for _, layer := range ctx.layers {
-		painter := newCanvasPainter(area.Width, area.Height, c.xMin, c.xMax, c.yMin, c.yMax, c.marker)
+		painter := newCanvasPainter(canvasArea.Width, canvasArea.Height, c.xMin, c.xMax, c.yMin, c.yMax, c.marker)
 		for _, shape := range layer {
 			shape.Draw(painter)
 		}
-		c.renderShapes(area, buf, painter)
+		c.renderShapes(canvasArea, buf, painter)
 	}
 	for _, label := range ctx.labels {
-		c.renderLabel(area, buf, label)
+		c.renderLabel(canvasArea, buf, label)
 	}
 }
 

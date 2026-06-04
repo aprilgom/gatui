@@ -197,6 +197,57 @@ func TestCanvas_shouldApplyForegroundAndBackgroundForBlockMarker(t *testing.T) {
 	assertCellStyle(t, buf, 0, 0, style.NewStyle().Fg(style.Blue).Bg(style.Blue))
 }
 
+func TestCanvas_shouldRenderBlockAndDrawInsideInnerArea(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 7, 5))
+
+	widgets.NewCanvas().
+		Block(widgets.BorderedBlock().Title(text.LineFromString("Plot"))).
+		XBounds(0, 4).
+		YBounds(0, 4).
+		Marker(widgets.CanvasMarkerDot).
+		Paint(func(ctx *widgets.CanvasContext) {
+			ctx.Draw(widgets.NewPoints([]widgets.CanvasPoint{
+				{X: 4, Y: 4},
+				{X: 0, Y: 4},
+			}, style.Red))
+			ctx.Print(0, 0, text.StyledSpan("hi", style.NewStyle().Fg(style.Blue)))
+		}).
+		Render(buf.Area, buf)
+
+	assertLines(t, buf, []string{
+		"┌Plot─┐",
+		"│•   •│",
+		"│     │",
+		"│hi   │",
+		"└─────┘",
+	})
+	assertCellStyle(t, buf, 1, 1, style.NewStyle().Fg(style.Red))
+	assertCellStyle(t, buf, 5, 1, style.NewStyle().Fg(style.Red))
+	assertCellStyle(t, buf, 1, 3, style.NewStyle().Fg(style.Blue))
+	assertCellStyle(t, buf, 2, 3, style.NewStyle().Fg(style.Blue))
+}
+
+func TestCanvas_shouldRenderOnlyBlockWhenInnerAreaIsZero(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 2, 2))
+
+	assertNotPanics(t, func() {
+		widgets.NewCanvas().
+			Block(widgets.BorderedBlock()).
+			XBounds(0, 1).
+			YBounds(0, 1).
+			Paint(func(ctx *widgets.CanvasContext) {
+				ctx.Draw(widgets.NewPoints([]widgets.CanvasPoint{{X: 0, Y: 0}}, style.Red))
+				ctx.Print(0, 0, text.NewSpan("x"))
+			}).
+			Render(buf.Area, buf)
+	})
+
+	assertLines(t, buf, []string{
+		"┌┐",
+		"└┘",
+	})
+}
+
 func TestCanvas_shouldExposeCanvasMarkerParityAPI(t *testing.T) {
 	_ = []widgets.CanvasMarker{
 		widgets.CanvasMarkerDot,
