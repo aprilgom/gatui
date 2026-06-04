@@ -558,6 +558,64 @@ func TestTable_underconstrainedFlex(t *testing.T) {
 	})
 }
 
+func TestTable_flex_shouldPositionFixedColumns(t *testing.T) {
+	tests := []struct {
+		name     string
+		flex     layout.Flex
+		expected string
+	}{
+		{name: "start", flex: layout.FlexStart, expected: "ABCDE 12345    "},
+		{name: "center", flex: layout.FlexCenter, expected: "  ABCDE 12345  "},
+		{name: "end", flex: layout.FlexEnd, expected: "    ABCDE 12345"},
+		{name: "space between", flex: layout.FlexSpaceBetween, expected: "ABCDE     12345"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := buffer.Empty(layout.NewRect(0, 0, 15, 1))
+			table := widgets.NewTable([]widgets.TableRow{
+				widgets.TableRowFromStrings([]string{"ABCDE", "12345"}),
+			}, []layout.Constraint{
+				layout.Length(5),
+				layout.Length(5),
+			}).Flex(tt.flex)
+
+			table.Render(buf.Area, buf)
+
+			assertLines(t, buf, []string{tt.expected})
+		})
+	}
+}
+
+func TestTable_flex_shouldPositionMinColumns(t *testing.T) {
+	tests := []struct {
+		name     string
+		flex     layout.Flex
+		expected string
+	}{
+		{name: "start", flex: layout.FlexStart, expected: "ABCDE      12345    "},
+		{name: "center", flex: layout.FlexCenter, expected: "ABCDE      12345    "},
+		{name: "end", flex: layout.FlexEnd, expected: "ABCDE      12345    "},
+		{name: "space between", flex: layout.FlexSpaceBetween, expected: "ABCDE      12345    "},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := buffer.Empty(layout.NewRect(0, 0, 20, 1))
+			table := widgets.NewTable([]widgets.TableRow{
+				widgets.TableRowFromStrings([]string{"ABCDE", "12345"}),
+			}, []layout.Constraint{
+				layout.Min(4),
+				layout.Min(4),
+			}).Flex(tt.flex)
+
+			table.Render(buf.Area, buf)
+
+			assertLines(t, buf, []string{tt.expected})
+		})
+	}
+}
+
 func TestTable_underconstrainedSegmentSize(t *testing.T) {
 	assertConstraintTable(t, 62, nil, []layout.Constraint{layout.Min(10), layout.Min(10), layout.Min(1)}, []string{
 		"ABCDE                12345                Z                   ",

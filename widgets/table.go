@@ -30,6 +30,7 @@ type Table struct {
 	footer               *TableRow
 	block                *Block
 	columnSpacing        int
+	flex                 layout.Flex
 	style                style.Style
 	rowHighlightStyle    style.Style
 	columnHighlightStyle style.Style
@@ -360,6 +361,7 @@ func NewTable(rows []TableRow, widths []layout.Constraint) Table {
 		rows:                 append([]TableRow(nil), rows...),
 		widths:               append([]layout.Constraint(nil), widths...),
 		columnSpacing:        1,
+		flex:                 layout.FlexStart,
 		style:                style.NewStyle(),
 		rowHighlightStyle:    style.NewStyle(),
 		columnHighlightStyle: style.NewStyle(),
@@ -385,6 +387,11 @@ func (t Table) Block(block Block) Table {
 
 func (t Table) ColumnSpacing(spacing int) Table {
 	t.columnSpacing = maxInt(0, spacing)
+	return t
+}
+
+func (t Table) Flex(flex layout.Flex) Table {
+	t.flex = flex
 	return t
 }
 
@@ -487,10 +494,10 @@ func (t Table) RenderStateful(area layout.Rect, buf *buffer.Buffer, state *Table
 			rowArea.Width = 0
 		}
 	}
-	widths := t.resolveColumnWidths(rowArea.Width)
+	columns := t.resolveColumnAreas(rowArea.Width)
 	y := tableArea.Y
 	if t.header != nil {
-		y = t.renderRow(*t.header, widths, rowArea, y, -1, state, buf)
+		y = t.renderRow(*t.header, columns, rowArea, y, -1, state, buf)
 		y += t.header.bottomMargin
 	}
 
@@ -512,10 +519,10 @@ func (t Table) RenderStateful(area layout.Rect, buf *buffer.Buffer, state *Table
 		drawHeight := minInt(rowHeight, tableArea.Y+tableArea.Height-y)
 		baseRowArea := layout.NewRect(tableArea.X, y, tableArea.Width, drawHeight)
 		isSelected := state.selected != nil && *state.selected == index
-		y = t.renderRow(row, widths, rowArea, y, index, state, buf)
+		y = t.renderRow(row, columns, rowArea, y, index, state, buf)
 		if isSelected {
 			buf.SetStyle(baseRowArea, t.rowHighlightStyle)
-			t.renderRow(row, widths, rowArea, baseRowArea.Y, index, state, buf)
+			t.renderRow(row, columns, rowArea, baseRowArea.Y, index, state, buf)
 		}
 		if addSpacing && symbolWidth > 0 {
 			symbol := strings.Repeat(" ", symbolWidth)
@@ -536,7 +543,7 @@ func (t Table) RenderStateful(area layout.Rect, buf *buffer.Buffer, state *Table
 		y += row.bottomMargin
 	}
 	if t.footer != nil {
-		t.renderRow(*t.footer, widths, rowArea, footerY, -1, state, buf)
+		t.renderRow(*t.footer, columns, rowArea, footerY, -1, state, buf)
 	}
 }
 
@@ -685,6 +692,29 @@ func normalizedRowHeight(row TableRow) int {
 	return row.height
 }
 
+func (t Table) resolveColumnAreas(width int) []layout.Rect {
+	widths := t.resolveColumnWidths(width)
+	columns := make([]layout.Rect, len(widths))
+	if width <= 0 || len(widths) == 0 {
+		return columns
+	}
+	if t.flex != layout.FlexStart || t.hasSolverResolvedConstraint() {
+		return layout.NewHorizontalLayout(t.widths...).
+			Flex(t.flex).
+			Spacing(t.columnSpacing).
+			Split(layout.NewRect(0, 0, width, 1))
+	}
+	x := 0
+	for i, columnWidth := range widths {
+		if i > 0 {
+			x += t.columnSpacing
+		}
+		columns[i] = layout.NewRect(x, 0, columnWidth, 1)
+		x += columnWidth
+	}
+	return columns
+}
+
 func (t Table) resolveColumnWidths(width int) []int {
 	widths := make([]int, len(t.widths))
 	if width <= 0 || len(widths) == 0 {
@@ -692,7 +722,7 @@ func (t Table) resolveColumnWidths(width int) []int {
 	}
 	if t.hasSolverResolvedConstraint() {
 		columns := layout.NewHorizontalLayout(t.widths...).
-			Flex(layout.FlexStart).
+			Flex(t.flex).
 			Spacing(t.columnSpacing).
 			Split(layout.NewRect(0, 0, width, 1))
 		for i, column := range columns {
@@ -861,7 +891,7 @@ func shrinkOrder(length int, preferMiddle bool) []int {
 	return order
 }
 
-func (t Table) renderRow(row TableRow, widths []int, area layout.Rect, y int, rowIndex int, state *TableState, buf *buffer.Buffer) int {
+func (t Table) renderRow(row TableRow, columns []layout.Rect, area layout.Rect, y int, rowIndex int, state *TableState, buf *buffer.Buffer) int {
 	y += row.topMargin
 	rowHeight := row.height
 	if rowHeight <= 0 {
@@ -870,15 +900,15 @@ func (t Table) renderRow(row TableRow, widths []int, area layout.Rect, y int, ro
 	for line := 0; line < rowHeight && y+line < area.Y+area.Height; line++ {
 		physicalColumn := 0
 		for _, cell := range row.cells {
-			if physicalColumn >= len(widths) {
+			if physicalColumn >= len(columns) {
 				break
 			}
 			span := cell.columnSpan
 			if span <= 0 {
 				continue
 			}
-			span = minInt(span, len(widths)-physicalColumn)
-			x, width := t.cellSpanArea(widths, physicalColumn, span, area)
+			span = minInt(span, len(columns)-physicalColumn)
+			x, width := t.cellSpanArea(columns, physicalColumn, span, area)
 			if width > 0 {
 				cellArea := layout.NewRect(x, y+line, width, 1)
 				cellStyle := row.style.
@@ -895,23 +925,15 @@ func (t Table) renderRow(row TableRow, widths []int, area layout.Rect, y int, ro
 	return y + rowHeight
 }
 
-func (t Table) cellSpanArea(widths []int, startColumn, span int, area layout.Rect) (int, int) {
-	x := area.X
-	for column := range startColumn {
-		if column > 0 {
-			x += t.columnSpacing
-		}
-		x += widths[column]
-	}
-	if startColumn > 0 {
-		x += t.columnSpacing
-	}
+func (t Table) cellSpanArea(columns []layout.Rect, startColumn, span int, area layout.Rect) (int, int) {
+	x := area.X + columns[startColumn].X
 	width := 0
-	for offset := 0; offset < span && startColumn+offset < len(widths); offset++ {
-		if offset > 0 {
-			width += t.columnSpacing
+	for offset := 0; offset < span && startColumn+offset < len(columns); offset++ {
+		column := columns[startColumn+offset]
+		right := area.X + column.X + column.Width
+		if right > x+width {
+			width = right - x
 		}
-		width += widths[startColumn+offset]
 	}
 	return x, minInt(width, area.X+area.Width-x)
 }
