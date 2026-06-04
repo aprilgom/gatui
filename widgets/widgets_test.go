@@ -351,6 +351,23 @@ func TestParagraphStylize_shouldUpdateWidgetStyle(t *testing.T) {
 	assertAllCellsStyle(t, buf, style.NewStyle().Fg(style.Cyan).AddModifier(style.ModifierBold))
 }
 
+func TestParagraph_canBeStylized(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 5, 2))
+	paragraph := widgets.NewParagraph(text.FromString("hi")).
+		Fg(style.Red).
+		Bg(style.Blue).
+		Bold().
+		Italic()
+
+	paragraph.Render(buf.Area, buf)
+
+	want := style.NewStyle().
+		Fg(style.Red).
+		Bg(style.Blue).
+		AddModifier(style.ModifierBold | style.ModifierItalic)
+	assertAllCellsStyle(t, buf, want)
+}
+
 func TestParagraph_LineCount_shouldReturnTextHeightWithoutWrap(t *testing.T) {
 	paragraph := widgets.NewParagraph(text.FromString("one\ntwo"))
 

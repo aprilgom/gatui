@@ -49,6 +49,25 @@ func TestBlock_titleStyle(t *testing.T) {
 	}
 }
 
+func TestBlock_canBeStylized(t *testing.T) {
+	buf := buffer.Empty(layout.NewRect(0, 0, 3, 3))
+	block := BorderedBlock().
+		Fg(style.Red).
+		Bg(style.Blue).
+		Bold().
+		Italic()
+
+	block.Render(buf.Area, buf)
+
+	want := style.NewStyle().
+		Fg(style.Red).
+		Bg(style.Blue).
+		AddModifier(style.ModifierBold | style.ModifierItalic)
+	assertBlockCellStyle(t, buf, 0, 0, want)
+	assertBlockCellStyle(t, buf, 1, 0, want)
+	assertBlockCellStyle(t, buf, 2, 0, want)
+}
+
 func TestBlock_titleBorderStyle(t *testing.T) {
 	buf := buffer.Empty(layout.NewRect(0, 0, 10, 3))
 	block := BorderedBlock().
