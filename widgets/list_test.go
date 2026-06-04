@@ -1170,3 +1170,65 @@ func TestList_highlightSpacing(t *testing.T) {
 		})
 	}
 }
+
+func TestHighlightSpacing_String_shouldMatchRatatui(t *testing.T) {
+	tests := []struct {
+		spacing widgets.HighlightSpacing
+		want    string
+	}{
+		{spacing: widgets.HighlightSpacingAlways, want: "Always"},
+		{spacing: widgets.HighlightSpacingWhenSelected, want: "WhenSelected"},
+		{spacing: widgets.HighlightSpacingNever, want: "Never"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			if got := tt.spacing.String(); got != tt.want {
+				t.Fatalf("String() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseHighlightSpacing_shouldMatchRatatui(t *testing.T) {
+	tests := []struct {
+		value string
+		want  widgets.HighlightSpacing
+	}{
+		{value: "Always", want: widgets.HighlightSpacingAlways},
+		{value: "WhenSelected", want: widgets.HighlightSpacingWhenSelected},
+		{value: "Never", want: widgets.HighlightSpacingNever},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.value, func(t *testing.T) {
+			got, err := widgets.ParseHighlightSpacing(tt.value)
+			if err != nil {
+				t.Fatalf("ParseHighlightSpacing(%q) error = %v, want nil", tt.value, err)
+			}
+			if got != tt.want {
+				t.Fatalf("ParseHighlightSpacing(%q) = %v, want %v", tt.value, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestHighlightSpacing_String_unknownShouldBeStable(t *testing.T) {
+	spacing := widgets.HighlightSpacing(99)
+
+	if got := spacing.String(); got != "HighlightSpacing(99)" {
+		t.Fatalf("String() = %q, want %q", got, "HighlightSpacing(99)")
+	}
+}
+
+func TestParseHighlightSpacing_unknownShouldReturnError(t *testing.T) {
+	tests := []string{"", "always", "Selected", "HighlightSpacingAlways"}
+
+	for _, value := range tests {
+		t.Run(value, func(t *testing.T) {
+			if got, err := widgets.ParseHighlightSpacing(value); err == nil {
+				t.Fatalf("ParseHighlightSpacing(%q) = %v, nil error; want error", value, got)
+			}
+		})
+	}
+}

@@ -1,6 +1,7 @@
 package widgets
 
 import (
+	"fmt"
 	"strings"
 
 	"gatui/buffer"
@@ -196,6 +197,32 @@ const (
 	HighlightSpacingAlways
 	HighlightSpacingNever
 )
+
+func (h HighlightSpacing) String() string {
+	switch h {
+	case HighlightSpacingAlways:
+		return "Always"
+	case HighlightSpacingWhenSelected:
+		return "WhenSelected"
+	case HighlightSpacingNever:
+		return "Never"
+	default:
+		return fmt.Sprintf("HighlightSpacing(%d)", h)
+	}
+}
+
+func ParseHighlightSpacing(value string) (HighlightSpacing, error) {
+	switch value {
+	case "Always":
+		return HighlightSpacingAlways, nil
+	case "WhenSelected":
+		return HighlightSpacingWhenSelected, nil
+	case "Never":
+		return HighlightSpacingNever, nil
+	default:
+		return HighlightSpacingWhenSelected, fmt.Errorf("unknown HighlightSpacing %q", value)
+	}
+}
 
 func (h HighlightSpacing) shouldAdd(selected bool) bool {
 	switch h {
