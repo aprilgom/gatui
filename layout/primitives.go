@@ -67,6 +67,13 @@ const (
 	Vertical
 )
 
+func (d Direction) Other() Direction {
+	if d == Horizontal {
+		return Vertical
+	}
+	return Horizontal
+}
+
 type Alignment int
 
 const (

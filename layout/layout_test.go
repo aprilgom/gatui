@@ -105,6 +105,33 @@ func TestConstraint_FromFills(t *testing.T) {
 	}
 }
 
+func TestConstraint_FromLengths(t *testing.T) {
+	got := layout.FromLengths(1, 2, 3)
+	want := []layout.Constraint{layout.Length(1), layout.Length(2), layout.Length(3)}
+
+	if !slices.Equal(got, want) {
+		t.Fatalf("constraints mismatch\nwant: %#v\n got: %#v", want, got)
+	}
+}
+
+func TestConstraint_FromMaxes(t *testing.T) {
+	got := layout.FromMaxes(1, 2, 3)
+	want := []layout.Constraint{layout.Max(1), layout.Max(2), layout.Max(3)}
+
+	if !slices.Equal(got, want) {
+		t.Fatalf("constraints mismatch\nwant: %#v\n got: %#v", want, got)
+	}
+}
+
+func TestConstraint_FromMins(t *testing.T) {
+	got := layout.FromMins(1, 2, 3)
+	want := []layout.Constraint{layout.Min(1), layout.Min(2), layout.Min(3)}
+
+	if !slices.Equal(got, want) {
+		t.Fatalf("constraints mismatch\nwant: %#v\n got: %#v", want, got)
+	}
+}
+
 func TestConstraint_FromPercentages(t *testing.T) {
 	got := layout.FromPercentages(25, 50, 25)
 	want := []layout.Constraint{layout.Percentage(25), layout.Percentage(50), layout.Percentage(25)}
@@ -120,6 +147,15 @@ func TestConstraint_FromRatios(t *testing.T) {
 
 	if !slices.Equal(got, want) {
 		t.Fatalf("constraints mismatch\nwant: %#v\n got: %#v", want, got)
+	}
+}
+
+func TestDirection_Other(t *testing.T) {
+	if got := layout.Horizontal.Other(); got != layout.Vertical {
+		t.Fatalf("Horizontal.Other() = %v, want %v", got, layout.Vertical)
+	}
+	if got := layout.Vertical.Other(); got != layout.Horizontal {
+		t.Fatalf("Vertical.Other() = %v, want %v", got, layout.Horizontal)
 	}
 }
 

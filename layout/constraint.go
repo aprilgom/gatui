@@ -41,10 +41,34 @@ func Fill(weight int) Constraint {
 	return Constraint{kind: constraintFill, value: weight}
 }
 
+func FromLengths(values ...int) []Constraint {
+	constraints := make([]Constraint, len(values))
+	for i, value := range values {
+		constraints[i] = Length(value)
+	}
+	return constraints
+}
+
 func FromFills(values ...int) []Constraint {
 	constraints := make([]Constraint, len(values))
 	for i, value := range values {
 		constraints[i] = Fill(value)
+	}
+	return constraints
+}
+
+func FromMaxes(values ...int) []Constraint {
+	constraints := make([]Constraint, len(values))
+	for i, value := range values {
+		constraints[i] = Max(value)
+	}
+	return constraints
+}
+
+func FromMins(values ...int) []Constraint {
+	constraints := make([]Constraint, len(values))
+	for i, value := range values {
+		constraints[i] = Min(value)
 	}
 	return constraints
 }
