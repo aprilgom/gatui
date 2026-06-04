@@ -4,6 +4,7 @@ import (
 	"gatui/buffer"
 	"gatui/layout"
 	"gatui/style"
+	"gatui/symbols"
 	"math/bits"
 )
 
@@ -44,44 +45,14 @@ type Sparkline struct {
 	direction         RenderDirection
 }
 
-type SparklineBarSet struct {
-	Full          string
-	SevenEighths  string
-	ThreeQuarters string
-	FiveEighths   string
-	Half          string
-	ThreeEighths  string
-	OneQuarter    string
-	OneEighth     string
-	Empty         string
-}
+type SparklineBarSet = symbols.SparklineBarSet
 
 func NineLevelSparklineBarSet() SparklineBarSet {
-	return SparklineBarSet{
-		Full:          "█",
-		SevenEighths:  "▇",
-		ThreeQuarters: "▆",
-		FiveEighths:   "▅",
-		Half:          "▄",
-		ThreeEighths:  "▃",
-		OneQuarter:    "▂",
-		OneEighth:     "▁",
-		Empty:         " ",
-	}
+	return symbols.NineLevelSparklineBarSet()
 }
 
 func ThreeLevelSparklineBarSet() SparklineBarSet {
-	return SparklineBarSet{
-		Full:          "█",
-		SevenEighths:  "█",
-		ThreeQuarters: "▄",
-		FiveEighths:   "▄",
-		Half:          "▄",
-		ThreeEighths:  "▄",
-		OneQuarter:    "▄",
-		OneEighth:     " ",
-		Empty:         " ",
-	}
+	return symbols.ThreeLevelSparklineBarSet()
 }
 
 func NewSparkline() Sparkline {
@@ -207,7 +178,7 @@ func (s Sparkline) renderSparkline(area layout.Rect, buf *buffer.Buffer) {
 		height := scaleSparklineHeight(bar.value, maxValue, area.Height)
 		cellStyle := s.style.Patch(bar.style)
 		for rowFromBottom := 0; rowFromBottom < area.Height; rowFromBottom++ {
-			symbol := s.barSet.symbolForHeight(height)
+			symbol := s.barSet.SymbolForHeight(height)
 			if height > 8 {
 				height -= 8
 			} else {
@@ -246,27 +217,4 @@ func scaleSparklineHeight(value, maxValue uint64, maxHeight int) uint64 {
 		return maxTicks
 	}
 	return ticks
-}
-
-func (s SparklineBarSet) symbolForHeight(height uint64) string {
-	switch height {
-	case 0:
-		return s.Empty
-	case 1:
-		return s.OneEighth
-	case 2:
-		return s.OneQuarter
-	case 3:
-		return s.ThreeEighths
-	case 4:
-		return s.Half
-	case 5:
-		return s.FiveEighths
-	case 6:
-		return s.ThreeQuarters
-	case 7:
-		return s.SevenEighths
-	default:
-		return s.Full
-	}
 }

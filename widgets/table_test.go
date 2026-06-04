@@ -593,9 +593,9 @@ func TestTable_default(t *testing.T) {
 
 func TestTable_collectRows(t *testing.T) {
 	rows := make([]widgets.TableRow, 0, 4)
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		cells := make([]string, 0, 4)
-		for j := 0; j < 4; j++ {
+		for j := range 4 {
 			cells = append(cells, fmt.Sprintf("%d*%d = %d", i, j, i*j))
 		}
 		rows = append(rows, widgets.TableRowFromStrings(cells))

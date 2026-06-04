@@ -6,6 +6,7 @@ import (
 	"gatui/buffer"
 	"gatui/layout"
 	"gatui/style"
+	"gatui/symbols"
 	"gatui/text"
 )
 
@@ -23,138 +24,21 @@ type Block struct {
 	shadow        *Shadow
 }
 
-type BorderSet struct {
-	TopLeft          string
-	TopRight         string
-	BottomLeft       string
-	BottomRight      string
-	VerticalLeft     string
-	VerticalRight    string
-	HorizontalTop    string
-	HorizontalBottom string
-}
+type BorderSet = symbols.BorderSet
 
 var (
-	PlainBorderSet = BorderSet{
-		TopLeft:          "┌",
-		TopRight:         "┐",
-		BottomLeft:       "└",
-		BottomRight:      "┘",
-		VerticalLeft:     "│",
-		VerticalRight:    "│",
-		HorizontalTop:    "─",
-		HorizontalBottom: "─",
-	}
-	RoundedBorderSet = BorderSet{
-		TopLeft:          "╭",
-		TopRight:         "╮",
-		BottomLeft:       "╰",
-		BottomRight:      "╯",
-		VerticalLeft:     "│",
-		VerticalRight:    "│",
-		HorizontalTop:    "─",
-		HorizontalBottom: "─",
-	}
-	DoubleBorderSet = BorderSet{
-		TopLeft:          "╔",
-		TopRight:         "╗",
-		BottomLeft:       "╚",
-		BottomRight:      "╝",
-		VerticalLeft:     "║",
-		VerticalRight:    "║",
-		HorizontalTop:    "═",
-		HorizontalBottom: "═",
-	}
-	SolidBorderSet = BorderSet{
-		TopLeft:          "┏",
-		TopRight:         "┓",
-		BottomLeft:       "┗",
-		BottomRight:      "┛",
-		VerticalLeft:     "┃",
-		VerticalRight:    "┃",
-		HorizontalTop:    "━",
-		HorizontalBottom: "━",
-	}
-	LightDoubleDashedBorderSet = BorderSet{
-		TopLeft:          "┌",
-		TopRight:         "┐",
-		BottomLeft:       "└",
-		BottomRight:      "┘",
-		VerticalLeft:     "╎",
-		VerticalRight:    "╎",
-		HorizontalTop:    "╌",
-		HorizontalBottom: "╌",
-	}
-	HeavyDoubleDashedBorderSet = BorderSet{
-		TopLeft:          "┏",
-		TopRight:         "┓",
-		BottomLeft:       "┗",
-		BottomRight:      "┛",
-		VerticalLeft:     "╏",
-		VerticalRight:    "╏",
-		HorizontalTop:    "╍",
-		HorizontalBottom: "╍",
-	}
-	LightTripleDashedBorderSet = BorderSet{
-		TopLeft:          "┌",
-		TopRight:         "┐",
-		BottomLeft:       "└",
-		BottomRight:      "┘",
-		VerticalLeft:     "┆",
-		VerticalRight:    "┆",
-		HorizontalTop:    "┄",
-		HorizontalBottom: "┄",
-	}
-	HeavyTripleDashedBorderSet = BorderSet{
-		TopLeft:          "┏",
-		TopRight:         "┓",
-		BottomLeft:       "┗",
-		BottomRight:      "┛",
-		VerticalLeft:     "┇",
-		VerticalRight:    "┇",
-		HorizontalTop:    "┅",
-		HorizontalBottom: "┅",
-	}
-	LightQuadrupleDashedBorderSet = BorderSet{
-		TopLeft:          "┌",
-		TopRight:         "┐",
-		BottomLeft:       "└",
-		BottomRight:      "┘",
-		VerticalLeft:     "┊",
-		VerticalRight:    "┊",
-		HorizontalTop:    "┈",
-		HorizontalBottom: "┈",
-	}
-	HeavyQuadrupleDashedBorderSet = BorderSet{
-		TopLeft:          "┏",
-		TopRight:         "┓",
-		BottomLeft:       "┗",
-		BottomRight:      "┛",
-		VerticalLeft:     "┋",
-		VerticalRight:    "┋",
-		HorizontalTop:    "┉",
-		HorizontalBottom: "┉",
-	}
-	QuadrantInsideBorderSet = BorderSet{
-		TopLeft:          "▗",
-		TopRight:         "▖",
-		BottomLeft:       "▝",
-		BottomRight:      "▘",
-		VerticalLeft:     "▐",
-		VerticalRight:    "▌",
-		HorizontalTop:    "▄",
-		HorizontalBottom: "▀",
-	}
-	QuadrantOutsideBorderSet = BorderSet{
-		TopLeft:          "▛",
-		TopRight:         "▜",
-		BottomLeft:       "▙",
-		BottomRight:      "▟",
-		VerticalLeft:     "▌",
-		VerticalRight:    "▐",
-		HorizontalTop:    "▀",
-		HorizontalBottom: "▄",
-	}
+	PlainBorderSet                = symbols.PlainBorderSet
+	RoundedBorderSet              = symbols.RoundedBorderSet
+	DoubleBorderSet               = symbols.DoubleBorderSet
+	SolidBorderSet                = symbols.SolidBorderSet
+	LightDoubleDashedBorderSet    = symbols.LightDoubleDashedBorderSet
+	HeavyDoubleDashedBorderSet    = symbols.HeavyDoubleDashedBorderSet
+	LightTripleDashedBorderSet    = symbols.LightTripleDashedBorderSet
+	HeavyTripleDashedBorderSet    = symbols.HeavyTripleDashedBorderSet
+	LightQuadrupleDashedBorderSet = symbols.LightQuadrupleDashedBorderSet
+	HeavyQuadrupleDashedBorderSet = symbols.HeavyQuadrupleDashedBorderSet
+	QuadrantInsideBorderSet       = symbols.QuadrantInsideBorderSet
+	QuadrantOutsideBorderSet      = symbols.QuadrantOutsideBorderSet
 )
 
 type BorderType uint8

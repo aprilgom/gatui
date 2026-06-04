@@ -4,6 +4,7 @@ import (
 	"gatui/buffer"
 	"gatui/layout"
 	"gatui/style"
+	"gatui/symbols"
 )
 
 type ScrollbarOrientation int
@@ -121,17 +122,16 @@ type Scrollbar struct {
 }
 
 func NewScrollbar(orientation ScrollbarOrientation) Scrollbar {
-	track := "═"
-	begin := "◄"
-	end := "►"
+	symbolSet := symbols.HorizontalScrollbarSet
 	if orientation.isVertical() {
-		track = "║"
-		begin = "▲"
-		end = "▼"
+		symbolSet = symbols.VerticalScrollbarSet
 	}
+	track := symbolSet.Track
+	begin := symbolSet.Begin
+	end := symbolSet.End
 	return Scrollbar{
 		orientation: orientation,
-		thumbSymbol: "█",
+		thumbSymbol: symbolSet.Thumb,
 		trackSymbol: &track,
 		beginSymbol: &begin,
 		endSymbol:   &end,

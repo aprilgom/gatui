@@ -3,11 +3,11 @@ package widgets
 import (
 	"math"
 	"strconv"
-	"strings"
 
 	"gatui/buffer"
 	"gatui/layout"
 	"gatui/style"
+	"gatui/symbols"
 	"gatui/text"
 )
 
@@ -25,40 +25,21 @@ type CanvasShape interface {
 	Draw(*CanvasPainter)
 }
 
-type CanvasMarker string
+type CanvasMarker = symbols.CanvasMarker
 
 const (
-	CanvasMarkerDot       CanvasMarker = "dot"
-	CanvasMarkerBlock     CanvasMarker = "block"
-	CanvasMarkerBar       CanvasMarker = "bar"
-	CanvasMarkerBraille   CanvasMarker = "braille"
-	CanvasMarkerHalfBlock CanvasMarker = "half_block"
-	CanvasMarkerQuadrant  CanvasMarker = "quadrant"
-	CanvasMarkerSextant   CanvasMarker = "sextant"
-	CanvasMarkerOctant    CanvasMarker = "octant"
+	CanvasMarkerDot       = symbols.CanvasMarkerDot
+	CanvasMarkerBlock     = symbols.CanvasMarkerBlock
+	CanvasMarkerBar       = symbols.CanvasMarkerBar
+	CanvasMarkerBraille   = symbols.CanvasMarkerBraille
+	CanvasMarkerHalfBlock = symbols.CanvasMarkerHalfBlock
+	CanvasMarkerQuadrant  = symbols.CanvasMarkerQuadrant
+	CanvasMarkerSextant   = symbols.CanvasMarkerSextant
+	CanvasMarkerOctant    = symbols.CanvasMarkerOctant
 )
 
 func CanvasMarkerCustom(symbol string) CanvasMarker {
-	runes := []rune(symbol)
-	if len(runes) == 0 {
-		return CanvasMarker("custom: ")
-	}
-	return CanvasMarker("custom:" + string(runes[0]))
-}
-
-func (m CanvasMarker) kind() CanvasMarker {
-	if strings.HasPrefix(string(m), "custom:") {
-		return "custom"
-	}
-	return m
-}
-
-func (m CanvasMarker) customSymbol() string {
-	symbol, ok := strings.CutPrefix(string(m), "custom:")
-	if !ok || symbol == "" {
-		return " "
-	}
-	return symbol
+	return symbols.CanvasMarkerCustom(symbol)
 }
 
 type CanvasContext struct {
@@ -375,9 +356,9 @@ func (p *CanvasPainter) Paint(x, y int, color style.Color) {
 	if p == nil || x < 0 || y < 0 {
 		return
 	}
-	switch p.marker.kind() {
+	switch p.marker.Kind() {
 	case CanvasMarkerBraille, CanvasMarkerQuadrant, CanvasMarkerSextant, CanvasMarkerOctant:
-		cellW, cellH := p.marker.cellResolution()
+		cellW, cellH := p.marker.CellResolution()
 		cellX, cellY := x/cellW, y/cellH
 		if cellX >= p.width || cellY >= p.height {
 			return
@@ -411,23 +392,8 @@ func (p *CanvasPainter) Paint(x, y int, color style.Color) {
 }
 
 func (p *CanvasPainter) resolution() (int, int) {
-	cellW, cellH := p.marker.cellResolution()
+	cellW, cellH := p.marker.CellResolution()
 	return p.width * cellW, p.height * cellH
-}
-
-func (m CanvasMarker) cellResolution() (int, int) {
-	switch m.kind() {
-	case CanvasMarkerBraille, CanvasMarkerOctant:
-		return 2, 4
-	case CanvasMarkerHalfBlock:
-		return 1, 2
-	case CanvasMarkerQuadrant:
-		return 2, 2
-	case CanvasMarkerSextant:
-		return 2, 3
-	default:
-		return 1, 1
-	}
 }
 
 func (p *CanvasPainter) drawLine(x1, y1, x2, y2 int, color style.Color) {
@@ -561,7 +527,7 @@ func (c Canvas) renderShapes(area layout.Rect, buf *buffer.Buffer, painter *Canv
 			if !ok {
 				continue
 			}
-			symbol, patch, ok := c.marker.renderPixel(pixel)
+			symbol, patch, ok := renderCanvasMarkerPixel(c.marker, pixel)
 			if !ok {
 				continue
 			}
@@ -572,41 +538,30 @@ func (c Canvas) renderShapes(area layout.Rect, buf *buffer.Buffer, painter *Canv
 	}
 }
 
-func (m CanvasMarker) renderPixel(pixel canvasPixel) (string, style.Style, bool) {
+func renderCanvasMarkerPixel(marker CanvasMarker, pixel canvasPixel) (string, style.Style, bool) {
 	if !pixel.painted {
 		return "", style.NewStyle(), false
 	}
-	switch m.kind() {
+	switch marker.Kind() {
 	case CanvasMarkerBlock:
 		return "█", style.NewStyle().Fg(pixel.color).Bg(pixel.color), true
 	case CanvasMarkerBar:
 		return "▄", style.NewStyle().Fg(pixel.color), true
 	case "custom":
-		return m.customSymbol(), style.NewStyle().Fg(pixel.color), true
+		return marker.CustomSymbol(), style.NewStyle().Fg(pixel.color), true
 	case CanvasMarkerBraille:
-		return string(brailleSymbol(pixel.pattern)), style.NewStyle().Fg(pixel.color), pixel.pattern != 0
+		return string(symbols.BrailleSymbol(pixel.pattern)), style.NewStyle().Fg(pixel.color), pixel.pattern != 0
 	case CanvasMarkerHalfBlock:
 		return halfBlockSymbol(pixel)
 	case CanvasMarkerQuadrant:
-		return string(quadrantSymbols[pixel.pattern]), style.NewStyle().Fg(pixel.color), pixel.pattern != 0
+		return string(symbols.QuadrantSymbol(pixel.pattern)), style.NewStyle().Fg(pixel.color), pixel.pattern != 0
 	case CanvasMarkerSextant:
-		return sextantSymbol(pixel.pattern), style.NewStyle().Fg(pixel.color), pixel.pattern != 0
+		return symbols.SextantSymbol(pixel.pattern), style.NewStyle().Fg(pixel.color), pixel.pattern != 0
 	case CanvasMarkerOctant:
-		return octantSymbol(pixel.pattern), style.NewStyle().Fg(pixel.color), pixel.pattern != 0
+		return symbols.OctantSymbol(pixel.pattern), style.NewStyle().Fg(pixel.color), pixel.pattern != 0
 	default:
 		return "•", style.NewStyle().Fg(pixel.color), true
 	}
-}
-
-func brailleSymbol(pattern uint8) rune {
-	masks := [8]rune{0x01, 0x08, 0x02, 0x10, 0x04, 0x20, 0x40, 0x80}
-	code := rune(0x2800)
-	for i, mask := range masks {
-		if pattern&(1<<uint(i)) != 0 {
-			code += mask
-		}
-	}
-	return code
 }
 
 func halfBlockSymbol(pixel canvasPixel) (string, style.Style, bool) {
@@ -622,60 +577,6 @@ func halfBlockSymbol(pixel canvasPixel) (string, style.Style, bool) {
 	default:
 		return "▀", style.NewStyle().Fg(*pixel.upper).Bg(*pixel.lower), true
 	}
-}
-
-var quadrantSymbols = [16]rune{' ', '▘', '▝', '▀', '▖', '▌', '▞', '▛', '▗', '▚', '▐', '▜', '▄', '▙', '▟', '█'}
-
-func sextantSymbol(pattern uint8) string {
-	symbols := [64]string{
-		" ", "🬀", "🬁", "🬂", "🬃", "🬄", "🬅", "🬆",
-		"🬇", "🬈", "🬉", "🬊", "🬋", "🬌", "🬍", "🬎",
-		"🬏", "🬐", "🬑", "🬒", "🬓", "▌", "🬔", "🬕",
-		"🬖", "🬗", "🬘", "🬙", "🬚", "🬛", "🬜", "🬝",
-		"🬞", "🬟", "🬠", "🬡", "🬢", "🬣", "🬤", "🬥",
-		"🬦", "🬧", "▐", "🬨", "🬩", "🬪", "🬫", "🬬",
-		"🬭", "🬮", "🬯", "🬰", "🬱", "🬲", "🬳", "🬴",
-		"🬵", "🬶", "🬷", "🬸", "🬹", "🬺", "🬻", "█",
-	}
-	return symbols[pattern]
-}
-
-func octantSymbol(pattern uint8) string {
-	symbols := [256]string{
-		" ", "𜺨", "𜺫", "🮂", "𜴀", "▘", "𜴁", "𜴂",
-		"𜴃", "𜴄", "▝", "𜴅", "𜴆", "𜴇", "𜴈", "▀",
-		"𜴉", "𜴊", "𜴋", "𜴌", "🯦", "𜴍", "𜴎", "𜴏",
-		"𜴐", "𜴑", "𜴒", "𜴓", "𜴔", "𜴕", "𜴖", "𜴗",
-		"𜴘", "𜴙", "𜴚", "𜴛", "𜴜", "𜴝", "𜴞", "𜴟",
-		"🯧", "𜴠", "𜴡", "𜴢", "𜴣", "𜴤", "𜴥", "𜴦",
-		"𜴧", "𜴨", "𜴩", "𜴪", "𜴫", "𜴬", "𜴭", "𜴮",
-		"𜴯", "𜴰", "𜴱", "𜴲", "𜴳", "𜴴", "𜴵", "🮅",
-		"𜺣", "𜴶", "𜴷", "𜴸", "𜴹", "𜴺", "𜴻", "𜴼",
-		"𜴽", "𜴾", "𜴿", "𜵀", "𜵁", "𜵂", "𜵃", "𜵄",
-		"▖", "𜵅", "𜵆", "𜵇", "𜵈", "▌", "𜵉", "𜵊",
-		"𜵋", "𜵌", "▞", "𜵍", "𜵎", "𜵏", "𜵐", "▛",
-		"𜵑", "𜵒", "𜵓", "𜵔", "𜵕", "𜵖", "𜵗", "𜵘",
-		"𜵙", "𜵚", "𜵛", "𜵜", "𜵝", "𜵞", "𜵟", "𜵠",
-		"𜵡", "𜵢", "𜵣", "𜵤", "𜵥", "𜵦", "𜵧", "𜵨",
-		"𜵩", "𜵪", "𜵫", "𜵬", "𜵭", "𜵮", "𜵯", "𜵰",
-		"𜺠", "𜵱", "𜵲", "𜵳", "𜵴", "𜵵", "𜵶", "𜵷",
-		"𜵸", "𜵹", "𜵺", "𜵻", "𜵼", "𜵽", "𜵾", "𜵿",
-		"𜶀", "𜶁", "𜶂", "𜶃", "𜶄", "𜶅", "𜶆", "𜶇",
-		"𜶈", "𜶉", "𜶊", "𜶋", "𜶌", "𜶍", "𜶎", "𜶏",
-		"▗", "𜶐", "𜶑", "𜶒", "𜶓", "▚", "𜶔", "𜶕",
-		"𜶖", "𜶗", "▐", "𜶘", "𜶙", "𜶚", "𜶛", "▜",
-		"𜶜", "𜶝", "𜶞", "𜶟", "𜶠", "𜶡", "𜶢", "𜶣",
-		"𜶤", "𜶥", "𜶦", "𜶧", "𜶨", "𜶩", "𜶪", "𜶫",
-		"▂", "𜶬", "𜶭", "𜶮", "𜶯", "𜶰", "𜶱", "𜶲",
-		"𜶳", "𜶴", "𜶵", "𜶶", "𜶷", "𜶸", "𜶹", "𜶺",
-		"𜶻", "𜶼", "𜶽", "𜶾", "𜶿", "𜷀", "𜷁", "𜷂",
-		"𜷃", "𜷄", "𜷅", "𜷆", "𜷇", "𜷈", "𜷉", "𜷊",
-		"𜷋", "𜷌", "𜷍", "𜷎", "𜷏", "𜷐", "𜷑", "𜷒",
-		"𜷓", "𜷔", "𜷕", "𜷖", "𜷗", "𜷘", "𜷙", "𜷚",
-		"▄", "𜷛", "𜷜", "𜷝", "𜷞", "▙", "𜷟", "𜷠",
-		"𜷡", "𜷢", "▟", "𜷣", "▆", "𜷤", "𜷥", "█",
-	}
-	return symbols[pattern]
 }
 
 func (c Canvas) renderLabel(area layout.Rect, buf *buffer.Buffer, label CanvasLabel) {

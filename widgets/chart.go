@@ -729,7 +729,7 @@ func (c Chart) renderDatasetPainter(buf *buffer.Buffer, area layout.Rect, painte
 			if !ok || (cell.Symbol != " " && !isChartDatasetSymbol(cell.Symbol)) {
 				continue
 			}
-			symbol, patch, ok := marker.renderPixel(pixel)
+			symbol, patch, ok := renderCanvasMarkerPixel(marker, pixel)
 			if !ok {
 				continue
 			}

@@ -6,6 +6,7 @@ import (
 	"gatui/buffer"
 	"gatui/layout"
 	"gatui/style"
+	"gatui/symbols"
 	"gatui/terminal"
 	"gatui/terminal/testbackend"
 	"gatui/text"
@@ -55,6 +56,16 @@ func TestPublicAPISurface_shouldExposeInitialRatatuiPortTypes(t *testing.T) {
 	buf.SetFg(area, style.Cyan)
 	buf.SetBg(area, style.Black)
 	buf.SetModifier(area, style.ModifierBold)
+	_ = symbols.PlainBorderSet
+	_ = symbols.NineLevelBarSet
+	_ = symbols.NineLevelSparklineBarSet()
+	_ = symbols.CanvasMarkerBraille
+	_ = symbols.HorizontalScrollbarSet
+	_ = symbols.MergeBorderSymbols(symbols.MergeStrategyExact, "│", "─")
+	_ = widgets.BorderSet(symbols.PlainBorderSet)
+	_ = widgets.NineLevelBarSet
+	_ = widgets.ThreeLevelSparklineBarSet()
+	_ = widgets.CanvasMarkerBraille
 	_ = widgets.NewParagraph(text.FromString("body")).
 		Block(block).
 		Alignment(layout.Right).

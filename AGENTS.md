@@ -8,6 +8,7 @@
 - `buffer`: cell grid used by widgets before backend flush. See `buffer/cell.go`, `buffer/buffer.go`, and `buffer/diff.go`.
 - `style`: colors, modifiers, and chainable style helpers. See `style/color.go`, `style/modifier.go`, and `style/style.go`.
 - `text`: styled graphemes, spans, lines, and multi-line text. See `text/grapheme.go`, `text/span.go`, `text/line.go`, and `text/text.go`.
+- `symbols`: reusable terminal symbol sets and glyph helpers. See `symbols/border.go`, `symbols/bar.go`, `symbols/sparkline.go`, `symbols/canvas.go`, and `symbols/scrollbar.go`.
 - `widgets`: renderable UI components such as `Paragraph`, `Block`, `Gauge`, `Tabs`, and `Clear`. See widget-specific files under `widgets/`.
 
 ## Setup
@@ -39,6 +40,7 @@ flowchart TD
     layout[layout<br/>rect/constraint/layout]
     style[style<br/>color/modifier/style]
     text[text<br/>grapheme/span/line/text/render]
+    symbols[symbols<br/>border/bar/canvas/scrollbar]
     widgets[widgets<br/>component files]
     buffer[buffer<br/>cell/buffer/diff]
     tests[layout/rect_test.go]
@@ -48,6 +50,7 @@ flowchart TD
     style --> buffer
     layout --> buffer
     layout --> widgets
+    symbols --> widgets
     text --> widgets
     widgets --> buffer
     tests --> layout
@@ -63,7 +66,7 @@ See `ARCHITECTURE.md` for the dependency graph and package ownership.
 
 ## Cross-Module Dependencies
 
-Note: `layout` and `style` are foundational. `buffer` depends on `layout` and `style`. `text` depends on `buffer`, `layout`, and `style` for rendering styled text into buffers. `widgets` depends on `buffer`, `layout`, `style`, and `text`. Backend code belongs under backend packages and must not leak into core packages.
+Note: `layout` and `style` are foundational. `buffer` depends on `layout` and `style`. `text` depends on `buffer`, `layout`, and `style` for rendering styled text into buffers. `symbols` stays independent and provides shared terminal glyph sets. `widgets` depends on `buffer`, `layout`, `style`, `symbols`, and `text`. Backend code belongs under backend packages and must not leak into core packages.
 
 ## Safety Boundaries
 

@@ -7,6 +7,7 @@ import (
 	"gatui/buffer"
 	"gatui/layout"
 	"gatui/style"
+	"gatui/symbols"
 )
 
 type BarData struct {
@@ -91,41 +92,11 @@ func (g BarGroup) LabelAlignment(alignment layout.Alignment) BarGroup {
 	return g
 }
 
-type BarSet struct {
-	Empty         string
-	OneEighth     string
-	OneQuarter    string
-	ThreeEighths  string
-	Half          string
-	FiveEighths   string
-	ThreeQuarters string
-	SevenEighths  string
-	Full          string
-}
+type BarSet = symbols.BarSet
 
-var NineLevelBarSet = BarSet{
-	Empty:         " ",
-	OneEighth:     "▁",
-	OneQuarter:    "▂",
-	ThreeEighths:  "▃",
-	Half:          "▄",
-	FiveEighths:   "▅",
-	ThreeQuarters: "▆",
-	SevenEighths:  "▇",
-	Full:          "█",
-}
+var NineLevelBarSet = symbols.NineLevelBarSet
 
-var ThreeLevelBarSet = BarSet{
-	Empty:         " ",
-	OneEighth:     "▄",
-	OneQuarter:    "▄",
-	ThreeEighths:  "▄",
-	Half:          "▄",
-	FiveEighths:   "█",
-	ThreeQuarters: "█",
-	SevenEighths:  "█",
-	Full:          "█",
-}
+var ThreeLevelBarSet = symbols.ThreeLevelBarSet
 
 type BarChart struct {
 	groups     []BarGroup

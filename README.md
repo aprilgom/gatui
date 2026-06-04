@@ -8,6 +8,7 @@ The project currently focuses on core, backend-independent packages:
 - `style`
 - `text`
 - `buffer`
+- `symbols`
 - `widgets`
 
 The `tcell` backend handles terminal drawing, while input and event polling stay outside core. Applications should read keyboard, mouse, and resize events directly with `tcell` or an equivalent input library.
